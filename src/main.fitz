@@ -1,33 +1,69 @@
 // main.fitz — punto de entrada de MatHelp.
 //
-// Fase F0: cimientos. Shell mobile-first, i18n es-AR/en, marca, footer
-// permanente, assets como rutas y chequeo de Postgres.
+// F1: auth y perfiles. La home ahora es consciente de la sesión, las rutas
+// de juego están protegidas, y los módulos auth/perfiles enganchan sus
+// handlers @get/@post al router vía import (W16).
 // El juego en sí llega en F2 (ver docs/PLAN.md).
 
 from fitz_liveviews import Html, html, flv, html_response
 from config import db_url, app_name, lang_cookie_name, default_locale
 from i18n import t, locale_from_cookie, es_locale_valido, nombre_locale
 from brand import logo_lockup
-from layout import page, responder_html
+from layout import page, responder_html, redirect_a
+from auth import read_session, pid_from_token
+import perfiles
 import assets
 
 // --- Home ----------------------------------------------------------------
 
+// La home decide según la sesión:
+//   - sin sesión válida  → home pública (entrar / crear cuenta)
+//   - sesión sin perfil  → 303 a /perfiles (elegí quién juega)
+//   - sesión con perfil  → home de juego
+@cookie(name="mathelp_session", into="session")
 @cookie(name="mathelp_lang", into="lang")
 @get("/")
-async fn home(lang: Str?) -> Response {
-    // Regla del proyecto: el locale es SIEMPRE la primera línea del handler.
+async fn home(session: Str?, lang: Str?) -> Response {
     let locale = locale_from_cookie(lang)
+    match read_session(session).await {
+        Ok(_) => {
+            if (pid_from_token(session) == "") {
+                return redirect_a("/perfiles")
+            }
+            return home_jugar(locale)
+        }
+        Err(_) => return home_publica(locale).await,
+    }
+}
 
+// Home sin sesión: hero + entrar / crear cuenta + estado de la base.
+async fn home_publica(locale: Str) -> Response {
     let marca = logo_lockup(56, locale).raw
     let tagline = flv(t(locale, "app.tagline"))
-    // OJO: interpolar un Html en un string imprime su representación de
-    // debug (Html { raw: "..." }). Siempre .raw al meterlo en un template.
-    let db_html = estado_db(locale).await
-    let db = db_html.raw
-    let l_jugar = flv(t(locale, "home.empezar"))
-    let l_desafio = flv(t(locale, "home.desafio_dia"))
-    let l_practica = flv(t(locale, "home.practica_libre"))
+    let db = estado_db(locale).await.raw
+
+    let body = html("""<div class="mh-hero">
+{marca}
+<div class="mh-tagline">{tagline}</div>
+</div>
+
+<div class="mh-card">
+<a class="mh-btn" href="/login">{flv(t(locale, "login.submit"))}</a>
+<a class="mh-btn sec" href="/registro">{flv(t(locale, "login.crear_cuenta"))}</a>
+</div>
+
+<div class="mh-card">
+<h2>{flv(t(locale, "estado.titulo"))}</h2>
+{db}
+</div>""")
+
+    return responder_html(page(locale, "MatHelp — " + t(locale, "app.tagline"), body, html("")))
+}
+
+// Home con perfil elegido: los accesos al juego. (El juego real llega en F2.)
+fn home_jugar(locale: Str) -> Response {
+    let marca = logo_lockup(56, locale).raw
+    let tagline = flv(t(locale, "app.tagline"))
 
     let body = html("""<div class="mh-hero">
 {marca}
@@ -36,14 +72,16 @@ async fn home(lang: Str?) -> Response {
 
 <div class="mh-card">
 <h2>{flv(t(locale, "nav.jugar"))}</h2>
-<a class="mh-btn" href="/jugar">{l_jugar}</a>
-<a class="mh-btn sec" href="/desafio">{l_desafio}</a>
-<a class="mh-btn sec" href="/practica">{l_practica}</a>
+<a class="mh-btn" href="/jugar">{flv(t(locale, "home.empezar"))}</a>
+<a class="mh-btn sec" href="/desafio">{flv(t(locale, "home.desafio_dia"))}</a>
+<a class="mh-btn sec" href="/practica">{flv(t(locale, "home.practica_libre"))}</a>
 </div>
 
 <div class="mh-card">
-<h2>{flv(t(locale, "estado.titulo"))}</h2>
-{db}
+<a class="mh-btn sec" href="/perfiles">{flv(t(locale, "perfiles.titulo"))}</a>
+<form method="POST" action="/logout">
+<button class="mh-btn sec" type="submit">{flv(t(locale, "nav.salir"))}</button>
+</form>
 </div>""")
 
     return responder_html(page(locale, "MatHelp — " + t(locale, "app.tagline"), body, html("")))
@@ -93,24 +131,60 @@ fn set_lang(code: Str, referer: Str?) -> Response {
     }
 }
 
-// --- Placeholders de las pantallas que vienen ---------------------------
+// --- Rutas de juego (protegidas: exigen sesión + perfil elegido) ---------
 
+@cookie(name="mathelp_session", into="session")
 @cookie(name="mathelp_lang", into="lang")
 @get("/jugar")
-fn jugar(lang: Str?) -> Response {
-    return proximamente(locale_from_cookie(lang), t(locale_from_cookie(lang), "nav.jugar"), "F2")
+async fn jugar(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    match guard_juego(session).await {
+        Ok(destino) => match destino == "" {
+            true => return proximamente(locale, t(locale, "nav.jugar"), "F2"),
+            false => return redirect_a(destino),
+        },
+        Err(_) => return redirect_a("/login"),
+    }
 }
 
+@cookie(name="mathelp_session", into="session")
 @cookie(name="mathelp_lang", into="lang")
 @get("/desafio")
-fn desafio(lang: Str?) -> Response {
-    return proximamente(locale_from_cookie(lang), t(locale_from_cookie(lang), "home.desafio_dia"), "F3")
+async fn desafio(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    match guard_juego(session).await {
+        Ok(destino) => match destino == "" {
+            true => return proximamente(locale, t(locale, "home.desafio_dia"), "F3"),
+            false => return redirect_a(destino),
+        },
+        Err(_) => return redirect_a("/login"),
+    }
 }
 
+@cookie(name="mathelp_session", into="session")
 @cookie(name="mathelp_lang", into="lang")
 @get("/practica")
-fn practica(lang: Str?) -> Response {
-    return proximamente(locale_from_cookie(lang), t(locale_from_cookie(lang), "home.practica_libre"), "F3")
+async fn practica(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    match guard_juego(session).await {
+        Ok(destino) => match destino == "" {
+            true => return proximamente(locale, t(locale, "home.practica_libre"), "F3"),
+            false => return redirect_a(destino),
+        },
+        Err(_) => return redirect_a("/login"),
+    }
+}
+
+// Guard de las rutas de juego. Devuelve:
+//   Ok("")          → sesión + perfil OK, seguí
+//   Ok("/perfiles") → hay sesión pero falta elegir perfil
+//   Err(...)        → sin sesión (el handler redirige a /login)
+async fn guard_juego(session: Str?) -> Result<Str> {
+    let _ = read_session(session).await?
+    if (pid_from_token(session) == "") {
+        return Ok("/perfiles")
+    }
+    return Ok("")
 }
 
 fn proximamente(locale: Str, titulo: Str, fase: Str) -> Response {

@@ -161,6 +161,55 @@ main \{ flex:1; width:100%; max-width:560px; margin:0 auto; padding:16px 16px 0;
 .mh-footer a \{ color:var(--mh-naranja); text-decoration:none; font-weight:700; \}
 .mh-dot \{ opacity:.5; margin:0 4px; \}
 
+/* --- Formularios (F1: auth y perfiles) --- */
+.mh-field \{ margin:0 0 14px; \}
+.mh-label \{
+  display:block; font-size:.82rem; font-weight:700; color:var(--mh-suave);
+  margin:0 0 6px; letter-spacing:.01em;
+\}
+.mh-input, .mh-select \{
+  width:100%; min-height:var(--mh-tap); padding:12px 14px;
+  font-size:1.05rem; color:var(--mh-tinta);
+  background:var(--mh-fondo); border:2px solid var(--mh-borde);
+  border-radius:12px; appearance:none;
+\}
+.mh-input:focus, .mh-select:focus \{
+  outline:none; border-color:var(--mh-verde-claro);
+  box-shadow:0 0 0 3px var(--mh-verde-suave);
+\}
+.mh-input::placeholder \{ color:var(--mh-suave); opacity:.65; \}
+.mh-hint \{ display:block; font-size:.76rem; color:var(--mh-suave); margin:6px 0 0; \}
+
+.mh-error \{
+  display:flex; align-items:center; gap:8px; margin:0 0 14px; padding:11px 14px;
+  font-size:.9rem; font-weight:600; color:#fff;
+  background:var(--mh-naranja); border-radius:12px;
+\}
+
+.mh-link \{
+  display:inline-block; margin-top:4px; text-align:center; width:100%;
+  color:var(--mh-verde); font-weight:700; font-size:.92rem; text-decoration:none;
+\}
+.mh-link:active \{ opacity:.7; \}
+
+/* Grilla de perfiles: botones grandes, pulgar-friendly. */
+.mh-profiles \{ display:grid; grid-template-columns:1fr 1fr; gap:12px; \}
+.mh-profile \{
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  min-height:120px; justify-content:center; padding:16px 10px;
+  background:var(--mh-panel); border:2px solid var(--mh-borde);
+  border-radius:var(--mh-radio); color:var(--mh-tinta); text-decoration:none;
+  font-weight:800; cursor:pointer; transition:transform .06s ease;
+\}
+.mh-profile:active \{ transform:scale(.97); \}
+.mh-profile .mh-av \{
+  width:52px; height:52px; border-radius:999px; display:grid; place-items:center;
+  background:var(--mh-verde-suave); color:var(--mh-verde); font-size:1.5rem;
+\}
+.mh-profile .mh-pgrado \{ font-size:.74rem; font-weight:700; color:var(--mh-suave); \}
+.mh-profile.add \{ border-style:dashed; color:var(--mh-verde); \}
+.mh-profile.add .mh-av \{ background:transparent; border:2px dashed var(--mh-borde); \}
+
 @media (prefers-reduced-motion:reduce) \{ * \{ transition:none !important; \} \}
 """
 }

@@ -8,7 +8,7 @@
 
 ## 📍 Estado — actualizado 21/08/2026
 
-**Fase actual: F0 — Cimientos. Andando, verificado y migrado a Fitz nativo.**
+**Fase actual: F1 — Identidad. Cerrada y verificada end-to-end. F0 cerrada.**
 
 > **Migración a nativo (fitz v0.55 + liveviews v0.50):** los módulos-workaround de
 > F0 (`rng`, `fmt`, `cookies`) se borraron y ahora se usan `rand`/`num`/`@cookie`
@@ -18,6 +18,17 @@
 > distroless en Docker) — el bug de codegen `T?` (FITZ-09) que lo bloqueaba está
 > cerrado, junto con cookies cross-module (v0.54) y `Map<Str,Any>.keys()` (v0.55),
 > todos encontrados por este dogfooding. Ver `CLAUDE.md` §"Migrado a nativo".
+
+> **F1 — Identidad (cerrada 21/08/2026):** registro/login de familia con
+> Argon2id (`hash.password`/`hash.verify`), sesión stateless con JWT en cookie
+> `HttpOnly`, alta y selección de perfiles (con PIN opcional, comparado
+> server-side), rutas de juego protegidas (redirect a `/login` sin sesión).
+> Todo con `<form method="POST">` **nativo, sin una línea de JavaScript**.
+> Verificado E2E con `curl` (login, cookie `HttpOnly`, redirect sin sesión,
+> PIN, logout, i18n es-AR/en) y con **paridad bit-a-bit `fitz run` ↔ binario
+> nativo** (`fitz build` v0.56). Dos hallazgos nuevos de la clase check✓/build✗
+> (`FITZ-15`/`FITZ-16`, coerción/inferencia en `match`) anotados en el core con
+> repro y workaround aislado en la app.
 
 ### ✅ Hecho
 
@@ -36,15 +47,21 @@
 | Esquema de base completo | `migrations/0001_init.sql` | 7 tablas con FK, índices y CHECK |
 | Docker (app + Postgres) | `Dockerfile`, `docker-compose.yml` | Pendiente de correr en tu máquina |
 | Scripts de Windows | `start.bat`, `stop.bat`, `logs.bat`, `reset.bat` | Pendiente de correr en tu máquina |
+| **F1** · Modelos de auth (`@table Family` + `Profile`) | `src/models.fitz` | `fitz check` + queries reales contra Postgres |
+| **F1** · Registro/login de familia (Argon2id + JWT + cookie `HttpOnly`) | `src/auth.fitz` | `curl` E2E + paridad `run`↔binario |
+| **F1** · Alta y selección de perfiles (con PIN server-side) | `src/perfiles.fitz` | `curl` E2E (alta, elegir, PIN malo/bueno) |
+| **F1** · Rutas de juego protegidas + home según sesión | `src/main.fitz` | `curl` E2E (redirect a `/login` sin sesión) |
+| **F1** · 24 claves i18n nuevas (registro/perfiles/PIN) es-AR/en | `locales/*.json`, `src/cat_*.fitz` | `gen_i18n.py` sin faltantes + `lang=en` E2E |
 
-**33 tests en verde** contra `fitz 0.47.0` compilado desde tu repo.
+**F0: 33 tests en verde** contra `fitz 0.47.0`. **F1: verificado E2E con `curl`**
+(login, cookie `HttpOnly`, redirect sin sesión, PIN, logout, i18n) y **paridad
+bit-a-bit `fitz run` ↔ binario nativo** contra `fitz 0.56.0`.
 
 ### 🔜 Lo que sigue
 
 | Fase | Qué falta | Bloqueado por |
 |---|---|---|
-| **F1** | `src/models.fitz` con los `@table`, registro y login de familia (form nativo, sin JS), alta de perfiles, selección con PIN | — |
-| **F2** | Generadores de las 4 operaciones, motor de ronda, `Quiz.fitzv`, cronómetro por WS, persistencia de la partida | — |
+| **F2** ← acá vamos | Generadores de las 4 operaciones, motor de ronda, `Quiz.fitzv`, cronómetro por WS, persistencia de la partida. Sumar `@table GameSession` + `Attempt` a `models.fitz` | — |
 | **F3** | `mastery` + Elo-lite, repaso espaciado, racha diaria, mate-progreso, práctica libre, desafío del día | F2 |
 | **F4** | V/F, completá el hueco, teclado numérico propio, escalera de tablas, el kiosco, fracciones visuales | F2 |
 | **F5** | Panel del padre con reportes | F3 |
@@ -65,7 +82,9 @@ Los tres son de la misma familia: **cosas que andan interpretadas y explotan com
 
 ### ⚠️ Deuda anotada
 
-- **Sin auth todavía**: cualquiera que abra la URL entra. Se cierra en F1.
+- ~~**Sin auth todavía**~~ **CERRADO en F1**: sesión JWT + cookie `HttpOnly`, rutas de juego protegidas con redirect a `/login`.
+- **`secure: false` en la cookie de sesión**: MatHelp corre en la red de casa sin HTTPS (con `secure:true` el browser no manda la cookie sobre http). Activar `secure` detrás de un proxy TLS antes de exponerlo — junto con `JWT_SECRET` real.
+- **El esquema sigue creándolo el SQL init**, no `fitz db migrate`: `models.fitz` modela solo `Family` + `Profile` (lo que usa F1). El paso a `fitz db diff/migrate` se hace cuando F2 sume el resto de los `@table`.
 - **`JWT_SECRET` con valor por defecto** en `.env.example`. Cambiarlo antes de exponerlo fuera de la red de casa.
 - **El esquema lo crea Postgres al primer arranque** (`docker-entrypoint-initdb.d`), no `fitz db migrate`. Desde F1 pasa a migraciones de verdad.
 - **`fitz_liveviews` pineado a `v0.47.0`** por git. Si trabajás con el repo al lado, cambiá la línea en `fitz.toml` por `path`.
@@ -504,8 +523,8 @@ mathelp/
 
 | Fase | Qué entrega | Verificable con |
 |---|---|---|
-| **F0 — Cimientos** | Proyecto + compose levantando, Postgres, migraciones, shell mobile-first, i18n es-AR/en con selector, logo + footer, `/favicon.svg` + manifest | `docker compose up` → pantalla MatHelp responsive, cambio de idioma OK |
-| **F1 — Identidad** | Registro/login de familia (Argon2id + JWT + cookie), alta de perfiles, selección de perfil con PIN | Login end-to-end, cookie `HttpOnly` seteada, redirect a `/login` sin sesión |
+| **F0 — Cimientos** ✅ | Proyecto + compose levantando, Postgres, migraciones, shell mobile-first, i18n es-AR/en con selector, logo + footer, `/favicon.svg` + manifest | `docker compose up` → pantalla MatHelp responsive, cambio de idioma OK |
+| **F1 — Identidad** ✅ | Registro/login de familia (Argon2id + JWT + cookie), alta de perfiles, selección de perfil con PIN | Login end-to-end ✓, cookie `HttpOnly` seteada ✓, redirect a `/login` sin sesión ✓, paridad `run`↔binario ✓ |
 | **F2 — Primer juego** | `rng.fitz` + generadores de las 4 operaciones + `Quiz.fitzv` contrarreloj + cronómetro por WS + persistencia de sesión | **Tu hija juega.** Tests del PRNG (distribución) y de los generadores |
 | **F3 — Que aprenda** | `mastery` + Elo-lite + repaso espaciado + racha diaria + práctica libre + desafío del día + mate-progreso | Simulación de 500 respuestas: el rating converge y la dificultad sigue |
 | **F4 — Más juegos** | V/F, completá el hueco, numpad propio, escalera de tablas, el kiosco, fracciones visuales | 6 modos jugables en celu |

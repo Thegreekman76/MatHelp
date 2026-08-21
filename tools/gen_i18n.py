@@ -21,6 +21,15 @@ import json
 import pathlib
 import sys
 
+# En Windows la consola es cp1252 por defecto y los ✓/✗ de los mensajes la
+# rompen (UnicodeEncodeError). Forzamos UTF-8 en la salida — no afecta los
+# .fitz generados, que ya se escriben con encoding="utf-8" explícito.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 LOCALES = RAIZ / "locales"
 SRC = RAIZ / "src"

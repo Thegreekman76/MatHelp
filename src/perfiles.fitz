@@ -1,0 +1,311 @@
+// perfiles.fitz — alta y selección de perfiles (hijos/as).
+//
+// Todo acá es zona protegida: la primera línea de cada handler resuelve la
+// sesión con read_session(); si falla, 303 a /login. El perfil elegido se
+// guarda en el JWT (`pid`), no en otra cookie — una sola fuente de verdad.
+//
+// **Selección con PIN.** Un perfil sin PIN entra con un click (POST
+// /perfiles/elegir). Uno con PIN va primero a /perfiles/pin/{id} y valida
+// los 4 dígitos antes de activar. El PIN es @hidden: nunca viaja al cliente,
+// se compara server-side.
+
+from fitz_liveviews import Html, html, flv, h_join
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session, mint_session, redirect_con_sesion
+from models import Profile, Family
+
+// --- DB ------------------------------------------------------------------
+
+async fn perfiles_de(family_id: Int) -> Result<List<Profile>> {
+    let conn = db.connect(db_url()).await?
+    return Profile.where(fn(p) => p.family_id == family_id).all(conn).await
+}
+
+// Busca un perfil validando que sea de ESTA familia (no del perfil de otra
+// cuenta): el family_id en la query es la defensa.
+async fn perfil_de_familia(family_id: Int, pid: Int) -> Result<Profile> {
+    let conn = db.connect(db_url()).await?
+    return Profile.where(fn(p) => p.id == pid and p.family_id == family_id).first(conn).await
+}
+
+async fn crear_perfil(family_id: Int, nombre: Str, grado: Int, pin: Str, locale: Str) -> Result<Profile> {
+    let conn = db.connect(db_url()).await?
+    return Profile.insert(conn, Profile {
+        id: 0,
+        family_id: family_id,
+        name: nombre,
+        avatar: "mate",
+        birth_year: 0,
+        grade: grado,
+        locale: locale,
+        pin: pin,
+        daily_goal: 10,
+        created_at: "",
+    }).await
+}
+
+// --- Render --------------------------------------------------------------
+
+fn label_grado(locale: Str, grade: Int) -> Str {
+    if (grade < 1 or grade > 7) {
+        return ""
+    }
+    return t(locale, "grado.{grade}")
+}
+
+// Una tarjeta por perfil. Con PIN → link al form de PIN; sin PIN → form que
+// entra directo. El avatar es un emoji por ahora (los SVG llegan después).
+fn tarjeta_perfil(locale: Str, p: Profile) -> Html {
+    let nombre = flv(p.name)
+    let grado = flv(label_grado(locale, p.grade))
+    let pid = "{p.id}"
+
+    if (p.pin != "") {
+        return html("""<a class="mh-profile" href="/perfiles/pin/{pid}">
+<span class="mh-av">🔒</span>
+<span>{nombre}</span>
+<span class="mh-pgrado">{grado}</span>
+</a>""")
+    }
+    return html("""<form method="POST" action="/perfiles/elegir">
+<input type="hidden" name="pid" value="{pid}" />
+<button type="submit" class="mh-profile">
+<span class="mh-av">🧉</span>
+<span>{nombre}</span>
+<span class="mh-pgrado">{grado}</span>
+</button>
+</form>""")
+}
+
+fn render_perfiles(locale: Str, perfiles: List<Profile>) -> Html {
+    let tarjetas = h_join(perfiles.map(fn(p) => tarjeta_perfil(locale, p)))
+    let nueva = html("""<a class="mh-profile add" href="/perfiles/nuevo">
+<span class="mh-av">+</span>
+<span>{flv(t(locale, "perfiles.nuevo"))}</span>
+</a>""").raw
+    let vacio = match perfiles.len() == 0 {
+        true => html("""<p style="color:var(--mh-suave);text-align:center;margin:0 0 12px">{flv(t(locale, "home.sin_perfiles"))}</p>""").raw,
+        false => "",
+    }
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "perfiles.titulo"))}</h2>
+{vacio}
+<div class="mh-profiles">
+{tarjetas}
+{nueva}
+</div>
+</div>
+
+<form method="POST" action="/logout">
+<button class="mh-btn sec" type="submit">{flv(t(locale, "nav.salir"))}</button>
+</form>""")
+}
+
+fn form_nuevo(locale: Str, nombre: Str, error_key: Str) -> Html {
+    let err = match error_key == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, error_key))}</div>""").raw,
+    }
+    let nombre_esc = flv(nombre)
+    let nombre_ph = flv(t(locale, "perfiles.nombre_ph"))
+    let opciones = opciones_grado(locale)
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "perfiles.nuevo"))}</h2>
+{err}
+<form method="POST" action="/perfiles/nuevo">
+<div class="mh-field">
+<label class="mh-label" for="nombre">{flv(t(locale, "perfiles.nombre"))}</label>
+<input class="mh-input" id="nombre" name="nombre" type="text" value="{nombre_esc}" placeholder="{nombre_ph}" autocomplete="off" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="grado">{flv(t(locale, "perfiles.grado"))}</label>
+<select class="mh-select" id="grado" name="grado">
+{opciones}
+</select>
+</div>
+<div class="mh-field">
+<label class="mh-label" for="pin">{flv(t(locale, "perfiles.pin"))}</label>
+<input class="mh-input" id="pin" name="pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" />
+<span class="mh-hint">{flv(t(locale, "perfiles.pin_hint"))}</span>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "perfiles.crear"))}</button>
+</form>
+<a class="mh-link" href="/perfiles">{flv(t(locale, "perfiles.volver"))}</a>
+</div>""")
+}
+
+// Opciones 1º..7º grado. Devuelve un solo Str de <option>s.
+fn opciones_grado(locale: Str) -> Str {
+    let items = [1, 2, 3, 4, 5, 6, 7]
+    return h_join(items.map(fn(g) => opcion_grado(locale, g)))
+}
+
+fn opcion_grado(locale: Str, g: Int) -> Html {
+    let etiqueta = flv(t(locale, "grado.{g}"))
+    return html("""<option value="{g}">{etiqueta}</option>""")
+}
+
+fn form_pin(locale: Str, p: Profile, hay_error: Bool) -> Html {
+    let err = match hay_error {
+        true => html("""<div class="mh-error">{flv(t(locale, "pin.error"))}</div>""").raw,
+        false => "",
+    }
+    let nombre = flv(p.name)
+    let pid = "{p.id}"
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "pin.titulo"))}</h2>
+<p style="font-size:1.2rem;font-weight:800;margin:.2rem 0 1rem;text-align:center">{nombre}</p>
+{err}
+<form method="POST" action="/perfiles/pin">
+<input type="hidden" name="pid" value="{pid}" />
+<div class="mh-field">
+<label class="mh-label" for="pin">{flv(t(locale, "perfiles.pin"))}</label>
+<input class="mh-input" id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" autofocus required />
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "pin.submit"))}</button>
+</form>
+<a class="mh-link" href="/perfiles">{flv(t(locale, "pin.cancelar"))}</a>
+</div>""")
+}
+
+// --- Tipos de form -------------------------------------------------------
+
+type ElegirForm {
+    pid: Str = ""
+}
+
+type NuevoPerfilForm {
+    nombre: Str = ""
+    grado: Str = ""
+    pin: Str = ""
+}
+
+type PinForm {
+    pid: Str = ""
+    pin: Str = ""
+}
+
+// --- Handlers ------------------------------------------------------------
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/perfiles")
+async fn perfiles_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam: Family = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let perfiles: List<Profile> = match perfiles_de(fam.id).await {
+        Ok(ps) => ps,
+        Err(_) => [],
+    }
+    let cuerpo = render_perfiles(locale, perfiles)
+    return responder_html(page(locale, t(locale, "perfiles.titulo") + " — MatHelp", cuerpo, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/perfiles/nuevo")
+async fn nuevo_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    return responder_html(page(locale, t(locale, "perfiles.nuevo") + " — MatHelp", form_nuevo(locale, "", ""), html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/perfiles/nuevo")
+async fn nuevo_post(session: Str?, lang: Str?, form: NuevoPerfilForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam: Family = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let titulo = t(locale, "perfiles.nuevo") + " — MatHelp"
+
+    if (form.nombre == "") {
+        return responder_html(page(locale, titulo, form_nuevo(locale, form.nombre, "perfiles.error_nombre"), html("")))
+    }
+    if (form.pin != "" and form.pin.len() != 4) {
+        return responder_html(page(locale, titulo, form_nuevo(locale, form.nombre, "perfiles.error_pin"), html("")))
+    }
+    let grado: Int = match form.grado.to_int() {
+        Ok(n) => n,
+        Err(_) => 0,
+    }
+    match crear_perfil(fam.id, form.nombre, grado, form.pin, fam.locale).await {
+        Ok(_) => return redirect_a("/perfiles"),
+        Err(_) => return responder_html(page(locale, titulo, form_nuevo(locale, form.nombre, "perfiles.error_nombre"), html(""))),
+    }
+}
+
+// Perfil sin PIN: entra directo. Si por lo que sea tiene PIN, lo mandamos
+// al form de PIN (defensa: nunca activar un perfil con PIN sin validarlo).
+@cookie(name="mathelp_session", into="session")
+@post("/perfiles/elegir")
+async fn elegir_post(session: Str?, form: ElegirForm) -> Response {
+    let fam: Family = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let pid: Int = match form.pid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/perfiles"),
+    }
+    match perfil_de_familia(fam.id, pid).await {
+        Ok(p) => {
+            if (p.pin != "") {
+                return redirect_a("/perfiles/pin/{pid}")
+            }
+            let token = mint_session(fam.email, form.pid)
+            return redirect_con_sesion("/", token)
+        }
+        Err(_) => return redirect_a("/perfiles"),
+    }
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/perfiles/pin/{id}")
+async fn pin_get(session: Str?, lang: Str?, id: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam: Family = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    match perfil_de_familia(fam.id, id).await {
+        Ok(p) => return responder_html(page(locale, t(locale, "pin.titulo") + " — MatHelp", form_pin(locale, p, false), html(""))),
+        Err(_) => return redirect_a("/perfiles"),
+    }
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/perfiles/pin")
+async fn pin_post(session: Str?, lang: Str?, form: PinForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam: Family = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let pid: Int = match form.pid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/perfiles"),
+    }
+    match perfil_de_familia(fam.id, pid).await {
+        Ok(p) => {
+            if (p.pin == form.pin) {
+                let token = mint_session(fam.email, form.pid)
+                return redirect_con_sesion("/", token)
+            }
+            return responder_html(page(locale, t(locale, "pin.titulo") + " — MatHelp", form_pin(locale, p, true), html("")))
+        }
+        Err(_) => return redirect_a("/perfiles"),
+    }
+}

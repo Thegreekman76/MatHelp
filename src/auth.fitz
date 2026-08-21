@@ -1,0 +1,273 @@
+// auth.fitz — registro, login y logout de la cuenta de familia.
+//
+// **Sin JavaScript.** El login es un `<form method="POST">` nativo: el
+// browser manda `application/x-www-form-urlencoded` y Fitz lo deserializa
+// al `type` del handler igual que un body JSON.
+//
+// **Sesión stateless con JWT + cookie HttpOnly.** No hay tabla de sesiones:
+// la cookie `mathelp_session` lleva un JWT firmado con `jwt_secret()`. Los
+// claims son `Map<Str, Str>` (limitación del MVP de jwt.encode), así que
+// guardamos `email` (único en el schema) y, cuando se elige perfil, `pid`.
+// Resolver la familia por email cada request es un lookup por el índice
+// UNIQUE de la columna — barato y sin estado en el server.
+//
+// **Control explícito, no `@auth_provider`.** El provider built-in falla
+// con 401 JSON; nosotros queremos redirect 303 a /login. Por eso leemos la
+// cookie a mano con `@cookie(...)` + `jwt.decode`. Ver read_session().
+
+from fitz_liveviews import Html, html, flv
+from config import db_url, jwt_secret, session_cookie_name
+from i18n import t, locale_from_cookie
+from layout import page, responder_html
+from models import Family
+
+// --- Sesión: emitir y leer ------------------------------------------------
+
+// Emite el JWT de la familia. `pid` vacío = todavía no eligió perfil.
+fn mint_session(email: Str, pid: Str) -> Str {
+    let claims = { "email": email, "pid": pid }
+    return jwt.encode(claims, jwt_secret())
+}
+
+// Resuelve la familia desde la cookie de sesión. Err si falta o es inválida
+// — el handler protegido traduce ese Err en un 303 a /login.
+async fn read_session(session: Str?) -> Result<Family> {
+    let token = match session {
+        null => return Err("sin sesión"),
+        s => s,
+    }
+    let claims = jwt.decode(token, jwt_secret())?
+    let email: Str = match claims.get("email") {
+        Ok(v) => v,
+        Err(_) => return Err("token sin claim email"),
+    }
+    let conn = db.connect(db_url()).await?
+    return Family.where(fn(f) => f.email == email).first(conn).await
+}
+
+// Perfil activo guardado en el token (Str vacío si no hay). No toca la DB.
+fn pid_from_token(session: Str?) -> Str {
+    let token = match session {
+        null => return "",
+        s => s,
+    }
+    let claims = match jwt.decode(token, jwt_secret()) {
+        Ok(c) => c,
+        Err(_) => return "",
+    }
+    // jwt.decode devuelve Map<Str, __FitzValue>, así que claims.get(...) da
+    // Result<__FitzValue>. La coerción __FitzValue → Str solo la aplica el
+    // codegen cuando el ÚNICO arm productivo es el Ok (los demás divergen) +
+    // el binding está anotado :Str. Por eso el Err arm hace `return ""` en
+    // vez de producir "" — mismo patrón que read_session con el email.
+    let pid: Str = match claims.get("pid") {
+        Ok(v) => v,
+        Err(_) => return "",
+    }
+    return pid
+}
+
+// Response de redirect que setea (o pisa) la cookie de sesión HttpOnly.
+// secure:false por ahora — MatHelp corre en la red de casa sin HTTPS; con
+// secure:true el browser no mandaría la cookie sobre http. Deuda: activar
+// secure detrás de un proxy TLS en producción (junto con JWT_SECRET real).
+fn redirect_con_sesion(destino: Str, token: Str) -> Response {
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        cookies: [
+            Cookie {
+                name: session_cookie_name(),
+                value: token,
+                path: "/",
+                http_only: true,
+                same_site: "Lax",
+                max_age: 604800,
+            },
+        ],
+        headers: { "Location": destino },
+        body: "",
+    }
+}
+
+// --- DB: crear y autenticar familia --------------------------------------
+
+async fn crear_familia(email: Str, display_name: Str, password: Str, locale: Str) -> Result<Family> {
+    let conn = db.connect(db_url()).await?
+    // Email único: mensaje amigable en vez del UNIQUE violation crudo.
+    match Family.where(fn(f) => f.email == email).first(conn).await {
+        Ok(_) => return Err("email ya registrado"),
+        Err(_) => 0,
+    }
+    let ph = hash.password(password)
+    return Family.insert(conn, Family {
+        id: 0,
+        email: email,
+        password_hash: ph,
+        display_name: display_name,
+        locale: locale,
+        created_at: "",
+    }).await
+}
+
+async fn autenticar(email: Str, password: Str) -> Result<Family> {
+    let conn = db.connect(db_url()).await?
+    let fam: Family = match Family.where(fn(f) => f.email == email).first(conn).await {
+        Ok(f) => f,
+        Err(_) => return Err("credenciales inválidas"),
+    }
+    // hash.verify devuelve Bool; hash malformado → false (nunca panic).
+    if (not hash.verify(password, fam.password_hash)) {
+        return Err("credenciales inválidas")
+    }
+    return Ok(fam)
+}
+
+// --- Forms HTML ----------------------------------------------------------
+
+fn form_login(locale: Str, email: Str, hay_error: Bool) -> Html {
+    let err = match hay_error {
+        true => html("""<div class="mh-error">{flv(t(locale, "login.error"))}</div>""").raw,
+        false => "",
+    }
+    let email_esc = flv(email)
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "login.titulo"))}</h2>
+{err}
+<form method="POST" action="/login">
+<div class="mh-field">
+<label class="mh-label" for="email">{flv(t(locale, "login.email"))}</label>
+<input class="mh-input" id="email" name="email" type="email" value="{email_esc}" autocomplete="email" inputmode="email" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="password">{flv(t(locale, "login.password"))}</label>
+<input class="mh-input" id="password" name="password" type="password" autocomplete="current-password" required />
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "login.submit"))}</button>
+</form>
+<a class="mh-link" href="/registro">{flv(t(locale, "login.crear_cuenta"))}</a>
+</div>""")
+}
+
+// error_key: clave i18n del error, o "" si no hay error.
+fn form_registro(locale: Str, email: Str, familia: Str, error_key: Str) -> Html {
+    let err = match error_key == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, error_key))}</div>""").raw,
+    }
+    let email_esc = flv(email)
+    let familia_esc = flv(familia)
+    let fam_ph = flv(t(locale, "registro.familia_ph"))
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "registro.titulo"))}</h2>
+{err}
+<form method="POST" action="/registro">
+<div class="mh-field">
+<label class="mh-label" for="familia">{flv(t(locale, "registro.familia"))}</label>
+<input class="mh-input" id="familia" name="familia" type="text" value="{familia_esc}" placeholder="{fam_ph}" autocomplete="name" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="email">{flv(t(locale, "login.email"))}</label>
+<input class="mh-input" id="email" name="email" type="email" value="{email_esc}" autocomplete="email" inputmode="email" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="password">{flv(t(locale, "login.password"))}</label>
+<input class="mh-input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" required />
+<span class="mh-hint">{flv(t(locale, "registro.password_hint"))}</span>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "registro.submit"))}</button>
+</form>
+<a class="mh-link" href="/login">{flv(t(locale, "registro.ya_tengo"))}</a>
+</div>""")
+}
+
+// --- Handlers ------------------------------------------------------------
+
+type LoginForm {
+    email: Str = ""
+    password: Str = ""
+}
+
+type RegistroForm {
+    familia: Str = ""
+    email: Str = ""
+    password: Str = ""
+}
+
+@cookie(name="mathelp_lang", into="lang")
+@get("/login")
+fn login_get(lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    return responder_html(page(locale, t(locale, "login.titulo") + " — MatHelp", form_login(locale, "", false), html("")))
+}
+
+@cookie(name="mathelp_lang", into="lang")
+@post("/login")
+async fn login_post(lang: Str?, creds: LoginForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    match autenticar(creds.email, creds.password).await {
+        Ok(fam) => {
+            let token = mint_session(fam.email, "")
+            return redirect_con_sesion("/perfiles", token)
+        }
+        Err(_) => {
+            let cuerpo = form_login(locale, creds.email, true)
+            return responder_html(page(locale, t(locale, "login.titulo") + " — MatHelp", cuerpo, html("")))
+        }
+    }
+}
+
+@cookie(name="mathelp_lang", into="lang")
+@get("/registro")
+fn registro_get(lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    return responder_html(page(locale, t(locale, "registro.titulo") + " — MatHelp", form_registro(locale, "", "", ""), html("")))
+}
+
+@cookie(name="mathelp_lang", into="lang")
+@post("/registro")
+async fn registro_post(lang: Str?, input: RegistroForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let titulo = t(locale, "registro.titulo") + " — MatHelp"
+
+    if (input.email == "" or input.familia == "" or input.password == "") {
+        let cuerpo = form_registro(locale, input.email, input.familia, "registro.error_campos")
+        return responder_html(page(locale, titulo, cuerpo, html("")))
+    }
+    if (input.password.len() < 8) {
+        let cuerpo = form_registro(locale, input.email, input.familia, "registro.error_password")
+        return responder_html(page(locale, titulo, cuerpo, html("")))
+    }
+
+    match crear_familia(input.email, input.familia, input.password, locale).await {
+        Ok(fam) => {
+            let token = mint_session(fam.email, "")
+            return redirect_con_sesion("/perfiles", token)
+        }
+        Err(_) => {
+            let cuerpo = form_registro(locale, input.email, input.familia, "registro.error_email")
+            return responder_html(page(locale, titulo, cuerpo, html("")))
+        }
+    }
+}
+
+// Cierra la sesión pisando la cookie con max_age 0 (expira ya).
+@post("/logout")
+fn logout_post() -> Response {
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        cookies: [
+            Cookie {
+                name: session_cookie_name(),
+                value: "",
+                path: "/",
+                http_only: true,
+                same_site: "Lax",
+                max_age: 0,
+            },
+        ],
+        headers: { "Location": "/login" },
+        body: "",
+    }
+}

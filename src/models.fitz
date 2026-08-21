@@ -1,0 +1,51 @@
+// models.fitz — los @table del dominio.
+//
+// F1 modela SOLO las dos tablas de auth: `Family` (la cuenta que
+// administra el padre/madre) y `Profile` (cada hijo/a). Las otras cinco
+// tablas del esquema (sessions, attempts, mastery, awards, streaks) se
+// agregan cuando F2/F3 las usen — modelar de más es superficie de bug del
+// codegen ORM sin ganancia.
+//
+// **Sin relaciones ORM (@has_many/@belongs_to) todavía.** F1 consulta con
+// `.where(fn(p) => p.family_id == fid)`, no con navigation methods ni
+// `.preload()`. Los campos crudos (`family_id: Int`) alcanzan. El CASCADE
+// real ya está en `migrations/0001_init.sql` (REFERENCES ... ON DELETE
+// CASCADE) — el @belongs_to solo afecta el codegen del ORM de Fitz, no el
+// esquema. Las relaciones se suman cuando F5 (panel del padre) las pida.
+//
+// **El esquema hoy lo crea Postgres** (docker-entrypoint-initdb.d con
+// 0001_init.sql), no `fitz db migrate` — por eso estos @table deben
+// matchear exactamente las columnas de esa migración. Deuda declarada en
+// docs/PLAN.md: F1 todavía no cierra el paso a `fitz db diff`.
+
+// La cuenta de la familia: la que administra el padre o la madre.
+@table("families")
+type Family {
+    @primary id: Int = 0
+    email: Str = ""
+    // @hidden: no se serializa a JSON ni se acepta como body del cliente;
+    // sí persiste. Lo populamos con hash.password(...) en el registro y lo
+    // leemos con hash.verify(...) en el login.
+    @hidden password_hash: Str = ""
+    display_name: Str = ""
+    locale: Str = "es-AR"
+    // @db_default: el ORM lo omite del INSERT y Postgres lo llena (NOW()).
+    @db_default created_at: Str = ""
+}
+
+// Un perfil por hijo/a.
+@table("profiles")
+type Profile {
+    @primary id: Int = 0
+    family_id: Int = 0
+    name: Str = ""
+    avatar: Str = "mate"          // clave de avatar SVG inline
+    birth_year: Int = 0           // la edad se deriva: nunca queda vieja
+    grade: Int = 0                // 1..7 primaria
+    locale: Str = "es-AR"
+    // @hidden: el PIN nunca viaja al cliente. Opcional, 4 dígitos, para que
+    // los hermanos no se metan en el perfil del otro.
+    @hidden pin: Str = ""
+    daily_goal: Int = 10          // ejercicios/día
+    @db_default created_at: Str = ""
+}

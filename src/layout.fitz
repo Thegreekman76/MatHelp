@@ -80,3 +80,15 @@ fn topbar(locale: Str) -> Html {
 fn responder_html(h: Html) -> Response {
     return html_response(h)
 }
+
+// Redirect 303 sin tocar cookies. Para "sin sesión → /login" y navegación
+// post-form. (El redirect que ADEMÁS setea la cookie de sesión vive en
+// auth.fitz como redirect_con_sesion.)
+fn redirect_a(destino: Str) -> Response {
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        headers: { "Location": destino },
+        body: "",
+    }
+}
