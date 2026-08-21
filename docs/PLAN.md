@@ -6,9 +6,18 @@
 
 ---
 
-## 📍 Estado — actualizado 19/08/2026
+## 📍 Estado — actualizado 21/08/2026
 
-**Fase actual: F0 — Cimientos. Andando y verificado.**
+**Fase actual: F0 — Cimientos. Andando, verificado y migrado a Fitz nativo.**
+
+> **Migración a nativo (fitz v0.55 + liveviews v0.50):** los módulos-workaround de
+> F0 (`rng`, `fmt`, `cookies`) se borraron y ahora se usan `rand`/`num`/`@cookie`
+> nativos; `assets` sirve el manifest como estático (`@server(static_dir=)`) y el
+> favicon queda generado. `layout` e i18n (catálogos horneados) se quedan por
+> decisión de arquitectura. **MatHelp compila a binario nativo** (`fitz build` →
+> distroless en Docker) — el bug de codegen `T?` (FITZ-09) que lo bloqueaba está
+> cerrado, junto con cookies cross-module (v0.54) y `Map<Str,Any>.keys()` (v0.55),
+> todos encontrados por este dogfooding. Ver `CLAUDE.md` §"Migrado a nativo".
 
 ### ✅ Hecho
 

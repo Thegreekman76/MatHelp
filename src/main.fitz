@@ -6,20 +6,18 @@
 
 from fitz_liveviews import Html, html, flv, html_response
 from config import db_url, app_name, lang_cookie_name, default_locale
-from cookies import set_lang_cookie
 from i18n import t, locale_from_cookie, es_locale_valido, nombre_locale
-from fmt import fmt_int, fmt_pct
 from brand import logo_lockup
 from layout import page, responder_html
 import assets
 
 // --- Home ----------------------------------------------------------------
 
-@header(name="cookie")
+@cookie(name="mathelp_lang", into="lang")
 @get("/")
-async fn home(cookie: Str?) -> Response {
+async fn home(lang: Str?) -> Response {
     // Regla del proyecto: el locale es SIEMPRE la primera línea del handler.
-    let locale = locale_from_cookie(cookie)
+    let locale = locale_from_cookie(lang)
 
     let marca = logo_lockup(56, locale).raw
     let tagline = flv(t(locale, "app.tagline"))
@@ -81,32 +79,38 @@ fn set_lang(code: Str, referer: Str?) -> Response {
     return Response {
         status: 303,
         content_type: "text/html; charset=utf-8",
-        headers: {
-            "Set-Cookie": set_lang_cookie(lang_cookie_name(), loc),
-            "Location": volver,
-        },
+        cookies: [
+            Cookie {
+                name: lang_cookie_name(),
+                value: loc,
+                path: "/",
+                same_site: "Lax",
+                max_age: 31536000,
+            },
+        ],
+        headers: { "Location": volver },
         body: "",
     }
 }
 
 // --- Placeholders de las pantallas que vienen ---------------------------
 
-@header(name="cookie")
+@cookie(name="mathelp_lang", into="lang")
 @get("/jugar")
-fn jugar(cookie: Str?) -> Response {
-    return proximamente(locale_from_cookie(cookie), t(locale_from_cookie(cookie), "nav.jugar"), "F2")
+fn jugar(lang: Str?) -> Response {
+    return proximamente(locale_from_cookie(lang), t(locale_from_cookie(lang), "nav.jugar"), "F2")
 }
 
-@header(name="cookie")
+@cookie(name="mathelp_lang", into="lang")
 @get("/desafio")
-fn desafio(cookie: Str?) -> Response {
-    return proximamente(locale_from_cookie(cookie), t(locale_from_cookie(cookie), "home.desafio_dia"), "F3")
+fn desafio(lang: Str?) -> Response {
+    return proximamente(locale_from_cookie(lang), t(locale_from_cookie(lang), "home.desafio_dia"), "F3")
 }
 
-@header(name="cookie")
+@cookie(name="mathelp_lang", into="lang")
 @get("/practica")
-fn practica(cookie: Str?) -> Response {
-    return proximamente(locale_from_cookie(cookie), t(locale_from_cookie(cookie), "home.practica_libre"), "F3")
+fn practica(lang: Str?) -> Response {
+    return proximamente(locale_from_cookie(lang), t(locale_from_cookie(lang), "home.practica_libre"), "F3")
 }
 
 fn proximamente(locale: Str, titulo: Str, fase: Str) -> Response {
@@ -129,5 +133,7 @@ match load_env(".env") {
 }
 
 // 0.0.0.0 es obligatorio: sin eso el -p de Docker no rutea nada al container.
-@server(3000, "0.0.0.0")
+// static_dir sirve public/ (el manifest); las rutas @get ganan sobre estáticos,
+// así /favicon.svg sigue siendo el route generado por logo_svg_raw().
+@server(3000, "0.0.0.0", static_dir="public", static_prefix="/")
 fn main() => 0

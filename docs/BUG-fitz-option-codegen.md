@@ -1,8 +1,12 @@
 # Bug de codegen: funciones que devuelven `T?` compilan mal
 
-**Repo:** `Thegreekman76/fitz` · **Versión:** v0.47.0
-**Severidad:** alta — bloquea `fitz build` para cualquier proyecto que use `fitz-liveviews`
-**ID sugerido para el backlog:** `FITZ-09` `[hallazgo propio]`
+> ✅ **CERRADO** — arreglado en fitz **v0.49.0** (FITZ-09). Este documento queda
+> como registro histórico del hallazgo. `Str?` con `return null`/`return <valor>`
+> ya compila (`return None`/`Some(...)`). MatHelp ya no usa el centinela `""`.
+
+**Repo:** `Thegreekman76/fitz` · **Versión:** v0.47.0 (cerrado en v0.49.0)
+**Severidad:** alta — bloqueaba `fitz build` para cualquier proyecto que use `fitz-liveviews`
+**ID del backlog:** `FITZ-09` `[hallazgo propio del dogfooding]`
 **Encontrado:** construyendo MatHelp, al dockerizar (F0)
 
 ---

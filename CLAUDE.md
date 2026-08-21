@@ -18,42 +18,47 @@ Corolario: `locale_from_cookie(cookie)` es la **primera línea de todo handler**
 
 ---
 
-## Módulos aislados: no los "mejores"
+## Migrado a nativo (fitz v0.55 + liveviews v0.50) — sin módulos-workaround
 
-Estos siete archivos envuelven limitaciones actuales de Fitz v0.47.0, **usando a propósito la firma que va a tener la solución oficial**:
+MatHelp nació sobre Fitz v0.47, que todavía no tenía varias features, así que las envolvía en módulos aislados. **Ese trabajo cerró el backlog de dogfooding: desde fitz v0.55 + fitz-liveviews v0.50 todo es nativo** y los workarounds se borraron.
 
-| Archivo | Envuelve | Migra a |
-|---|---|---|
-| `src/rng.fitz` | no hay `random` en la stdlib | `rand.seeded()` |
-| `src/fmt.fitz` | los format specs no conocen locale | `num.format(x, locale:)` |
-| `src/cookies.fitz` | no hay API de cookies | `@cookie` + `Response.cookies` |
-| `src/i18n.fitz` + `cat_*.fitz` | no hay filesystem | `fs.read()` |
-| `src/assets.fitz` | no sirve estáticos | `@server(static_dir=)` |
-| `src/layout.fitz` | `live_layout` con el head fijo | `live_layout_with` |
-| `db_queries` (pendiente) | `preload` roto, `.is_in` con literal | ORM |
+| Antes (workaround, borrado) | Ahora (nativo) |
+|---|---|
+| `src/rng.fitz` (PRNG propio) | `rand.seeded(n)` — secuencia reproducible run↔build (FITZ-01). Lo usará el juego (F2). |
+| `src/fmt.fitz` (formato locale) | `num.format` / `num.percent` / `num.currency` (FITZ-04). Lo usará el juego (F2). |
+| `src/cookies.fitz` (parser propio) | `@cookie(name=)` para leer + `Response { cookies: [Cookie {...}] }` para escribir |
+| manifest en `src/assets.fitz` | `public/manifest.webmanifest` + `@server(static_dir="public")` |
 
-**Están escritos para ser fáciles de borrar, no para ser bonitos.** No los refactorices para hacerlos más elegantes: el objetivo es que el día que el lenguaje incorpore la feature, migrar sea borrar un archivo y cambiar un import.
+**Se quedan** (decisiones de arquitectura, no workarounds):
 
-Si tenés que agregar un workaround nuevo, seguí el mismo patrón: un módulo, con la firma futura, con un comentario arriba explicando qué limitación envuelve y cuál es el ID del backlog.
+- **`src/i18n.fitz` + `cat_*.fitz`**: catálogos horneados por `tools/gen_i18n.py`. `fs.read()` existe, pero hornear en compile-time es más rápido (sin fs ni parser JSON por request) — elección deliberada.
+- **`src/layout.fitz`**: shell del documento de F0 (páginas estáticas). `live_layout_with` de liveviews es para páginas **live** (inyecta el runtime WebSocket); se evalúa cuando el juego (F2) tenga páginas interactivas.
+- **`src/assets.fitz`**: el favicon se GENERA con `logo_svg_raw()` (single-source-of-truth de la marca) — sigue siendo una ruta `@get`, no un archivo duplicado.
+
+Regla: usá la feature nativa. No reintroduzcas workarounds. Si encontrás un bug del lenguaje, anotalo en el `norte-mathelp.md` del repo que corresponda con repro mínimo — MatHelp es el **dogfooding de Fitz**.
 
 ---
 
-## Trampas de Fitz v0.47.0 (todas encontradas a los golpes)
+## Trampas de Fitz — cerradas y vigentes
 
-**`fitz check` y `fitz run` NO garantizan que `fitz build` funcione.** Antes de dar por cerrado cualquier cambio, corré `fitz build`. Tres casos ya conocidos:
+**`fitz check`/`fitz run` no garantizan que `fitz build` funcione.** Antes de cerrar un cambio, corré `fitz build`.
 
-- **Funciones que devuelven `T?`** generan Rust que no compila (`return ()` en vez de `return None`). Por eso `read_cookie` devuelve `Str` con `""` como centinela en vez de `Str?`. **No lo "arregles" volviendo a `Str?`.** Ver `docs/BUG-fitz-option-codegen.md`.
-- **`let x = []` infiere `List<Any>`** y el codegen rechaza `Str + Any`, aunque el checker lo acepte. Anotá siempre el tipo de las listas vacías.
-- **`.preload()` en el intérprete es un no-op silencioso**: devuelve relaciones vacías sin error. Usá joins explícitos.
+Trampas que MatHelp encontró y que **ya están cerradas** (fitz v0.49–v0.55):
 
-**Otras:**
+- `Str?` con `return null` adentro → E0308 (**FITZ-09, cerrado**). Ya no hace falta el centinela `""`.
+- `let x = []` → `List<Any>` + `Str + Any` rechazado (**FITZ-10, cerrado**). Igual conviene anotar listas vacías.
+- cookies cross-module en `fitz build` (**cerrado en fitz v0.54**) y `@cookie` sobre `@ws` (**v0.53**).
+- `Map<Str,Any>.keys()` en el codegen (**cerrado en fitz v0.55**).
 
-- Las **listas son por referencia**. `let out = items` alias-ea: si mutás, rompés la lista del llamador. Copiá con `.map(fn(v) => v)`. Hay test de regresión en `tests/rng.fitz`.
+Vigentes:
+
+- Las **listas son por referencia**. `let out = items` alias-ea: si mutás, rompés la del llamador. Copiá con `.map(fn(v) => v)`.
 - Interpolar un `Html` en un string imprime `Html { raw: "..." }`. Siempre `.raw`.
 - Las **llaves literales de CSS van escapadas** `\{` `\}` dentro de un string de Fitz.
-- **Nunca un `<style>` o `<script>` dentro del root diffeado**: el parser lo degrada a reemplazo completo **en silencio**. Todo el CSS va al `<head>` en `layout.fitz`.
-- Los statements de top level se ejecutan al arrancar; `fn main()` sola no corre nada.
+- **Nunca un `<style>`/`<script>` dentro del root diffeado**: se degrada a reemplazo completo **en silencio**. Todo el CSS va al `<head>` en `layout.fitz`.
+- Los statements de top level corren al arrancar; `fn main()` sola no corre nada.
 - `fitz run src/main.fitz` **no resuelve dependencias**. Usá `fitz run` a secas (modo manifiesto).
+- **Residual conocido de fitz** (follow-up abierto): un map literal `Map<Str,Any>` **no-vacío** (`{ "k": 10 }`) no coacciona entradas → E0308. Construí el map vacío + `m[k] = v`.
 
 ---
 

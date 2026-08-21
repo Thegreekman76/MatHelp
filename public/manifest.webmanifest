@@ -1,0 +1,14 @@
+{
+  "name": "MatHelp",
+  "short_name": "MatHelp",
+  "description": "Matematica que se comparte",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F7F4EE",
+  "theme_color": "#0E7A63",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

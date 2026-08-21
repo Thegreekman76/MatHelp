@@ -13,4 +13,4 @@ main = "src/main.fitz"
 [dependencies]
 # Para desarrollo local con el repo al lado, cambiá esta línea por:
 #   fitz_liveviews = { path = "../fitz-liveviews" }
-fitz_liveviews = { git = "https://github.com/Thegreekman76/fitz-liveviews", tag = "v0.47.0" }
+fitz_liveviews = { git = "https://github.com/Thegreekman76/fitz-liveviews", tag = "v0.50.0" }

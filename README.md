@@ -16,7 +16,7 @@ start.bat
 
 Eso construye todo, levanta la app y Postgres, y te abre el browser en `http://localhost:3000`.
 
-La primera vez tarda unos minutos porque compila el binario nativo. Después arranca en segundos.
+La primera vez tarda unos minutos porque compila el **binario nativo** (imagen distroless final, sin Fitz ni Rust adentro). Después arranca en segundos.
 
 | Script | Qué hace |
 |---|---|
@@ -45,11 +45,10 @@ Tarda bastante más la primera vez, pero después Docker cachea la capa.
 
 ## Desarrollo sin Docker
 
-Con Fitz instalado:
+Con Fitz instalado (v0.55+):
 
 ```
 fitz check      # typecheck de todo
-fitz test       # 33 tests
 fitz run        # servidor en :3000
 fitz dev        # con recarga automática
 fitz build      # binario nativo (~9x más rápido que el intérprete)
@@ -57,7 +56,7 @@ fitz build      # binario nativo (~9x más rápido que el intérprete)
 
 Necesitás Postgres andando y `DATABASE_URL` apuntándole (o dejá que el chequeo de estado marque desconectado — la app igual levanta).
 
-Si tenés el repo de `fitz-liveviews` al lado, cambiá la dependencia en `fitz.toml`:
+Si tenés el repo de `fitz-liveviews` al lado, cambiá la dependencia en `fitz.toml` para iterar sin git:
 
 ```toml
 fitz_liveviews = { path = "../fitz-liveviews" }
@@ -73,7 +72,7 @@ Los catálogos viven en `locales/*.json`. Editás el JSON y corrés:
 python tools/gen_i18n.py
 ```
 
-Eso los compila a módulos Fitz (`src/cat_*.fitz`). Existe ese paso porque Fitz todavía no puede leer archivos en runtime.
+Eso los hornea a módulos Fitz (`src/cat_*.fitz`). Es una decisión deliberada: los catálogos quedan resueltos en compile-time (sin leer archivos en runtime, y sin un parser JSON en el hot path de cada request).
 
 **El script falla si a un locale le falta una clave** — a propósito: es lo que evita que alguien agregue texto y se olvide de traducirlo.
 
@@ -85,28 +84,29 @@ Para agregar un idioma: creá `locales/<code>.json`, corré el generador, e impo
 
 ```
 src/
-  main.fitz       rutas y arranque
+  main.fitz       rutas, cookies (@cookie / Response.cookies), estáticos, arranque
   config.fitz     configuración por entorno
-  layout.fitz     shell mobile-first (head, topbar, footer)
+  layout.fitz     shell mobile-first del documento (head, topbar, footer)
   brand.fitz      logo SVG inline, footer, CSS
-  i18n.fitz       t(locale, clave) + resolución del locale
+  i18n.fitz       t(locale, clave) + resolución del locale desde la cookie
   cat_*.fitz      catálogos (GENERADOS — no editar)
-  rng.fitz    ⟵  aislado: PRNG determinístico
-  fmt.fitz    ⟵  aislado: números por locale
-  cookies.fitz ⟵ aislado: sesión e idioma
-  assets.fitz ⟵  aislado: favicon y manifest como rutas
+  assets.fitz     favicon generado con logo_svg_raw() (ruta @get)
+public/
+  manifest.webmanifest   servido como estático (@server(static_dir="public"))
 ```
 
-Los módulos marcados **⟵ aislado** envuelven limitaciones actuales de Fitz v0.47.0, **usando la firma que va a tener la solución oficial**. El día que el lenguaje las incorpore, migrar es borrar el archivo y cambiar un import — no refactorizar la app.
+MatHelp usa features **nativas** de Fitz de punta a punta: cookies (`@cookie` para leer, `Response { cookies: [...] }` para escribir), estáticos (`@server(static_dir=)`), HTTP + i18n, y — cuando llegue el juego (F2) — `rand.seeded()` para el generador determinístico y `num.format/percent/currency` para los números por locale. Sin módulos-workaround.
 
-El detalle de cada una está en `docs/PLAN.md` §1.2 y §1.4.
+> MatHelp es el **dogfooding de Fitz**: construirlo encontró (y cerró) varios bugs del lenguaje — cookies cross-module en `fitz build`, `@cookie` sobre `@ws`, y `Map<Str,Any>.keys()` en el codegen. Ver el CHANGELOG de Fitz v0.53–v0.55.
+
+El detalle técnico y el roadmap por fase están en `docs/PLAN.md`.
 
 ---
 
 ## Dos reglas que no se rompen
 
 1. **Ningún string visible se escribe en un template.** Siempre `t(locale, "clave")`.
-2. **Ningún número crudo en la UI.** Siempre `fmt_int` / `fmt_dec` / `fmt_pct` / `fmt_money`.
+2. **Ningún número crudo en la UI.** Cuando el juego (F2+) muestre números, van por `num.format` / `num.percent` / `num.currency` (locale-aware, nativo de Fitz).
 
 La segunda no es cosmética: en Argentina se escribe `1.234,5`, en inglés `1,234.5`. Un juego de matemática que muestra mal los decimales le está enseñando mal al chico.
 

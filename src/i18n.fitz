@@ -15,8 +15,7 @@
 
 from cat_es_ar import cat_es_ar
 from cat_en import cat_en
-from cookies import read_cookie
-from config import lang_cookie_name, default_locale
+from config import default_locale
 
 // Locales soportados. Agregar uno = agregar el .json, correr gen_i18n.py,
 // e importar el catálogo acá.
@@ -40,10 +39,14 @@ fn t1(locale: Str, key: Str, arg: Str) -> Str {
     return t(locale, key).replace("\{0\}", arg)
 }
 
-// Resuelve el locale desde el header Cookie del request (o del handshake
-// del WebSocket, que es el mismo header).
-fn locale_from_cookie(cookie: Str?) -> Str {
-    let loc = read_cookie(cookie, lang_cookie_name())
+// Resuelve el locale desde el valor de la cookie de idioma. El handler la
+// recibe directo por `@cookie(name="mathelp_lang", into="lang")` (también
+// sobre `@ws`: el handshake es HTTP). `null`/ausente/inválido → default.
+fn locale_from_cookie(lang: Str?) -> Str {
+    let loc = match lang {
+        null => "",
+        l => l,
+    }
     if (es_locale_valido(loc)) {
         return loc
     }

@@ -1,34 +1,27 @@
-# MatHelp — imagen de producción.
+# MatHelp — imagen de producción (binario nativo).
 #
-# Dos etapas:
+# Tres etapas:
 #   vendor  — clona fitz-liveviews. Existe porque la imagen oficial de Fitz
-#             NO trae `git`, así que `fitz build` / `fitz run` no pueden
-#             resolver una dependencia { git = ... } adentro del container.
-#             Clonamos acá y adentro la usamos como { path = ... }.
-#   runtime — imagen oficial de Fitz, corriendo el intérprete.
+#             NO trae `git`, así que no puede resolver una dependencia
+#             { git = ... } adentro del container. Clonamos acá y adentro la
+#             usamos como { path = ... } (fitz.docker.toml).
+#   builder — imagen oficial de Fitz (trae el toolchain): `fitz build` compila
+#             a binario nativo estático.
+#   runtime — distroless/cc: solo glibc + libgcc. Sin Fitz, sin Rust, sin shell.
 #
 # ─────────────────────────────────────────────────────────────────────────
-# POR QUÉ INTERPRETADO Y NO BINARIO NATIVO
+# BINARIO NATIVO
 #
-# Lo ideal sería `fitz build` + runtime distroless: binario estático, ~9x más
-# rápido, imagen mínima. Hoy no se puede: el codegen de Fitz v0.47.0 rompe al
-# compilar funciones que devuelven `Str?` y hacen `return null` adentro —
-# emite `return ()` en vez de `return None`. `fitz check` y `fitz run` lo
-# aceptan sin chistar; `fitz build` falla con E0308.
-#
-# Y no alcanza con evitarlo en nuestro código: `flv_cookie`, DENTRO de
-# fitz-liveviews, tiene el mismo patrón. Cualquier proyecto que dependa de la
-# librería y compile a nativo choca con esto.
-#
-# Repro de 20 líneas y detalle en docs/BUG-fitz-option-codegen.md.
-#
-# Para un juego de matemática en la red de casa, el intérprete sobra. Cuando
-# el bug esté arreglado, se cambia a la versión compilada: está más abajo,
-# comentada, lista para descomentar.
+# Desde fitz v0.55.0 el codegen compila todo lo que MatHelp usa (cookies
+# nativas, Response.cookies, y liveviews v0.50). Antes esto no se podía: el
+# codegen de fitz v0.47 rompía funciones `Str?` con `return null` (FITZ-09) y
+# no importaba helpers de cookies cross-module (FITZ-05 cross-module) — dos
+# bugs que el dogfooding de MatHelp encontró y que ya están cerrados. Resultado:
+# binario estático, ~9x más rápido que el intérprete, imagen distroless mínima.
 # ─────────────────────────────────────────────────────────────────────────
 
-ARG FITZ_IMAGE=ghcr.io/thegreekman76/fitz:latest
-ARG FLV_TAG=v0.47.0
+ARG FITZ_IMAGE=ghcr.io/thegreekman76/fitz:v0.55.0
+ARG FLV_TAG=v0.50.0
 
 # ---- Stage 1: vendor ----------------------------------------------------
 FROM alpine:3.20 AS vendor
@@ -40,8 +33,8 @@ RUN git clone --depth 1 --branch ${FLV_TAG} \
       /vendor/fitz-liveviews \
  && rm -rf /vendor/fitz-liveviews/.git
 
-# ---- Stage 2: runtime ---------------------------------------------------
-FROM ${FITZ_IMAGE}
+# ---- Stage 2: builder ---------------------------------------------------
+FROM ${FITZ_IMAGE} AS builder
 
 WORKDIR /app
 
@@ -51,26 +44,22 @@ COPY --from=vendor /vendor/fitz-liveviews /vendor/fitz-liveviews
 # vendor local. Así no hace falta ni git ni red adentro del container.
 COPY fitz.docker.toml ./fitz.toml
 COPY src/ ./src/
+COPY public/ ./public/
 
-# Resuelve dependencias y escribe el lock ahora, no en el primer request.
-RUN fitz check
+# Compila a binario nativo. El resultado queda en target/release/mathelp.
+RUN fitz build
+
+# ---- Stage 3: runtime ---------------------------------------------------
+FROM gcr.io/distroless/cc-debian12
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/mathelp /usr/local/bin/mathelp
+# public/ se lee del disco en runtime (static_dir). Copiamos los estáticos.
+COPY --from=builder /app/public /app/public
 
 # @server(3000, "0.0.0.0") — el "0.0.0.0" es obligatorio: sin eso el -p del
 # host no rutea nada hacia adentro del contenedor.
 EXPOSE 3000
 
-CMD ["fitz", "run"]
-
-# ─── Versión compilada — descomentar cuando se arregle el codegen ─────────
-#
-# FROM ${FITZ_IMAGE} AS builder
-# WORKDIR /app
-# COPY --from=vendor /vendor/fitz-liveviews /vendor/fitz-liveviews
-# COPY fitz.docker.toml ./fitz.toml
-# COPY src/ ./src/
-# RUN fitz build
-#
-# FROM gcr.io/distroless/cc-debian12
-# COPY --from=builder /app/target/release/mathelp /usr/local/bin/mathelp
-# EXPOSE 3000
-# ENTRYPOINT ["/usr/local/bin/mathelp"]
+ENTRYPOINT ["/usr/local/bin/mathelp"]

@@ -1,15 +1,14 @@
-// layout.fitz — MÓDULO AISLADO.
+// layout.fitz — shell del documento (F0, páginas estáticas).
 //
-// `live_layout()` de fitz-liveviews trae el <head> hardcodeado (título fijo
-// "Fitz LiveView", <html> sin lang, sin viewport configurable), así que no
-// sirve para una app real. Escribimos el documento acá.
+// Escribimos el documento completo acá porque las páginas de F0 son estáticas.
+// `live_layout_with(opts, ...)` de liveviews (v0.50) es para páginas LIVE:
+// inyecta el runtime WebSocket y pide `ws_path`/`root_id`. Cuando el juego (F2)
+// tenga páginas interactivas, se evalúa componer `live_layout_with` para esas.
 //
 // Todo el CSS va en el <head>, NUNCA dentro del root diffeado: el parser del
-// diff rechaza <style> ahí adentro y cae en silencio a reemplazo completo
-// del HTML — la app se pone lenta y las transiciones se cortan, sin ningún
-// error que lo delate (FLV-02).
-//
-// Migra a `live_layout_with(opts, ...)` cuando exista. Ver FLV-01.
+// diff rechaza <style> ahí adentro y cae en silencio a reemplazo completo del
+// HTML — la app se pone lenta y las transiciones se cortan, sin error que lo
+// delate. (Trampa vigente de liveviews; ver CLAUDE.md.)
 
 from fitz_liveviews import Html, html, flv, html_response
 from brand import logo_lockup, footer, brand_css

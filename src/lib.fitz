@@ -1,3 +1,3 @@
 // MatHelp — superficie de librería (tests + binario).
-from rng import Rng, Draw, Shuffle, rng_seeded, rng_next, rng_int, rng_bool, rng_choice, rng_shuffle, hex_val, seed_from_uuid, new_seed
-from fmt import fmt_int, fmt_dec, fmt_pct, fmt_money, fmt_fraccion, agrupar, sep_miles, sep_decimal, espacio_pct
+// Vacía en F0: rng→rand nativo y fmt→num nativo migrados. Los tests del
+// juego (F2+) reexportan acá lo que necesiten.
