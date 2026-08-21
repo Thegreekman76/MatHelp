@@ -1,0 +1,133 @@
+// main.fitz — punto de entrada de MatHelp.
+//
+// Fase F0: cimientos. Shell mobile-first, i18n es-AR/en, marca, footer
+// permanente, assets como rutas y chequeo de Postgres.
+// El juego en sí llega en F2 (ver docs/PLAN.md).
+
+from fitz_liveviews import Html, html, flv, html_response
+from config import db_url, app_name, lang_cookie_name, default_locale
+from cookies import set_lang_cookie
+from i18n import t, locale_from_cookie, es_locale_valido, nombre_locale
+from fmt import fmt_int, fmt_pct
+from brand import logo_lockup
+from layout import page, responder_html
+import assets
+
+// --- Home ----------------------------------------------------------------
+
+@header(name="cookie")
+@get("/")
+async fn home(cookie: Str?) -> Response {
+    // Regla del proyecto: el locale es SIEMPRE la primera línea del handler.
+    let locale = locale_from_cookie(cookie)
+
+    let marca = logo_lockup(56, locale).raw
+    let tagline = flv(t(locale, "app.tagline"))
+    // OJO: interpolar un Html en un string imprime su representación de
+    // debug (Html { raw: "..." }). Siempre .raw al meterlo en un template.
+    let db_html = estado_db(locale).await
+    let db = db_html.raw
+    let l_jugar = flv(t(locale, "home.empezar"))
+    let l_desafio = flv(t(locale, "home.desafio_dia"))
+    let l_practica = flv(t(locale, "home.practica_libre"))
+
+    let body = html("""<div class="mh-hero">
+{marca}
+<div class="mh-tagline">{tagline}</div>
+</div>
+
+<div class="mh-card">
+<h2>{flv(t(locale, "nav.jugar"))}</h2>
+<a class="mh-btn" href="/jugar">{l_jugar}</a>
+<a class="mh-btn sec" href="/desafio">{l_desafio}</a>
+<a class="mh-btn sec" href="/practica">{l_practica}</a>
+</div>
+
+<div class="mh-card">
+<h2>{flv(t(locale, "estado.titulo"))}</h2>
+{db}
+</div>""")
+
+    return responder_html(page(locale, "MatHelp — " + t(locale, "app.tagline"), body, html("")))
+}
+
+// Chequeo real de Postgres, para que `docker compose up` diga la verdad.
+async fn estado_db(locale: Str) -> Html {
+    match db.connect(db_url()).await {
+        Ok(conn) => {
+            let _ = conn.close().await
+            return html("""<p class="mh-estado"><span class="mh-pill"></span>{flv(t(locale, "estado.db_ok"))}</p>""")
+        }
+        Err(e) => {
+            return html("""<p class="mh-estado"><span class="mh-pill err"></span>{flv(t(locale, "estado.db_error"))}</p>""")
+        }
+    }
+}
+
+// --- Cambio de idioma ----------------------------------------------------
+
+// Setea la cookie y vuelve a donde estabas. Sin JavaScript.
+@header(name="referer")
+@get("/lang/{code}")
+fn set_lang(code: Str, referer: Str?) -> Response {
+    let loc = match es_locale_valido(code) {
+        true => code,
+        false => default_locale(),
+    }
+    let volver: Str = match referer {
+        null => "/",
+        r => r,
+    }
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        headers: {
+            "Set-Cookie": set_lang_cookie(lang_cookie_name(), loc),
+            "Location": volver,
+        },
+        body: "",
+    }
+}
+
+// --- Placeholders de las pantallas que vienen ---------------------------
+
+@header(name="cookie")
+@get("/jugar")
+fn jugar(cookie: Str?) -> Response {
+    return proximamente(locale_from_cookie(cookie), t(locale_from_cookie(cookie), "nav.jugar"), "F2")
+}
+
+@header(name="cookie")
+@get("/desafio")
+fn desafio(cookie: Str?) -> Response {
+    return proximamente(locale_from_cookie(cookie), t(locale_from_cookie(cookie), "home.desafio_dia"), "F3")
+}
+
+@header(name="cookie")
+@get("/practica")
+fn practica(cookie: Str?) -> Response {
+    return proximamente(locale_from_cookie(cookie), t(locale_from_cookie(cookie), "home.practica_libre"), "F3")
+}
+
+fn proximamente(locale: Str, titulo: Str, fase: Str) -> Response {
+    let t_esc = flv(titulo)
+    let body = html("""<div class="mh-card">
+<h2>{fase}</h2>
+<p style="font-size:1.35rem;font-weight:800;margin:.2rem 0 1rem">{t_esc}</p>
+<p style="color:var(--mh-suave);margin:0 0 1.2rem">Esta pantalla llega en la fase {fase}.</p>
+<a class="mh-btn sec" href="/">←</a>
+</div>""")
+    return responder_html(page(locale, titulo + " — MatHelp", body, html("")))
+}
+
+// --- Arranque ------------------------------------------------------------
+
+// Fitz no auto-carga .env: explícito antes que mágico.
+match load_env(".env") {
+    Ok(_) => print("[mathelp] .env cargado"),
+    Err(_) => print("[mathelp] sin .env — usando variables de entorno"),
+}
+
+// 0.0.0.0 es obligatorio: sin eso el -p de Docker no rutea nada al container.
+@server(3000, "0.0.0.0")
+fn main() => 0

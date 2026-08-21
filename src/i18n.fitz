@@ -1,0 +1,74 @@
+// i18n.fitz — MÓDULO AISLADO.
+//
+// Los catálogos son código generado (cat_es_ar.fitz / cat_en.fitz) porque
+// Fitz no puede leer archivos en runtime. La fuente de verdad para los
+// traductores son los locales/*.json; tools/gen_i18n.py los compila.
+//
+// REGLAS DEL PROYECTO:
+//   1. Ningún string visible se escribe en un template. Siempre t(locale, k).
+//   2. Ningún número crudo en la UI. Siempre fmt_* (ver fmt.fitz).
+//   3. locale_from_cookie() es la PRIMERA línea de cada handler — incluido
+//      el @ws. Si el locale no llega al socket, los diffs vuelven en el
+//      idioma equivocado: bug fácil de cometer, muy confuso de debuggear.
+//
+// Ver docs/norte-mathelp.md · FITZ-03 y T1.
+
+from cat_es_ar import cat_es_ar
+from cat_en import cat_en
+from cookies import read_cookie
+from config import lang_cookie_name, default_locale
+
+// Locales soportados. Agregar uno = agregar el .json, correr gen_i18n.py,
+// e importar el catálogo acá.
+fn locales_soportados() -> List<Str> => ["es-AR", "en"]
+
+fn es_locale_valido(loc: Str) -> Bool {
+    return loc == "es-AR" or loc == "en"
+}
+
+// Traducción. Clave desconocida devuelve la clave — así el texto faltante
+// se ve en pantalla en vez de quedar en blanco.
+fn t(locale: Str, key: Str) -> Str {
+    if (locale == "en") {
+        return cat_en(key)
+    }
+    return cat_es_ar(key)
+}
+
+// Traducción con un parámetro posicional: "La respuesta era {0}."
+fn t1(locale: Str, key: Str, arg: Str) -> Str {
+    return t(locale, key).replace("\{0\}", arg)
+}
+
+// Resuelve el locale desde el header Cookie del request (o del handshake
+// del WebSocket, que es el mismo header).
+fn locale_from_cookie(cookie: Str?) -> Str {
+    let loc = read_cookie(cookie, lang_cookie_name())
+    if (es_locale_valido(loc)) {
+        return loc
+    }
+    return default_locale()
+}
+
+// Código corto para <html lang="..."> y para el selector de idioma.
+fn lang_corto(locale: Str) -> Str {
+    if (locale == "en") {
+        return "en"
+    }
+    return "es"
+}
+
+// El "otro" idioma, para el botón de cambio.
+fn locale_alterno(locale: Str) -> Str {
+    if (locale == "en") {
+        return "es-AR"
+    }
+    return "en"
+}
+
+fn nombre_locale(locale: Str) -> Str {
+    if (locale == "en") {
+        return "English"
+    }
+    return "Español"
+}

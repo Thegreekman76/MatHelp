@@ -1,0 +1,10 @@
+# Override para compilar Fitz desde el codigo fuente en vez de usar la
+# imagen oficial. Usar solo si el pull de ghcr falla.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.source.yml up --build
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.source

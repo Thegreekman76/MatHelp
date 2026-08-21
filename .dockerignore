@@ -1,0 +1,33 @@
+# Build
+target/
+.fitz/
+
+# Git / CI
+.git/
+.gitignore
+.github/
+
+# Entorno
+.env
+.env.*
+!.env.example
+
+# Editores
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker (no hace falta adentro del contexto)
+Dockerfile
+Dockerfile.source
+docker-compose*.yml
+.dockerignore
+
+# Scripts de Windows
+*.bat
+
+# Docs y assets de desarrollo
+docs/
+brand/
+*.md

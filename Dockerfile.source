@@ -1,0 +1,55 @@
+# MatHelp — fallback: compila Fitz desde el código fuente.
+#
+# Usalo si `ghcr.io/thegreekman76/fitz` no está disponible o querés fijar un
+# commit exacto del lenguaje. Tarda bastante más (compila todo el compilador
+# de Fitz en Rust: ~6-10 min la primera vez), pero después Docker cachea la
+# capa y los rebuilds de MatHelp son rápidos.
+#
+#     docker compose -f docker-compose.yml -f docker-compose.source.yml up --build
+
+ARG RUST_VERSION=1.90
+ARG FITZ_REF=main
+ARG FLV_TAG=v0.47.0
+
+# ---- Stage 1: vendor ----------------------------------------------------
+FROM alpine:3.20 AS vendor
+
+ARG FLV_TAG
+RUN apk add --no-cache git
+RUN git clone --depth 1 --branch ${FLV_TAG} \
+      https://github.com/Thegreekman76/fitz-liveviews.git \
+      /vendor/fitz-liveviews \
+ && rm -rf /vendor/fitz-liveviews/.git
+
+# ---- Stage 2: compilar el compilador ------------------------------------
+FROM rust:${RUST_VERSION}-bookworm AS fitzc
+
+ARG FITZ_REF
+WORKDIR /build
+
+RUN git clone --depth 1 --branch ${FITZ_REF} https://github.com/Thegreekman76/fitz.git .
+
+# El repo pinea un toolchain que puede no existir en esta imagen; usamos el
+# que trae la imagen de Rust.
+RUN rm -f rust-toolchain.toml && cargo build --release
+
+# ---- Stage 3: compilar MatHelp ------------------------------------------
+FROM rust:${RUST_VERSION}-bookworm AS builder
+
+COPY --from=fitzc /build/target/release/fitz /usr/local/bin/fitz
+COPY --from=vendor /vendor/fitz-liveviews /vendor/fitz-liveviews
+
+WORKDIR /app
+COPY fitz.docker.toml ./fitz.toml
+COPY src/ ./src/
+
+RUN fitz build
+
+# ---- Stage 4: runtime ---------------------------------------------------
+FROM gcr.io/distroless/cc-debian12
+
+COPY --from=builder /app/target/release/mathelp /usr/local/bin/mathelp
+
+EXPOSE 3000
+
+ENTRYPOINT ["/usr/local/bin/mathelp"]

@@ -1,0 +1,192 @@
+from mathelp import Rng, Draw, Shuffle, rng_seeded, rng_next, rng_int, rng_bool, rng_choice, rng_shuffle, hex_val, seed_from_uuid
+
+// --- Determinismo: el contrato que sostiene el replay --------------------
+
+@test fn misma_semilla_misma_secuencia() {
+    let a = rng_seeded(12345)
+    let b = rng_seeded(12345)
+    let x = rng_int(a, 1, 1000)
+    let y = rng_int(b, 1, 1000)
+    assert_eq(x.value, y.value)
+    assert_eq(x.rng.state, y.rng.state)
+}
+
+@test fn semillas_distintas_secuencias_distintas() {
+    let a = rng_int(rng_seeded(1), 1, 1000000)
+    let b = rng_int(rng_seeded(2), 1, 1000000)
+    assert_ne(a.value, b.value)
+}
+
+// Este test FIJA la secuencia. Si cambia el algoritmo, rompe — y tiene que
+// romper: las partidas guardadas en Postgres ya no se podrían reproducir.
+@test fn secuencia_congelada() {
+    let r = rng_seeded(12345)
+    let a = rng_next(r)
+    let b = rng_next(a)
+    let c = rng_next(b)
+    assert_eq(a.state, 3336926330)
+    assert_eq(b.state, 1697253807)
+    assert_eq(c.state, 2816511904)
+}
+
+@test fn seed_cero_no_colapsa() {
+    let r = rng_seeded(0)
+    assert_ne(r.state, 0)
+    let d = rng_int(r, 1, 100)
+    assert_ne(d.rng.state, 0)
+}
+
+// --- Rango ---------------------------------------------------------------
+
+@test fn respeta_el_rango() {
+    let r = rng_seeded(777)
+    let i = 0
+    while (i < 300) {
+        let d = rng_int(r, 3, 9)
+        assert(d.value >= 3, "por debajo del mínimo")
+        assert(d.value <= 9, "por encima del máximo")
+        r = d.rng
+        i = i + 1
+    }
+}
+
+@test fn rango_de_un_solo_valor() {
+    let d = rng_int(rng_seeded(42), 7, 7)
+    assert_eq(d.value, 7)
+}
+
+@test fn rango_invertido_devuelve_min() {
+    let d = rng_int(rng_seeded(42), 9, 3)
+    assert_eq(d.value, 9)
+}
+
+@test fn bool_solo_da_cero_o_uno() {
+    let r = rng_seeded(2024)
+    let i = 0
+    while (i < 100) {
+        let d = rng_bool(r)
+        assert(d.value == 0 or d.value == 1, "bool fuera de rango")
+        r = d.rng
+        i = i + 1
+    }
+}
+
+// --- Distribución: que no se quede pegado en un valor --------------------
+
+@test fn cubre_todo_el_rango_de_una_tabla() {
+    // 400 tiradas sobre 1..10 tienen que tocar los 10 valores.
+    let r = rng_seeded(31337)
+    let vistos = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    let i = 0
+    while (i < 400) {
+        let d = rng_int(r, 1, 10)
+        vistos[d.value - 1] = vistos[d.value - 1] + 1
+        r = d.rng
+        i = i + 1
+    }
+    let k = 0
+    while (k < 10) {
+        assert(vistos[k] > 0, "nunca salió el valor {k + 1}")
+        k = k + 1
+    }
+}
+
+@test fn distribucion_razonablemente_pareja() {
+    // 6000 tiradas sobre 1..6: cada cara entre 700 y 1300 (esperado 1000).
+    let r = rng_seeded(99)
+    let caras = [0, 0, 0, 0, 0, 0]
+    let i = 0
+    while (i < 6000) {
+        let d = rng_int(r, 1, 6)
+        caras[d.value - 1] = caras[d.value - 1] + 1
+        r = d.rng
+        i = i + 1
+    }
+    let k = 0
+    while (k < 6) {
+        assert(caras[k] > 700, "cara {k + 1} sale muy poco: {caras[k]}")
+        assert(caras[k] < 1300, "cara {k + 1} sale demasiado: {caras[k]}")
+        k = k + 1
+    }
+}
+
+// --- choice y shuffle ----------------------------------------------------
+
+@test fn choice_devuelve_un_elemento_de_la_lista() {
+    let opciones = [12, 25, 37, 48]
+    let r = rng_seeded(555)
+    let i = 0
+    while (i < 50) {
+        let d = rng_choice(r, opciones)
+        assert(d.value == 12 or d.value == 25 or d.value == 37 or d.value == 48,
+               "choice devolvió algo que no estaba en la lista: {d.value}")
+        r = d.rng
+        i = i + 1
+    }
+}
+
+@test fn choice_con_lista_vacia_no_explota() {
+    let d = rng_choice(rng_seeded(1), [])
+    assert_eq(d.value, 0)
+}
+
+@test fn shuffle_conserva_los_elementos() {
+    // Clave para el juego: las 4 opciones de respuesta se barajan, pero
+    // la correcta tiene que seguir estando.
+    let s = rng_shuffle(rng_seeded(2468), [56, 54, 48, 63])
+    assert_eq(s.items.len(), 4)
+    let suma = 0
+    for v in s.items {
+        suma = suma + v
+    }
+    assert_eq(suma, 221)
+}
+
+@test fn shuffle_realmente_reordena() {
+    let original = [1, 2, 3, 4, 5, 6, 7, 8]
+    let s = rng_shuffle(rng_seeded(13), original)
+    let iguales = 0
+    let i = 0
+    while (i < 8) {
+        if (s.items[i] == original[i]) {
+            iguales = iguales + 1
+        }
+        i = i + 1
+    }
+    assert(iguales < 8, "shuffle no movió nada")
+}
+
+// Regresión: las listas en Fitz son por referencia. Si `rng_shuffle` no
+// copia, destruye las opciones de respuesta del llamador.
+@test fn shuffle_no_muta_la_lista_original() {
+    let original = [56, 54, 48, 63]
+    let s = rng_shuffle(rng_seeded(2468), original)
+    assert_eq(original[0], 56)
+    assert_eq(original[1], 54)
+    assert_eq(original[2], 48)
+    assert_eq(original[3], 63)
+    assert_eq(s.items.len(), 4)
+}
+
+@test fn shuffle_de_lista_vacia_o_unitaria() {
+    assert_eq(rng_shuffle(rng_seeded(1), []).items.len(), 0)
+    assert_eq(rng_shuffle(rng_seeded(1), [9]).items[0], 9)
+}
+
+// --- Semilla -------------------------------------------------------------
+
+@test fn hex_val_mapea_bien() {
+    assert_eq(hex_val("0"), 0)
+    assert_eq(hex_val("9"), 9)
+    assert_eq(hex_val("a"), 10)
+    assert_eq(hex_val("f"), 15)
+    assert_eq(hex_val("-"), 0)
+}
+
+@test fn seed_from_uuid_es_estable_y_distingue() {
+    let u1 = "550e8400-e29b-41d4-a716-446655440000"
+    let u2 = "550e8400-e29b-41d4-a716-446655440001"
+    assert_eq(seed_from_uuid(u1), seed_from_uuid(u1))
+    assert_ne(seed_from_uuid(u1), seed_from_uuid(u2))
+    assert_ne(seed_from_uuid(u1), 0)
+}

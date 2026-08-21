@@ -1,0 +1,44 @@
+# MatHelp — stack completo: app + Postgres.
+#
+#   docker compose up --build        (o simplemente: start.bat)
+#
+# La app queda en http://localhost:3000
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: mathelp-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mathelp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mathelp}
+      POSTGRES_DB: ${POSTGRES_DB:-mathelp}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Los .sql de acá corren solos la PRIMERA vez que se crea el volumen.
+      # Para re-correrlos: reset.bat (borra el volumen).
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mathelp} -d ${POSTGRES_DB:-mathelp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mathelp-app
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER:-mathelp}:${POSTGRES_PASSWORD:-mathelp}@db:5432/${POSTGRES_DB:-mathelp}?sslmode=disable"
+      JWT_SECRET: ${JWT_SECRET:-mathelp-dev-cambiame-en-produccion}
+      MATHELP_DEFAULT_LOCALE: ${MATHELP_DEFAULT_LOCALE:-es-AR}
+    ports:
+      - "${MATHELP_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

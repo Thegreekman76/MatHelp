@@ -1,0 +1,519 @@
+# MatHelp — Plan técnico y de producto
+
+> **Mat**emática + **Help**, y el mate que se comparte.
+> Juego de matemática para primaria (6–12), preparado para crecer a secundaria (13–17).
+> Stack: **Fitz** + **Fitz LiveViews** + **PostgreSQL**, todo **dockerizado**, **i18n desde el día 1**, **mobile-first**.
+
+---
+
+## 📍 Estado — actualizado 19/08/2026
+
+**Fase actual: F0 — Cimientos. Andando y verificado.**
+
+### ✅ Hecho
+
+| Qué | Dónde | Verificado con |
+|---|---|---|
+| Identidad visual (logo, paleta, lockup) | `brand/` | Render a 16–128 px |
+| PRNG determinístico | `src/rng.fitz` | 18 tests, incluida distribución sobre 6.000 tiradas |
+| Formateo por locale (es-AR / en) | `src/fmt.fitz` | 15 tests: decimales, %, dinero, negativos |
+| Cookies (leer / setear / borrar) | `src/cookies.fitz` | `Set-Cookie` correcto vía curl |
+| i18n: catálogos JSON → módulos Fitz | `locales/*.json`, `tools/gen_i18n.py`, `src/cat_*.fitz` | 61 claves × 2 locales, sin faltantes |
+| Traducción + resolución de locale | `src/i18n.fitz` | Cambio de idioma end-to-end |
+| Shell mobile-first + dark mode | `src/layout.fitz`, `src/brand.fitz` | Capturas a 390 px, light y dark |
+| Assets como rutas | `src/assets.fitz` | `/favicon.svg` y `/manifest.webmanifest` → 200 |
+| Footer permanente con links a los repos | `src/brand.fitz` | En todas las pantallas |
+| Home + cambio de idioma + placeholders | `src/main.fitz` | `curl` sobre las 5 rutas |
+| Esquema de base completo | `migrations/0001_init.sql` | 7 tablas con FK, índices y CHECK |
+| Docker (app + Postgres) | `Dockerfile`, `docker-compose.yml` | Pendiente de correr en tu máquina |
+| Scripts de Windows | `start.bat`, `stop.bat`, `logs.bat`, `reset.bat` | Pendiente de correr en tu máquina |
+
+**33 tests en verde** contra `fitz 0.47.0` compilado desde tu repo.
+
+### 🔜 Lo que sigue
+
+| Fase | Qué falta | Bloqueado por |
+|---|---|---|
+| **F1** | `src/models.fitz` con los `@table`, registro y login de familia (form nativo, sin JS), alta de perfiles, selección con PIN | — |
+| **F2** | Generadores de las 4 operaciones, motor de ronda, `Quiz.fitzv`, cronómetro por WS, persistencia de la partida | — |
+| **F3** | `mastery` + Elo-lite, repaso espaciado, racha diaria, mate-progreso, práctica libre, desafío del día | F2 |
+| **F4** | V/F, completá el hueco, teclado numérico propio, escalera de tablas, el kiosco, fracciones visuales | F2 |
+| **F5** | Panel del padre con reportes | F3 |
+| **F6** | Reanudar partida, accesibilidad, sonido opcional, instalable | F2 |
+| **F7** | Secundaria (13–17) | F4 |
+
+### 🐛 Hallazgos nuevos al dockerizar
+
+Tres cosas que solo aparecieron al construir la imagen — ninguna se veía en desarrollo:
+
+1. **La imagen oficial `ghcr.io/thegreekman76/fitz` no trae `git`**, así que no puede resolver dependencias `{ git = ... }` adentro del container. Resuelto con una etapa `vendor` que clona aparte y una dependencia `{ path = ... }` vía `fitz.docker.toml`.
+
+2. **`fitz check` y `fitz run` aceptan `Str + Any`, `fitz build` no.** Un `let chars = []` infiere `List<Any>` y el codegen rechaza la concatenación. Anotación explícita y listo — pero es un error que solo aparece al compilar.
+
+3. **Bug de codegen: las funciones que devuelven `T?` compilan mal.** Emite `return ()` en vez de `return None`. Afecta también a `flv_cookie` **dentro de fitz-liveviews**, así que no se puede esquivar desde la app. Detalle y repro de 20 líneas en `docs/BUG-fitz-option-codegen.md` → candidato a `FITZ-09`.
+
+Los tres son de la misma familia: **cosas que andan interpretadas y explotan compiladas** (T2). Este proyecto ya encontró tres en una tarde.
+
+### ⚠️ Deuda anotada
+
+- **Sin auth todavía**: cualquiera que abra la URL entra. Se cierra en F1.
+- **`JWT_SECRET` con valor por defecto** en `.env.example`. Cambiarlo antes de exponerlo fuera de la red de casa.
+- **El esquema lo crea Postgres al primer arranque** (`docker-entrypoint-initdb.d`), no `fitz db migrate`. Desde F1 pasa a migraciones de verdad.
+- **`fitz_liveviews` pineado a `v0.47.0`** por git. Si trabajás con el repo al lado, cambiá la línea en `fitz.toml` por `path`.
+- **El contenedor corre el intérprete, no el binario nativo.** Se pierde el ~9x de performance y el runtime distroless. No es una elección: es el bug de codegen del punto 3. La versión compilada está en el `Dockerfile`, comentada y lista para descomentar cuando se arregle.
+- **`fitz.docker.toml` duplica `fitz.toml`.** Si tocás las dependencias, hay que reflejarlo en los dos. Desaparece si `fitz build` acepta un override de dependencias por CLI.
+
+---
+
+## 0. Decisiones ya tomadas
+
+| Decisión | Elegido |
+|---|---|
+| Alcance MVP | Primaria completa (6–12), arquitectura lista para secundaria |
+| Usuarios | Cuenta de familia (padre/madre) + perfiles de hijos + panel de reportes |
+| Idiomas | `es-AR` (base) + `en`, arquitectura multi-locale |
+| Render | 100% SSR con LiveViews (WebSocket diffs). Sin offline por ahora |
+| Datos | PostgreSQL vía el ORM de Fitz |
+| Infra | Docker + docker-compose (app + db) |
+| UI | Mobile-first (celu y tablet primero, PC después) |
+| Marca | Logo MatHelp propio + footer permanente "Hecho con Fitz y Fitz LiveViews" |
+
+---
+
+## 1. Análisis de la tecnología — qué me da y qué me falta
+
+Cloné y leí **`Thegreekman76/fitz` v0.47.0** y **`Thegreekman76/fitz-liveviews` v0.47.0**. Esto no sale de los blogs: sale del código y los docs del repo.
+
+### 1.1 Lo que juega a favor (y bastante)
+
+| Necesidad de MatHelp | Qué lo resuelve | Dónde está |
+|---|---|---|
+| UI reactiva sin build de JS | `.fitzv` con `state {}` / `event ...()` / `<template>` + diff por WS | `examples/counter/src/Counter.fitzv` |
+| Cronómetro de partida | `@background` + `spawn(tick(ws))` + `sleep(1000)` + `ws.send(flv_frame(...))` | `docs/liveviews.md:434` |
+| Login de padres | Argon2id (`hash.password` / `hash.verify`) + JWT + cookie `HttpOnly` | `examples/admin/src/auth.fitz` |
+| Persistencia | ORM con `@table`, `@has_many`, `.where(closure)`, `db.transaction` | `boilerplates/api-orm-full` |
+| Migraciones | `fitz db diff` / `migrate` / `rollback` / `status` | `docs/guide.md:13070` |
+| Docker | `fitz docker init` genera Dockerfile multi-stage + compose con Postgres + healthcheck | `src/docker.rs` |
+| i18n | Patrón `t(locale, "key")` + cookie de idioma + `<html lang>` | `examples/admin/src/i18n.fitz` |
+| Componentes UI | 38 componentes (`button`, `card`, `progress_bar`, `modal`, `toast`, `tabs`, `stepper`…) | `docs/ui-components.md` |
+| Dark mode | Tokens `--flv-*` + `theme_boot_script`, sin viajar por el WS | `docs/styling.md` |
+| Tests | `@test` + `assert_eq` en `tests/*.fitz` | `docs/guide.md:10321` |
+
+### 1.2 Los ocho huecos reales, y cómo los tapo
+
+Esto es lo importante del análisis. Cada uno **bloquearía** el proyecto si lo descubrimos a mitad de camino.
+
+**① No existe `random` en la stdlib de Fitz.**
+Un juego de matemática es, esencialmente, un generador de números aleatorios. No hay `rand`, `random` ni nada equivalente — verificado contra `builtin_names()` y la lista de módulos del LSP.
+→ **Solución:** `src/rng.fitz`, un **xorshift32 propio** (determinístico, ~15 líneas). Semilla por partida derivada de `Uuid.v4()` + `DateTime.now().timestamp()`.
+→ **Beneficio inesperado:** al ser determinístico, en la base guardo `seed + índice` en vez del ejercicio completo. Una partida entera se reconstruye desde 2 enteros, y el panel del padre puede "rejugar" exactamente lo que vio el chico.
+
+**② No hay servido de archivos estáticos.** Cero. No hay `static/`, ni `@static`, ni `ServeDir`.
+→ **Solución: assets como rutas.** `Response` ya soporta `content_type` y `body_bytes: Bytes?`, así que:
+```fitz
+@get("/favicon.svg")
+fn favicon() -> Response => Response {
+    content_type: "image/svg+xml",
+    headers: { "Cache-Control": "public, max-age=604800" },
+    body: mathelp_mark_svg(),
+}
+```
+Lo mismo para `/manifest.webmanifest` (→ instalable en el celu) y, si sumamos sonidos, `bytes_from_b64` + `body_bytes`. El logo va **SVG inline** en el shell, así que no cuesta ni un request.
+
+**③ El parser del diff rechaza `<script>` y `<style>` dentro del root de la LiveView.**
+→ **Solución:** todo el CSS va en el `<head>` del shell (fuera del nodo diffeado) o en `<style scoped>` del `.fitzv` (que el compilador extrae). Ningún `<style>` suelto adentro del `id="root"`.
+
+**④ `live_layout()` tiene el `<head>` hardcodeado** (título fijo "Fitz LiveView", sin viewport configurable ni meta propias).
+→ **Solución:** no uso `live_layout` — uso **`app_shell(title, lang, head_extra, …)`**, que ya expone el head. Lo envuelvo en un `game_layout(...)` propio que le inyecta `viewport-fit=cover`, `theme-color`, `apple-mobile-web-app-capable`, el manifest y el favicon. Un solo lugar para tocar.
+
+**⑤ Fitz no tiene API de filesystem.** Solo `load_env()`. **No puedo leer catálogos JSON de i18n en runtime.**
+→ **Corrijo lo que habíamos hablado:** los catálogos **no** pueden ser JSON leídos en caliente. Pero no perdemos el formato amigable para traductores:
+- Fuente de verdad: `locales/es-AR.json`, `locales/en.json` (editables por cualquiera, diffeables en git).
+- `tools/gen_i18n.py` los compila a `src/i18n/cat_es_ar.fitz` y `cat_en.fitz` (un `match` sobre la clave).
+- Un `@test` verifica que **ninguna clave falte en ningún locale** — el CI rompe si alguien agrega texto sin traducir.
+
+**⑥ Los format specs no conocen locale.** ~~Y solo funcionan en `fitz run`.~~
+**Corregido tras la auditoría en repo:** los specs **sí compilan** en `fitz build` — la tabla de `docs/guide.md:1266` está desactualizada. La limitación real que queda es que el separador de miles está **hardcodeado estilo inglés**: en es-AR necesitamos `1.234,5`, en en-US `1,234.5`.
+→ **Solución:** `fmt.fitz` propio con `fmt_num` / `fmt_pct` / `fmt_money(locale, x)`. **Regla:** ningún número crudo en la UI, nunca. Siempre vía `fmt.*`.
+
+**⑦ El estado de los componentes vive en memoria del proceso, sin eviction ni persistencia.**
+→ **Solución:** `instance_id = Uuid.v4()` por socket (aísla las partidas entre chicos), y **cada respuesta se persiste a Postgres apenas ocurre** — la memoria es caché, no fuente de verdad. Si el server se reinicia a mitad de partida, se pierde la ronda en curso y nada más.
+
+**⑧ `.preload()` en `fitz run` es un no-op SILENCIOSO** — no tira error: devuelve las relaciones vacías. Es peor que fallar. Además `.is_in([...])` exige lista literal, y no hay ENUM nativo de Postgres.
+→ **Solución:** joins explícitos en `db_queries.fitz` (nunca `preload` en código que corra interpretado); `.is_in` con lista calculada → `db.query(... = ANY($1))` aislado en ese mismo módulo; enums como `Str` + `@check_constraint`.
+
+### 1.3 Buenas noticias (auditoría contra el repo, no contra los docs)
+
+Tres cosas que la documentación decía que no se podían y **sí se pueden**. Cada una borra un workaround entero:
+
+- **`<form method="POST">` nativo funciona** — `@post` ya acepta `form-urlencoded`. El login de MatHelp sale **sin una línea de JavaScript**, contra lo que dice el comentario de `examples/admin/src/auth.fitz`.
+- **Los format specs sí compilan en `fitz build`.** La tabla de `docs/guide.md:1266` está desactualizada. No hay que evitarlos: solo falta el locale.
+- **`DataGrid` ya colapsa a cards abajo de 640 px.** El panel del padre en el celu sale gratis.
+
+Moraleja para el resto del proyecto: **verificar contra el código, no contra los docs.** Los docs de un proyecto que se mueve rápido van atrás.
+
+### 1.4 Regla de aislamiento — workarounds fáciles de borrar
+
+Cada limitación vive **detrás de un módulo con la firma que va a tener la solución oficial**. El día que llegue, migrar es borrar un archivo y cambiar un import — no refactorizar la app.
+
+| Módulo | Envuelve | Cuando llegue… | Migración |
+|---|---|---|---|
+| `rng.fitz` | xorshift32 con la firma de `rand.seeded()` | módulo `rand` en core | borrar archivo, cambiar import |
+| `cookies.fitz` | `set_cookie` / `read_cookie` | `@cookie` + `Response.cookies` | reemplazar 2 funciones |
+| `fmt.fitz` | `fmt_num` / `fmt_pct` / `fmt_money(locale, x)` | `num.format(x, locale:)` | reemplazar el cuerpo |
+| `i18n.fitz` + `cat_*.fitz` | `t(locale, key)` sobre catálogos compilados | `fs.read()` | cambiar solo el loader |
+| `assets.fitz` | un `@get` por archivo | `static_dir` en `@server` | borrar las rutas |
+| `db_queries.fitz` | joins manuales + `ANY($1)` crudo | `preload` en intérprete, `.is_in(var)` | reemplazar por ORM |
+| `game_layout.fitz` | wrapper sobre `app_shell` | `live_layout_with` | opcional, ya está bien |
+
+`cookies.fitz` es el más importante de los siete: **un parser de cookies mal escrito es un agujero de seguridad**, y un solo lugar es auditable.
+
+### 1.5 Riesgos que asumo conscientemente
+
+| Riesgo | Impacto | Mitigación |
+|---|---|---|
+| Sin reconnect con replay de estado (deuda declarada del framework) | Si el celu pierde señal, se corta la partida | Persistir cada respuesta al toque + pantalla "reanudar partida" |
+| Latencia del WS en cada tap | En 3G rural puede sentirse lento | Feedback optimista en CSS (`:active`) + ronda pre-generada; si molesta, migrar el juego a target WASM |
+| Ecosistema chico | No hay libs de terceros | Todo lo que necesitamos ya está en `fitz_liveviews.ui.*` |
+| Bugs del lenguaje | Sos vos el que los arregla 🙂 | Cada fase deja tests `@test`; los hallazgos van como issues al repo de Fitz |
+
+---
+
+## 2. Arquitectura
+
+```
+┌──────────────── docker compose ────────────────┐
+│                                                │
+│  ┌───────────────┐        ┌─────────────────┐  │
+│  │  mathelp-app  │◄──────►│  mathelp-db     │  │
+│  │  binario Fitz │  ORM   │  postgres:16    │  │
+│  │  @server(3000)│        │  volumen pgdata │  │
+│  └───────┬───────┘        └─────────────────┘  │
+└──────────┼─────────────────────────────────────┘
+           │ HTTP + WebSocket (mismo puerto)
+     ┌─────▼─────┐
+     │ Celular / │  SSR + diffs. ~5 KB de JS inline. Sin build.
+     │  tablet   │
+     └───────────┘
+```
+
+**Flujo de una partida**
+
+1. `GET /jugar/{modo}` → shell + `live_embed` con el primer ejercicio ya renderizado (sin flash).
+2. El browser abre `WS /live/juego`; manda la cookie `HttpOnly` sola → el socket resuelve perfil y locale.
+3. `spawn(timer_tick(ws))` arranca el cronómetro (1 push por segundo).
+4. Cada tap manda `data-flv-click="responder"` + `data-flv-value-opcion="56"`.
+5. El handler corrige, actualiza `mastery`, genera el siguiente ejercicio con el PRNG y devuelve el diff.
+6. Al terminar: `INSERT` de la sesión + resumen + medallas.
+
+---
+
+## 3. Modelo de datos (PostgreSQL)
+
+```fitz
+@table("families")                    // la cuenta que administra el padre/madre
+type Family {
+    @primary id: Int = 0
+    email: Str = ""
+    @hidden password_hash: Str = ""
+    display_name: Str = ""
+    locale: Str = "es-AR"
+    @db_default created_at: DateTime
+    @has_many("Profile", via="family_id", on_delete="cascade") profiles: List<Profile> = []
+}
+
+@table("profiles")                    // cada hijo/a
+type Profile {
+    @primary id: Int = 0
+    @belongs_to("Family", on_delete="cascade") family_id: Int = 0
+    name: Str = ""
+    avatar: Str = "mate"              // clave de avatar SVG inline
+    birth_year: Int = 0               // edad derivada → nunca desactualizada
+    grade: Int = 0                    // 1..7 primaria
+    locale: Str = "es-AR"
+    @hidden pin: Str = ""             // opcional, 4 dígitos, para que no se metan entre hermanos
+    daily_goal: Int = 10              // ejercicios/día
+    @db_default created_at: DateTime
+}
+
+@table("sessions")                    // una partida
+type GameSession {
+    @primary id: Int = 0
+    @belongs_to("Profile", on_delete="cascade") profile_id: Int = 0
+    mode: Str = ""                    // quiz | truefalse | fillgap | numpad | story | ...
+    topic_code: Str = ""
+    level: Int = 1
+    seed: Int = 0                     // ← reproduce la partida entera
+    started_at: DateTime
+    ended_at: DateTime?  = null
+    total: Int = 0
+    correct: Int = 0
+    score: Int = 0
+    duration_ms: Int = 0
+}
+
+@table("attempts")                    // una respuesta
+type Attempt {
+    @primary id: Int = 0
+    @belongs_to("GameSession", on_delete="cascade") session_id: Int = 0
+    @belongs_to("Profile", on_delete="cascade") profile_id: Int = 0
+    skill_code: Str = ""              // "mult.tabla.7", "frac.equiv", ...
+    idx: Int = 0                      // índice dentro del seed
+    prompt: Str = ""                  // texto canónico, para el reporte del padre
+    expected: Str = ""
+    given: Str = ""
+    correct: Bool = false
+    ms: Int = 0
+    difficulty: Int = 1
+    @db_default created_at: DateTime
+}
+
+@table("mastery")                     // dominio por destreza (motor adaptativo)
+@unique(profile_id, skill_code)
+type Mastery {
+    @primary id: Int = 0
+    @belongs_to("Profile", on_delete="cascade") profile_id: Int = 0
+    skill_code: Str = ""
+    rating: Float = 800.0             // Elo-lite del chico en esa destreza
+    seen: Int = 0
+    hits: Int = 0
+    streak: Int = 0
+    avg_ms: Int = 0
+    last_seen_at: DateTime?  = null
+    due_at: DateTime? = null          // repaso espaciado
+}
+
+@table("awards")                      // medallas y logros
+@unique(profile_id, code)
+type Award {
+    @primary id: Int = 0
+    @belongs_to("Profile", on_delete="cascade") profile_id: Int = 0
+    code: Str = ""                    // "racha7", "tablas_completas", "primer_mate"
+    @db_default earned_at: DateTime
+}
+
+@table("streaks")                     // racha diaria
+@unique(profile_id, day)
+type Streak {
+    @primary id: Int = 0
+    @belongs_to("Profile", on_delete="cascade") profile_id: Int = 0
+    day: Date
+    exercises: Int = 0
+    goal_met: Bool = false
+}
+```
+
+El **currículum no va en la base**: vive en `src/curriculum.fitz` como código, para que el compilador valide que todo `skill_code` usado existe. La base guarda solo el `code`.
+
+---
+
+## 4. i18n desde el minuto cero
+
+**Reglas duras**
+
+1. Ningún string visible se escribe en el template. Siempre `t(locale, "clave")`.
+2. Todo número que se muestre pasa por `fmt_num(locale, x)` — la coma decimal argentina no es negociable.
+3. El `locale` viaja como cookie (`mathelp_lang`, 1 año) y se lee tanto en el `@get` como en el `@ws` con `@header(name="cookie")`.
+4. `<html lang="{locale}">` siempre, por accesibilidad y por el lector de pantalla.
+5. Un `@test` falla el build si a un locale le falta una clave.
+
+**Lo que el i18n tiene que cubrir además del texto**
+
+| Aspecto | es-AR | en |
+|---|---|---|
+| Decimal / miles | `1.234,5` | `1,234.5` |
+| Moneda (juego del kiosco) | `$ 1.250` | `$1,250.00` |
+| División | `÷` y también la "casita" (algoritmo argentino) | long division |
+| Multiplicación | `×` | `×` / `*` |
+| Nombres de grado | 1º a 7º grado | 1st–7th grade |
+| Contexto de los problemas | kiosco, colectivo, empanadas, figuritas | store, bus, cookies, cards |
+| Hora | 24 h + "y cuarto / menos cuarto" | 12 h AM/PM |
+
+Ese último punto es el que hace la diferencia: **los enunciados con historia también se localizan**, no solo los botones. `es-AR` habla de figuritas y del 60; `en` habla de otra cosa.
+
+---
+
+## 5. Currículum — primaria argentina (6 a 12 años)
+
+Organizado por edad, con los `topic_code` que usa el motor. Alineado a los NAP.
+
+| Edad | Grado | Ejes | `topic_code` |
+|---|---|---|---|
+| 6 | 1º | Conteo hasta 100, comparar, suma/resta sin llevar, series | `num.conteo`, `num.comparar`, `add.simple`, `sub.simple`, `pat.series` |
+| 7 | 2º | Hasta 1.000, suma/resta con llevada, doble/mitad, inicio de tablas | `add.llevada`, `sub.prestada`, `num.dobles`, `mult.tabla.2`, `.5`, `.10` |
+| 8 | 3º | Tablas completas, división exacta, valor posicional, medidas | `mult.tabla.*`, `div.exacta`, `num.posicional`, `med.longitud` |
+| 9 | 4º | División con resto, fracciones simples, perímetro, decimales (dinero) | `div.resto`, `frac.parte`, `frac.comparar`, `geo.perimetro`, `dec.dinero` |
+| 10 | 5º | Fracciones equivalentes, suma de fracciones, decimales, área, ángulos | `frac.equiv`, `frac.suma`, `dec.suma`, `geo.area`, `geo.angulos` |
+| 11 | 6º | Porcentaje, proporcionalidad, potencias, múltiplos/divisores, volumen | `pct.basico`, `prop.directa`, `pot.cuadrados`, `num.mcd_mcm`, `geo.volumen` |
+| 12 | 7º | Enteros negativos, ecuaciones simples, razones, estadística básica | `ent.suma`, `alg.ecuacion1`, `prop.razon`, `est.promedio` |
+
+**Nota de diseño:** la edad **sugiere** el punto de entrada, no lo impone. Un chico de 9 que arrasa con las tablas ve división con resto sin pedir permiso; uno que traba en la resta con llevada baja solo. La edad es la semilla, el `rating` de `mastery` es el que manda.
+
+**Para tu hija de 9 (4º grado), el MVP le sirve el día 1:** división con resto, tablas a fondo, fracciones simples, perímetro y plata.
+
+---
+
+## 6. Los juegos
+
+Todos pensados para **pulgar en celular**: botones grandes, nada de arrastrar, nada que dependa de `hover`.
+
+| # | Juego | Mecánica | Temas | Fase |
+|---|---|---|---|---|
+| 1 | **Contrarreloj** | 60 s, opción múltiple, 4 botones grandes | todos | F2 |
+| 2 | **Verdadero o Falso** | 2 botones gigantes — el más fácil de usar en el colectivo | todos | F4 |
+| 3 | **Completá el hueco** | `7 × __ = 56` con **teclado numérico propio** en pantalla | todos | F4 |
+| 4 | **Escalera de tablas** | Subís un escalón por acierto, caés dos por error | `mult.*` | F4 |
+| 5 | **El kiosco** | Comprás, calculás el vuelto, con precios en pesos | `dec.dinero`, `add`, `sub` | F4 |
+| 6 | **Fracciones a la vista** | Pizza/barra en SVG, elegís la fracción | `frac.*` | F4 |
+| 7 | **¿Qué hora es?** | Reloj de agujas en SVG | `med.tiempo` | F5 |
+| 8 | **Problemas con historia** | Enunciado corto y localizado, respuesta numérica | 4º–7º | F5 |
+| 9 | **Geometría** | Figura en SVG, calculás perímetro/área | `geo.*` | F5 |
+| 10 | **Práctica libre** | Elegís tema y nivel, sin reloj ni puntaje | todos | F3 |
+| 11 | **Desafío del día** | 10 ejercicios del mix adaptativo, alimenta la racha | todos | F3 |
+
+**Motivación (sin volverlo un casino):**
+- El progreso de la ronda es **un mate que se llena** — la barra es el logo. Cada acierto es una cebada.
+- Racha diaria con meta configurable por el padre (default 10 ejercicios).
+- Medallas por dominio real, no por tiempo de pantalla: "tablas completas", "10 días seguidos", "fracciones sin errores".
+- **Sin vidas, sin timers de espera, sin nada que empuje a jugar más de la cuenta.** El error muestra el procedimiento correcto, no un cartel rojo.
+
+---
+
+## 7. Motor adaptativo
+
+```
+mastery.rating   ← Elo-lite por destreza (arranca en 800)
+item.difficulty  ← 1..5, definida por el generador
+
+acierto  → rating += K × (1 − esperado)
+error    → rating -= K × esperado
+esperado  = 1 / (1 + 10^((dif×200 + 400 − rating) / 400))
+```
+
+Selección del próximo ejercicio: **70 % en zona de desarrollo próximo** (dificultad ≈ rating), **20 % repaso** (destrezas con `due_at` vencido), **10 % desafío** (un escalón arriba). El repaso espaciado usa intervalos 1 / 3 / 7 / 16 / 35 días, reiniciados ante error.
+
+Además, el tiempo de respuesta cuenta: acertar en 2 s no es lo mismo que acertar en 20 s. `avg_ms` alimenta la fluidez, que es lo que realmente se busca en las tablas.
+
+---
+
+## 8. UI mobile-first
+
+**Reglas**
+
+- Diseño desde **360 px** de ancho. La PC es solo "el mismo layout centrado con más aire".
+- Área táctil mínima **56 px** de alto; botones de respuesta ~72 px.
+- Todo lo importante en el **tercio inferior** de la pantalla (zona del pulgar). El enunciado arriba, las opciones abajo.
+- `viewport-fit=cover` + `env(safe-area-inset-bottom)` para el notch y la barra de gestos.
+- Tipografía con `clamp()`, sin media queries para el tamaño de fuente.
+- Sin `hover` como único indicador; feedback en `:active` (instantáneo, no espera al WS).
+- Dark mode automático (los tokens `--flv-*` ya lo traen).
+- Objetivo: **jugable con una sola mano, en vertical**. Tablet: dos columnas.
+
+**Footer permanente** (en todas las pantallas, respetando el safe area):
+
+```
+                    ╭─────────────────────────────╮
+                    │  Hecho con Fitz y Fitz      │
+                    │  LiveViews  ·  MatHelp 2026 │
+                    ╰─────────────────────────────╯
+```
+
+con links a `github.com/Thegreekman76/fitz` y `github.com/Thegreekman76/fitz-liveviews`, ambos `target="_blank" rel="noopener"`, y el texto también localizado ("Hecho con" / "Built with").
+
+---
+
+## 9. Docker
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    environment: [POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: pg_isready
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgres://...@db:5432/mathelp?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET}
+      MATHELP_DEFAULT_LOCALE: es-AR
+    ports: ["3000:3000"]
+    depends_on: { db: { condition: service_healthy } }
+volumes: { pgdata: }
+```
+
+Base: lo que genera `fitz docker init` (multi-stage, runtime distroless, binario nativo). Le agrego:
+- `migrate` automático al arrancar (o un servicio `migrator` aparte, más prolijo).
+- Seed opcional de datos demo con `MATHELP_SEED=1`.
+- `@server(3000, "0.0.0.0")` — sin el `0.0.0.0` el `-p` no rutea nada.
+
+Todo el ciclo es: `docker compose up --build` y listo.
+
+---
+
+## 10. Estructura del proyecto
+
+```
+mathelp/
+├─ fitz.toml
+├─ Dockerfile · docker-compose.yml · .dockerignore · .env.example
+├─ migrations/
+├─ locales/            es-AR.json · en.json          ← fuente de verdad
+├─ tools/gen_i18n.py   → compila los .json a .fitz
+├─ src/
+│  ├─ main.fitz              @server + registro de componentes
+│  ├─ config.fitz            db_url, jwt_secret, nombres de cookie
+│  ├─ models.fitz            los @table
+│  ├─ rng.fitz               ⟵ aislado · firma de rand.seeded()
+│  ├─ cookies.fitz           ⟵ aislado · set_cookie / read_cookie
+│  ├─ fmt.fitz               ⟵ aislado · fmt_num / fmt_pct / fmt_money
+│  ├─ i18n.fitz              t(), locale_from_cookie()
+│  ├─ cat_es_ar.fitz         (generado desde locales/es-AR.json)
+│  ├─ cat_en.fitz            (generado)
+│  ├─ brand.fitz             logo SVG inline, footer, tokens CSS
+│  ├─ game_layout.fitz       ⟵ aislado · wrapper sobre app_shell
+│  ├─ assets.fitz            ⟵ aislado · /favicon.svg · /manifest.webmanifest
+│  ├─ db_queries.fitz        ⟵ aislado · joins manuales + ANY($1)
+│  ├─ auth.fitz              login familia (form nativo, sin JS), perfiles, logout
+│  ├─ curriculum.fitz        temas, edades, destrezas
+│  ├─ gen_arith.fitz         generadores + - × ÷
+│  ├─ gen_frac.fitz          fracciones
+│  ├─ gen_geo.fitz           geometría
+│  ├─ gen_story.fitz         problemas con historia (localizados)
+│  ├─ engine.fitz            selección adaptativa, Elo-lite, scoring
+│  ├─ games/  Quiz.fitzv · TrueFalse.fitzv · FillGap.fitzv · NumPad.fitzv · MateBar.fitzv
+│  ├─ live_game.fitz         @get + @ws + timer @background
+│  ├─ parent.fitz            panel de reportes
+│  └─ pages.fitz             home, elegir perfil, elegir juego, resumen
+└─ tests/
+   ├─ rng.fitz · generators.fitz · engine.fitz · i18n.fitz
+```
+
+---
+
+## 11. Fases
+
+| Fase | Qué entrega | Verificable con |
+|---|---|---|
+| **F0 — Cimientos** | Proyecto + compose levantando, Postgres, migraciones, shell mobile-first, i18n es-AR/en con selector, logo + footer, `/favicon.svg` + manifest | `docker compose up` → pantalla MatHelp responsive, cambio de idioma OK |
+| **F1 — Identidad** | Registro/login de familia (Argon2id + JWT + cookie), alta de perfiles, selección de perfil con PIN | Login end-to-end, cookie `HttpOnly` seteada, redirect a `/login` sin sesión |
+| **F2 — Primer juego** | `rng.fitz` + generadores de las 4 operaciones + `Quiz.fitzv` contrarreloj + cronómetro por WS + persistencia de sesión | **Tu hija juega.** Tests del PRNG (distribución) y de los generadores |
+| **F3 — Que aprenda** | `mastery` + Elo-lite + repaso espaciado + racha diaria + práctica libre + desafío del día + mate-progreso | Simulación de 500 respuestas: el rating converge y la dificultad sigue |
+| **F4 — Más juegos** | V/F, completá el hueco, numpad propio, escalera de tablas, el kiosco, fracciones visuales | 6 modos jugables en celu |
+| **F5 — Panel del padre** | Reportes por hijo: progreso por tema, errores frecuentes, tiempo, evolución; metas configurables | Gráficos con `bar_chart` / `progress_bar` / `stat_card` |
+| **F6 — Pulido** | Dark mode, accesibilidad (contraste, `lang`, foco visible), reanudar partida, sonido opcional, instalable en el celu | Lighthouse mobile + prueba real en un Android |
+| **F7 — Secundaria** | Currículum 13–17: enteros, ecuaciones, funciones, geometría analítica, trigonometría | Nuevos generadores, cero cambios de arquitectura |
+
+**F0 → F2 es el corazón.** Al cerrar F2 ya hay un juego real en el celular; todo lo demás es acumular.
+
+---
+
+## 12. Lo que necesito de tu lado
+
+1. **Versión de Fitz instalada** — `fitz --version`. El plan asume ≥ v0.42.1 (`@every` y `ws_broadcast` desde el scheduler). Si tenés menos, el cronómetro va con `@background`+`spawn`, que anda desde antes.
+2. **Dónde vive el proyecto** — la carpeta conectada `D:\MathHelp` está vacía. ¿Genero todo ahí?
+3. **El logo** — abajo va la propuesta. Decime si va, si le cambio algo, o si querés que pruebe otro concepto.
+
+---
+
+*MatHelp · Hecho con [Fitz](https://github.com/Thegreekman76/fitz) y [Fitz LiveViews](https://github.com/Thegreekman76/fitz-liveviews)*

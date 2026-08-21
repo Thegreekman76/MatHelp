@@ -1,0 +1,101 @@
+from mathelp import fmt_int, fmt_dec, fmt_pct, fmt_money, agrupar, sep_miles, sep_decimal
+
+// --- Agrupación de miles -------------------------------------------------
+
+@test fn agrupar_casos_borde() {
+    assert_eq(agrupar("7", "."), "7")
+    assert_eq(agrupar("42", "."), "42")
+    assert_eq(agrupar("999", "."), "999")
+    assert_eq(agrupar("1000", "."), "1.000")
+    assert_eq(agrupar("12345", "."), "12.345")
+    assert_eq(agrupar("123456", "."), "123.456")
+    assert_eq(agrupar("1234567", "."), "1.234.567")
+    assert_eq(agrupar("1000000000", "."), "1.000.000.000")
+}
+
+// --- Enteros -------------------------------------------------------------
+
+@test fn enteros_es_ar_usan_punto() {
+    assert_eq(fmt_int("es-AR", 1234567), "1.234.567")
+    assert_eq(fmt_int("es-AR", 1000), "1.000")
+    assert_eq(fmt_int("es-AR", 7), "7")
+}
+
+@test fn enteros_en_usan_coma() {
+    assert_eq(fmt_int("en", 1234567), "1,234,567")
+    assert_eq(fmt_int("en", 1000), "1,000")
+}
+
+@test fn enteros_negativos() {
+    assert_eq(fmt_int("es-AR", -1234), "-1.234")
+    assert_eq(fmt_int("en", -1234), "-1,234")
+}
+
+@test fn cero() {
+    assert_eq(fmt_int("es-AR", 0), "0")
+    assert_eq(fmt_int("en", 0), "0")
+}
+
+// --- Decimales — el corazón del asunto -----------------------------------
+
+@test fn decimales_es_ar_coma_decimal_punto_miles() {
+    // Esto es lo que se le enseña en la escuela argentina.
+    assert_eq(fmt_dec("es-AR", 1234.5, 1), "1.234,5")
+    assert_eq(fmt_dec("es-AR", 3.14, 2), "3,14")
+    assert_eq(fmt_dec("es-AR", 0.5, 1), "0,5")
+}
+
+@test fn decimales_en_al_reves() {
+    assert_eq(fmt_dec("en", 1234.5, 1), "1,234.5")
+    assert_eq(fmt_dec("en", 3.14, 2), "3.14")
+}
+
+@test fn decimales_negativos() {
+    assert_eq(fmt_dec("es-AR", -2.75, 2), "-2,75")
+    assert_eq(fmt_dec("en", -2.75, 2), "-2.75")
+}
+
+@test fn decimales_cero_digitos() {
+    assert_eq(fmt_dec("es-AR", 1234.6, 0), "1.235")
+}
+
+// --- Porcentajes ---------------------------------------------------------
+
+@test fn porcentaje_es_ar_lleva_espacio() {
+    assert_eq(fmt_pct("es-AR", 0.42, 1), "42,0 %")
+    assert_eq(fmt_pct("es-AR", 1.0, 0), "100 %")
+}
+
+@test fn porcentaje_en_no_lleva_espacio() {
+    assert_eq(fmt_pct("en", 0.42, 1), "42.0%")
+    assert_eq(fmt_pct("en", 1.0, 0), "100%")
+}
+
+// --- Dinero (juego del kiosco) -------------------------------------------
+
+@test fn dinero_es_ar() {
+    assert_eq(fmt_money("es-AR", 125000), "$ 1.250,00")
+    assert_eq(fmt_money("es-AR", 50), "$ 0,50")
+    assert_eq(fmt_money("es-AR", 5), "$ 0,05")
+    assert_eq(fmt_money("es-AR", 100), "$ 1,00")
+}
+
+@test fn dinero_en() {
+    assert_eq(fmt_money("en", 125000), "$1,250.00")
+    assert_eq(fmt_money("en", 5), "$0.05")
+}
+
+@test fn vuelto_negativo() {
+    assert_eq(fmt_money("es-AR", -250), "-$ 2,50")
+}
+
+// --- Separadores ---------------------------------------------------------
+
+@test fn separadores_por_locale() {
+    assert_eq(sep_miles("es-AR"), ".")
+    assert_eq(sep_decimal("es-AR"), ",")
+    assert_eq(sep_miles("en"), ",")
+    assert_eq(sep_decimal("en"), ".")
+    // Locale desconocido cae al default inglés, no explota.
+    assert_eq(sep_miles("xx-YY"), ",")
+}

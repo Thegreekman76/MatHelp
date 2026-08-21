@@ -1,0 +1,83 @@
+// layout.fitz — MÓDULO AISLADO.
+//
+// `live_layout()` de fitz-liveviews trae el <head> hardcodeado (título fijo
+// "Fitz LiveView", <html> sin lang, sin viewport configurable), así que no
+// sirve para una app real. Escribimos el documento acá.
+//
+// Todo el CSS va en el <head>, NUNCA dentro del root diffeado: el parser del
+// diff rechaza <style> ahí adentro y cae en silencio a reemplazo completo
+// del HTML — la app se pone lenta y las transiciones se cortan, sin ningún
+// error que lo delate (FLV-02).
+//
+// Migra a `live_layout_with(opts, ...)` cuando exista. Ver FLV-01.
+
+from fitz_liveviews import Html, html, flv, html_response
+from brand import logo_lockup, footer, brand_css
+from i18n import t, lang_corto, locale_alterno
+from config import app_name
+
+// Documento completo, mobile-first.
+//
+// `live_js` es el <script> del runtime de LiveViews cuando la página es
+// interactiva; en las páginas estáticas va vacío. Siempre FUERA del root.
+fn page(locale: Str, titulo: Str, body: Html, live_js: Html) -> Html {
+    let lang = lang_corto(locale)
+    let css = brand_css()
+    let head_titulo = flv(titulo)
+    let desc = flv(t(locale, "app.description"))
+    let top = topbar(locale).raw
+    let pie = footer(locale).raw
+    let js = live_js.raw
+    return html("""<!doctype html>
+<html lang="{lang}">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="description" content="{desc}" />
+<meta name="theme-color" content="#0E7A63" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0E181E" media="(prefers-color-scheme: dark)" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="MatHelp" />
+<meta name="format-detection" content="telephone=no" />
+<title>{head_titulo}</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<style>{css}</style>
+</head>
+<body>
+{top}
+<main>
+{body.raw}
+</main>
+{pie}
+{js}
+</body>
+</html>""")
+}
+
+// Barra superior: logo a la izquierda, selector de idioma a la derecha.
+fn topbar(locale: Str) -> Html {
+    let marca = logo_lockup(30, locale).raw
+    let es_actual = match locale == "es-AR" {
+        true => "true",
+        false => "false",
+    }
+    let en_actual = match locale == "en" {
+        true => "true",
+        false => "false",
+    }
+    return html("""<header class="mh-topbar">
+{marca}
+<nav class="mh-langs" aria-label="{flv(t(locale, "idioma.cambiar"))}">
+<a class="mh-lang" href="/lang/es-AR" aria-current="{es_actual}" hreflang="es">ES</a>
+<a class="mh-lang" href="/lang/en" aria-current="{en_actual}" hreflang="en">EN</a>
+</nav>
+</header>""")
+}
+
+fn responder_html(h: Html) -> Response {
+    return html_response(h)
+}

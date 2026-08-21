@@ -1,0 +1,26 @@
+# fitz.docker.toml — manifiesto que usa SOLO el build de Docker.
+#
+# Es igual a fitz.toml salvo por la dependencia: acá apunta al clon que dejó
+# la etapa `vendor` del Dockerfile, en vez de a git.
+#
+# Por qué: la imagen oficial `ghcr.io/thegreekman76/fitz` no trae `git`
+# instalado, así que `fitz build` no puede resolver una dependencia
+# { git = ... } adentro del container. Con { path = ... } no hace falta ni
+# git ni red durante el build.
+#
+# Si tocás las dependencias en fitz.toml, acordate de reflejarlo acá.
+
+[package]
+name = "mathelp"
+version = "0.1.0"
+edition = "2026"
+
+[lib]
+entry = "src/lib.fitz"
+
+[bin]
+name = "mathelp"
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "/vendor/fitz-liveviews" }

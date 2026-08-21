@@ -1,0 +1,31 @@
+// config.fitz — toda la configuración por entorno en un solo lugar.
+//
+// Fitz no auto-carga .env (explícito > mágico), así que main.fitz llama a
+// load_env(".env") al arrancar. En Docker las variables vienen del compose.
+
+fn db_url() -> Str {
+    return env_or("DATABASE_URL",
+        "postgres://mathelp:mathelp@localhost:5432/mathelp?sslmode=disable")
+}
+
+fn jwt_secret() -> Str {
+    return env_or("JWT_SECRET", "mathelp-dev-cambiame-en-produccion")
+}
+
+fn session_cookie_name() -> Str => "mathelp_session"
+
+fn lang_cookie_name() -> Str => "mathelp_lang"
+
+fn default_locale() -> Str {
+    return env_or("MATHELP_DEFAULT_LOCALE", "es-AR")
+}
+
+fn app_name() -> Str => "MatHelp"
+
+fn repo_fitz() -> Str => "https://github.com/Thegreekman76/fitz"
+
+fn repo_liveviews() -> Str => "https://github.com/Thegreekman76/fitz-liveviews"
+
+// Puerto: lo lee el compose. @server() necesita literal, así que si lo
+// cambiás, cambialo también en main.fitz y en docker-compose.yml.
+fn app_port() -> Int => 3000

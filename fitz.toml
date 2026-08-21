@@ -1,0 +1,16 @@
+[package]
+name = "mathelp"
+version = "0.1.0"
+edition = "2026"
+
+[lib]
+entry = "src/lib.fitz"
+
+[bin]
+name = "mathelp"
+main = "src/main.fitz"
+
+[dependencies]
+# Para desarrollo local con el repo al lado, cambiá esta línea por:
+#   fitz_liveviews = { path = "../fitz-liveviews" }
+fitz_liveviews = { git = "https://github.com/Thegreekman76/fitz-liveviews", tag = "v0.47.0" }

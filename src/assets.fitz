@@ -1,0 +1,48 @@
+// assets.fitz — MÓDULO AISLADO.
+//
+// Fitz v0.47.0 no sirve archivos estáticos: no hay @static, ni static_dir,
+// ni ServeDir. Los boilerplates con frontend montan nginx al lado — lo que
+// duplica la infra de una app que si no es "un binario + Postgres".
+//
+// Truco: assets como rutas. `Response` ya expone content_type y body_bytes,
+// así que cada archivo es un @get. Sin ETag ni Content-Length correcto, pero
+// alcanza y sobra para un favicon y un manifest.
+//
+// Migra a `@server(static_dir=...)` cuando exista. Ver FITZ-02.
+
+from brand import logo_svg_raw
+
+@get("/favicon.svg")
+fn favicon() -> Response {
+    return Response {
+        status: 200,
+        content_type: "image/svg+xml",
+        headers: { "Cache-Control": "public, max-age=604800" },
+        body: logo_svg_raw(),
+    }
+}
+
+// El manifest es lo que hace que MatHelp se pueda "instalar" en el celular
+// y abrirse a pantalla completa, sin barra del browser.
+@get("/manifest.webmanifest")
+fn manifest() -> Response {
+    return Response {
+        status: 200,
+        content_type: "application/manifest+json",
+        headers: { "Cache-Control": "public, max-age=86400" },
+        body: """\{
+  "name": "MatHelp",
+  "short_name": "MatHelp",
+  "description": "Matematica que se comparte",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F7F4EE",
+  "theme_color": "#0E7A63",
+  "icons": [
+    \{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" \}
+  ]
+\}""",
+    }
+}
