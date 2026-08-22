@@ -387,17 +387,21 @@ Ese último punto es el que hace la diferencia: **los enunciados con historia ta
 
 ## 5. Currículum — primaria argentina (6 a 12 años)
 
-Organizado por edad, con los `topic_code` que usa el motor. Alineado a los NAP.
+Organizado por edad, con los `topic_code` que usa el motor. Alineado a los NAP. Cubre los **cinco ejes NAP** en toda la progresión: número y operaciones, **medida**, **geometría**, **proporcionalidad**, y **estadística/probabilidad** — no solo aritmética.
 
 | Edad | Grado | Ejes | `topic_code` |
 |---|---|---|---|
-| 6 | 1º | Conteo hasta 100, comparar, suma/resta sin llevar, series | `num.conteo`, `num.comparar`, `add.simple`, `sub.simple`, `pat.series` |
-| 7 | 2º | Hasta 1.000, suma/resta con llevada, doble/mitad, inicio de tablas | `add.llevada`, `sub.prestada`, `num.dobles`, `mult.tabla.2`, `.5`, `.10` |
-| 8 | 3º | Tablas completas, división exacta, valor posicional, medidas | `mult.tabla.*`, `div.exacta`, `num.posicional`, `med.longitud` |
-| 9 | 4º | División con resto, fracciones simples, perímetro, decimales (dinero) | `div.resto`, `frac.parte`, `frac.comparar`, `geo.perimetro`, `dec.dinero` |
-| 10 | 5º | Fracciones equivalentes, suma de fracciones, decimales, área, ángulos | `frac.equiv`, `frac.suma`, `dec.suma`, `geo.area`, `geo.angulos` |
-| 11 | 6º | Porcentaje, proporcionalidad, potencias, múltiplos/divisores, volumen | `pct.basico`, `prop.directa`, `pot.cuadrados`, `num.mcd_mcm`, `geo.volumen` |
-| 12 | 7º | Enteros negativos, ecuaciones simples, razones, estadística básica | `ent.suma`, `alg.ecuacion1`, `prop.razon`, `est.promedio` |
+| 6 | 1º | Conteo hasta 100, comparar/ordenar, suma/resta sin llevar, series, reconocer figuras, medida informal | `num.conteo`, `num.comparar`, `add.simple`, `sub.simple`, `pat.series`, `geo.figuras`, `med.informal` |
+| 7 | 2º | Hasta 1.000, ±con llevada, doble/mitad, inicio de tablas, valor posicional (centena), figuras y cuerpos, calendario y dinero simple | `add.llevada`, `sub.prestada`, `num.dobles`, `mult.tabla.2`/`.5`/`.10`, `num.posicional`, `geo.cuerpos`, `med.tiempo`, `dec.dinero` |
+| 8 | 3º | Tablas completas, división exacta, valor posicional (10.000), fracciones de uso social (medio/cuarto), figuras y ángulo recto, medida amplia | `mult.tabla.*`, `div.exacta`, `num.posicional`, `frac.parte`, `geo.figuras`, `geo.angulos`, `med.longitud`, `med.capacidad`, `med.peso`, `med.tiempo` |
+| 9 | 4º | División con resto, fracciones simples y comparación, perímetro, dinero, numeración grande (decenas/centenas de mil), clasificar figuras y cuerpos, capacidad/peso/tiempo | `div.resto`, `frac.parte`, `frac.comparar`, `geo.perimetro`, `dec.dinero`, `num.grande`, `geo.figuras`, `geo.cuerpos`, `med.capacidad`, `med.peso`, `med.tiempo` |
+| 10 | 5º | Fracciones equivalentes y suma, decimales (± y ×), área y ángulos, superficie/SIMELA, proporcionalidad directa (inicio) | `frac.equiv`, `frac.suma`, `dec.suma`, `dec.mult`, `geo.area`, `geo.angulos`, `med.superficie`, `prop.directa` |
+| 11 | 6º | Porcentaje, proporcionalidad directa e inversa, potencias, múltiplos/divisores/primos/mcd/mcm, volumen, operatoria plena de fracciones/decimales, estadística (gráficos, promedio) | `pct.basico`, `prop.directa`, `prop.inversa`, `pot.cuadrados`, `num.mcd_mcm`, `num.primos`, `geo.volumen`, `frac.mult`, `dec.mult`, `est.grafico`, `est.promedio` |
+| 12 | 7º | Enteros (4 operaciones), operatoria completa de racionales, ecuaciones simples, razones/escala/%, geometría (área/volumen/construcciones), estadística y probabilidad | `ent.suma`, `ent.mult`, `frac.div`, `dec.div`, `alg.ecuacion1`, `prop.razon`, `prop.escala`, `geo.construccion`, `est.promedio`, `prob.simple` |
+
+**Enfoque.** El norte pedagógico es **resolución de situaciones problemáticas** (ver §6.6) — el problema antes que el cálculo mecánico —, alineado a NAP, en todos los grados.
+
+**Cobertura por eje (estado).** F2 cerró **número y operaciones**. Los ejes **medida** (`med.*`), **geometría** (`geo.*`), **proporcionalidad** (`prop.*`) y **estadística/probabilidad** (`est.*`/`prob.simple`) están mapeados por grado arriba pero **aún sin generador** — entran en F4/F5 (ver §6). Los `topic_code` ya reservan el nombre para que el motor y el `mastery` los reconozcan cuando lleguen.
 
 **Nota de diseño:** la edad **sugiere** el punto de entrada, no lo impone. Un chico de 9 que arrasa con las tablas ve división con resto sin pedir permiso; uno que traba en la resta con llevada baja solo. La edad es la semilla, el `rating` de `mastery` es el que manda.
 
@@ -428,6 +432,106 @@ Todos pensados para **pulgar en celular**: botones grandes, nada de arrastrar, n
 - Racha diaria con meta configurable por el padre (default 10 ejercicios).
 - Medallas por dominio real, no por tiempo de pantalla: "tablas completas", "10 días seguidos", "fracciones sin errores".
 - **Sin vidas, sin timers de espera, sin nada que empuje a jugar más de la cuenta.** El error muestra el procedimiento correcto, no un cartel rojo.
+
+---
+
+## 6.5 Navegación / IA de juego (F3–F5)
+
+**Decisión de diseño:** para un chico de 6–12 NO se arma un árbol profundo
+`grado → nivel → juego` (mucho tap, se pierde — anti-patrón para esa edad). El
+menú se **aplana** apoyándose en lo que la app ya sabe:
+
+- **El grado NO se elige por juego** → viene del perfil (F1). Solo *filtra* qué
+  juegos/temas aparecen y *escala* los rangos del generador (`ops_for_grade`,
+  `add_max`, `mul_max`, que ya están en `gen_arith`).
+- **El nivel NO se elige (casi nunca)** → es **adaptativo** (`mastery`/Elo-lite
+  de F3): el juego sube/baja la dificultad solo. El único lugar con selector de
+  nivel explícito es **Práctica libre**.
+- **El juego SÍ se elige**, pero de una grilla **ya filtrada al grado**.
+
+Árbol real (shallow: 2 taps al juego):
+
+```
+Home de juego  (sabe: perfil → grado, mastery → nivel)
+├── ▶  Jugar ya          → Contrarreloj, mix adaptativo        (1 tap)
+├── 🎯 Desafío del día    → 10 del mix, alimenta la racha       (1 tap)
+├── 🎮 Elegir juego       → grilla de juegos DEL GRADO          (2 taps)
+│      └── [juego]        → arranca en nivel adaptativo
+├── 📚 Práctica libre     → tema (del grado) → dificultad → jugar (3 taps, único con nivel)
+└── 🏅 Mi progreso        → mate-progreso, medallas, racha
+```
+
+**Elegir juego (por grado):** la grilla viene filtrada por `profile.grade`. Los
+juegos que aún no le tocan salen bloqueados con el grado que los abre. Qué grilla
+ve cada grado:
+
+| Grado | Cartas visibles |
+|---|---|
+| 1º | Contrarreloj · V/F · Práctica |
+| 2º–3º | + Escalera de tablas · ¿Qué hora es? · Completá el hueco |
+| 4º | + El kiosco · Fracciones · Problemas con historia |
+| 5º | + Geometría (perímetro/área) |
+| 6º | + Porcentaje · Volumen |
+| 7º | + Enteros · Ecuaciones |
+
+**El nivel dentro de un juego es adaptativo, no un menú.** Al tocar un juego NO
+aparece "Nivel 1 / 2 / 3": arranca directo y el motor elige la dificultad según
+el `mastery` del chico (70% zona de desarrollo próximo, 20% repaso, 10% un
+escalón arriba — ver §7). El nivel se *muestra como progreso*, nunca como picker.
+
+**Práctica libre — el ÚNICO lugar con nivel explícito:** tema (solo los del
+grado) → dificultad en 3 bandas (😊 fácil / 😐 medio / 😤 difícil), que mapean a
+rangos de `difficulty` (1–2 / 3 / 4–5) del generador.
+
+**Cómo se mapea al modelo que ya existe (nada de un menú por combinación):**
+- *"Por grado"* = un `if grade >= N` sobre la grilla + los rangos por grado de
+  `gen_arith`. Un solo menú + un filtro.
+- *"Por nivel"* = `difficulty: 1..5` del generador (ya existe) + el `rating` de
+  `mastery` (F3) que elige cuál servir. Las 3 bandas de Práctica libre son un
+  atajo a esos rangos.
+- *"Por juego"* = un `topic_code` + un `.fitzv` + una fila `{juego, min_grado,
+  icono}`. El menú es **data-driven**: el filtro sale gratis.
+
+O sea: **un esqueleto de menú, tres filtros** (grado del perfil, nivel del
+mastery, disponibilidad del juego) — no se mantiene un menú por combinación.
+
+---
+
+## 6.6 Situaciones problemáticas (razonamiento, tema transversal)
+
+No es un juego más: es **el eje que entrena el razonamiento** (leer, modelar,
+decidir *qué* operación aplicar), que las tablas y el cálculo suelto no dan. Es
+una competencia NAP central, así que en MatHelp es un **tema transversal desde 1º
+grado**, no un juego tardío. Escala con el grado sin cambiar de mecánica:
+
+| Grado | Situación típica (es-AR) | Modela |
+|---|---|---|
+| 1º | "Tenés 5 figuritas y te regalan 3. ¿Cuántas tenés?" | suma simple |
+| 2º | "Había 12 empanadas y se comieron 5. ¿Cuántas quedan?" | resta con contexto |
+| 3º | "Cada colectivo lleva 40 personas. ¿Cuántas en 3 colectivos?" | multiplicación |
+| 4º | "60 figuritas para 5 amigos, en partes iguales. ¿Cuántas a cada uno?" | división · dinero |
+| 5º | "La pizza tiene 8 porciones y comiste 3/8. ¿Cuánto queda?" | fracciones |
+| 6º | "Una remera de $2.000 tiene 20% de descuento. ¿Cuánto pagás?" | porcentaje |
+| 7º | "Si 3 lápices cuestan $600, ¿cuánto cuestan 7?" | proporcionalidad / razón |
+
+**Diseño (`gen_story`):** enunciados **templados y localizados** — el generador
+elige una plantilla del grado (`"Tenés {a} {objeto} y te regalan {b}…"`), llena
+los operandos con el PRNG determinista (mismo `(seed, idx, grade)` ⇒ mismo
+problema, reproducible como el resto) y deriva la respuesta de la operación. El
+**contexto se localiza, no solo los botones** (es-AR: figuritas, empanadas,
+colectivo, kiosco; en: su equivalente) — es el punto de §4. Un banco de
+plantillas por grado × tema, con distractores del mismo estilo que `gen_arith`.
+
+**Dónde aparece:**
+- Como **juego dedicado** ("Situaciones problemáticas" / "Problemas con historia")
+  en la grilla, desde 1º.
+- **Mezclado en el Desafío del día** y en Práctica libre (tema propio), para que
+  el razonamiento no quede en un rincón sino en el mix diario.
+
+En la grilla por grado, súmese a la fila de cada grado desde 1º (con contextos de
+suma/resta) y hasta 7º (proporcionalidad). Va a `mastery` con sus propios
+`skill_code` (`problema.suma`, `problema.division`, `problema.porcentaje`…), así
+el motor adaptativo también gradúa el razonamiento, no solo el cálculo.
 
 ---
 
