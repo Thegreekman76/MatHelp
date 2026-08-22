@@ -247,3 +247,55 @@ fn gen_mix(seed: Int, idx: Int, grade: Int) -> Exercise {
     let op = ops[oi]
     return gen(op, seed, idx, grade)
 }
+
+// --- Práctica libre (F3): topic fijo + banda de dificultad -------------------
+
+// Grado efectivo según la banda de dificultad de Práctica libre
+// (1=fácil, 2=medio, 3=difícil). La banda desplaza el rango del generador un
+// grado abajo/arriba, con clamp 1..7. Banda 2 (medio) = el grado del perfil.
+fn grade_for_band(grade: Int, band: Int) -> Int {
+    let g = grade + band - 2
+    if (g < 1) {
+        return 1
+    }
+    if (g > 7) {
+        return 7
+    }
+    return g
+}
+
+// Generador UNIFICADO: lo usan tanto el render (quiz_view) como el scoring
+// (Quiz.fitzv). Que sea uno solo es la garantía de que el ejercicio mostrado y
+// el corregido coinciden.
+//   - modo "practice": tema fijo ("add"|"sub"|"mul"|"div"|"mix") con banda.
+//   - cualquier otro modo (contrarreloj): gen_mix al grado del perfil — idéntico
+//     bit-a-bit a lo que hacía antes (paridad del juego existente).
+fn gen_for(mode: Str, topic: Str, band: Int, seed: Int, idx: Int, grade: Int) -> Exercise {
+    if (mode == "practice") {
+        let eg = grade_for_band(grade, band)
+        if (topic == "mix") {
+            return gen_mix(seed, idx, eg)
+        }
+        return gen(topic, seed, idx, eg)
+    }
+    return gen_mix(seed, idx, grade)
+}
+
+// Temas de práctica disponibles según el grado: las operaciones del grado más
+// "mix" (mezcla). `ops_for_grade` devuelve un literal fresco, así que el push no
+// alias-ea la lista de nadie.
+fn temas_practica(grade: Int) -> List<Str> {
+    let out = ops_for_grade(grade)
+    out.push("mix")
+    return out
+}
+
+// ¿El tema `topic` es válido para el grado? (guarda de las rutas de práctica.)
+fn tema_valido(topic: Str, grade: Int) -> Bool {
+    for tp in temas_practica(grade) {
+        if (tp == topic) {
+            return true
+        }
+    }
+    return false
+}

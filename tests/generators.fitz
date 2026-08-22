@@ -12,7 +12,7 @@
 //
 // Corré con:  fitz test
 
-from gen_arith import gen, gen_mix, op_symbol, ops_for_grade, add_max, mul_max, Exercise
+from gen_arith import gen, gen_mix, gen_for, grade_for_band, temas_practica, tema_valido, op_symbol, ops_for_grade, add_max, mul_max, Exercise
 
 // --- helpers ----------------------------------------------------------------
 
@@ -245,6 +245,109 @@ fn ejercicio_valido(ex: Exercise) -> Bool {
         idx = idx + 1
     }
     assert_eq(vistos.len() >= 10, true)
+}
+
+// --- práctica libre (F3): banda de dificultad + tema fijo -------------------
+
+fn contains_str(xs: List<Str>, target: Str) -> Bool {
+    for x in xs {
+        if (x == target) {
+            return true
+        }
+    }
+    return false
+}
+
+// La banda 2 (medio) es el grado del perfil; 1 baja un grado, 3 sube uno.
+@test fn banda_media_es_el_grado() {
+    assert_eq(grade_for_band(4, 2), 4)
+    assert_eq(grade_for_band(4, 1), 3)
+    assert_eq(grade_for_band(4, 3), 5)
+}
+
+// La banda clampea a 1..7 (no se sale del currículum de primaria).
+@test fn banda_clampea_a_primaria() {
+    assert_eq(grade_for_band(1, 1), 1)     // 1º fácil no baja de 1º
+    assert_eq(grade_for_band(7, 3), 7)     // 7º difícil no sube de 7º
+}
+
+// El contrarreloj (modo != "practice") es idéntico bit-a-bit a gen_mix: la
+// paridad del juego existente no se toca al sumar práctica.
+@test fn gen_for_timed_es_gen_mix() {
+    let idx = 0
+    while (idx < 100) {
+        let a = gen_for("timed", "mix", 2, 555, idx, 4)
+        let b = gen_mix(555, idx, 4)
+        assert_eq(a.a, b.a)
+        assert_eq(a.b, b.b)
+        assert_eq(a.op, b.op)
+        assert_eq(a.answer, b.answer)
+        assert_eq(a.options, b.options)
+        idx = idx + 1
+    }
+}
+
+// Práctica con tema "mix" y banda media == gen_mix al grado (identidad).
+@test fn practica_mix_banda_media_es_gen_mix() {
+    let a = gen_for("practice", "mix", 2, 909, 3, 5)
+    let b = gen_mix(909, 3, 5)
+    assert_eq(a.op, b.op)
+    assert_eq(a.answer, b.answer)
+    assert_eq(a.options, b.options)
+}
+
+// Práctica con tema fijo: siempre esa operación, ejercicio válido, reproducible.
+@test fn practica_tema_fijo_es_valido_y_reproducible() {
+    let temas = ["add", "sub", "mul", "div"]
+    for op in temas {
+        let idx = 0
+        while (idx < 60) {
+            let ex = gen_for("practice", op, 2, 4242, idx, 5)
+            assert_eq(ex.op, op)
+            assert_eq(ejercicio_valido(ex), true)
+            // Reproducible: mismo (topic, band, seed, idx, grade) ⇒ mismo ej.
+            let ex2 = gen_for("practice", op, 2, 4242, idx, 5)
+            assert_eq(ex.a, ex2.a)
+            assert_eq(ex.b, ex2.b)
+            assert_eq(ex.answer, ex2.answer)
+            idx = idx + 1
+        }
+    }
+}
+
+// Práctica válida sobre las tres bandas (fácil/medio/difícil no rompen nada).
+@test fn practica_todas_las_bandas_validas() {
+    let bandas = [1, 2, 3]
+    for band in bandas {
+        let idx = 0
+        while (idx < 40) {
+            let ex = gen_for("practice", "mul", band, 77, idx, 4)
+            assert_eq(ex.op, "mul")
+            assert_eq(ejercicio_valido(ex), true)
+            idx = idx + 1
+        }
+    }
+}
+
+// Temas de práctica: las operaciones del grado + "mix". 1º = suma/resta/mix.
+@test fn temas_de_practica_por_grado() {
+    let t1 = temas_practica(1)
+    assert_eq(t1.len(), 3)                 // add, sub, mix
+    assert_eq(contains_str(t1, "mix"), true)
+    assert_eq(contains_str(t1, "div"), false)
+    let t3 = temas_practica(3)
+    assert_eq(t3.len(), 5)                 // add, sub, mul, div, mix
+    assert_eq(contains_str(t3, "div"), true)
+    assert_eq(contains_str(t3, "mix"), true)
+}
+
+// Guarda de tema por grado: "mix" siempre; "div" recién desde 3º.
+@test fn tema_valido_por_grado() {
+    assert_eq(tema_valido("mix", 1), true)
+    assert_eq(tema_valido("div", 1), false)
+    assert_eq(tema_valido("div", 3), true)
+    assert_eq(tema_valido("mul", 2), true)
+    assert_eq(tema_valido("mul", 1), false)
 }
 
 // --- símbolos ----------------------------------------------------------------

@@ -1,0 +1,195 @@
+// menu.fitz — la IA de menú de §6.5: "Elegir juego" (grilla por grado) y el
+// flujo de "Práctica libre" (tema → dificultad → jugar).
+//
+// Data-driven: la grilla se arma desde juegos.fitz; los temas de práctica desde
+// gen_arith.temas_practica(grade). El grado sale del perfil (resolver_contexto,
+// en live_game.fitz). Sumar un juego = una fila en juegos.fitz; sumar un tema =
+// ampliar el rango del generador. El menú no se toca.
+//
+// El flujo de práctica termina seteando la cookie mathelp_practice="op:band" y
+// redirigiendo a /jugar/practica (que la lee, junto con el @ws). Es la vía
+// probada para pasar config al socket — @ws no acepta path params.
+
+from fitz_liveviews import Html, html, flv, h_join
+from i18n import t, t1, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from juegos import Juego, juegos
+from gen_arith import temas_practica, tema_valido
+from live_game import resolver_contexto
+
+// --- etiquetas de tema -------------------------------------------------------
+
+// Clave i18n del nombre de un tema de práctica ("add" → "tema.suma", etc.).
+fn tema_label_key(op: Str) -> Str {
+    return match op {
+        "add" => "tema.suma",
+        "sub" => "tema.resta",
+        "mul" => "tema.multiplicacion",
+        "div" => "tema.division",
+        "mix" => "tema.mezcla",
+        _ => "tema.mezcla",
+    }
+}
+
+// Ícono de un tema.
+fn tema_icon(op: Str) -> Str {
+    return match op {
+        "add" => "➕",
+        "sub" => "➖",
+        "mul" => "✖️",
+        "div" => "➗",
+        "mix" => "🎲",
+        _ => "🎲",
+    }
+}
+
+// --- grilla de juegos (§6.5) -------------------------------------------------
+
+// Estado visual de una carta según el grado del perfil:
+//   - bloqueada  (min_grade > grade): se abre en un grado superior.
+//   - próximamente (al grado pero sin generador aún): built == false.
+//   - jugable    (built + al grado): link a su ruta.
+fn carta_juego(locale: Str, j: Juego, grade: Int) -> Html {
+    let nombre = flv(t(locale, "juego.{j.code}"))
+    let icon = flv(j.icon)
+    if (j.min_grade > grade) {
+        let abre = flv(t1(locale, "juegos.se_abre", t(locale, "grado.{j.min_grade}")))
+        return html("""<div class="mh-juego lock" aria-disabled="true">
+<span class="mh-jicon">{icon}</span>
+<span class="mh-jname">{nombre}</span>
+<span class="mh-jsub">🔒 {abre}</span>
+</div>""")
+    }
+    if (not j.built) {
+        let soon = flv(t(locale, "juegos.proximamente"))
+        return html("""<div class="mh-juego soon" aria-disabled="true">
+<span class="mh-jicon">{icon}</span>
+<span class="mh-jname">{nombre}</span>
+<span class="mh-jsub">{soon}</span>
+</div>""")
+    }
+    return html("""<a class="mh-juego" href="{j.route}">
+<span class="mh-jicon">{icon}</span>
+<span class="mh-jname">{nombre}</span>
+</a>""")
+}
+
+fn grilla_juegos(locale: Str, grade: Int) -> Html {
+    let cartas = h_join(juegos().map(fn(j) => carta_juego(locale, j, grade)))
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "juegos.titulo"))}</h2>
+<div class="mh-juegos">
+{cartas}
+</div>
+</div>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/juegos")
+async fn juegos_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let body = grilla_juegos(locale, ctx.grade)
+    let titulo = t(locale, "juegos.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
+
+// --- práctica libre: tema → dificultad → jugar (§6.5) ------------------------
+
+// Una carta de tema (paso 1). Link a /practica/{op} (elegir dificultad).
+fn carta_tema(locale: Str, op: Str) -> Html {
+    let nombre = flv(t(locale, tema_label_key(op)))
+    let icon = flv(tema_icon(op))
+    return html("""<a class="mh-juego" href="/practica/{op}">
+<span class="mh-jicon">{icon}</span>
+<span class="mh-jname">{nombre}</span>
+</a>""")
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/practica")
+async fn practica_temas(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let cartas = h_join(temas_practica(ctx.grade).map(fn(op) => carta_tema(locale, op)))
+    let body = html("""<div class="mh-card">
+<h2>{flv(t(locale, "practica.elegi_tema"))}</h2>
+<div class="mh-juegos">
+{cartas}
+</div>
+</div>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+    let titulo = t(locale, "home.practica_libre") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
+
+// Botón de una banda de dificultad (paso 2). Link a /practica/{op}/{band}.
+fn boton_banda(locale: Str, op: Str, band: Int, emoji: Str, key: Str) -> Html {
+    let et = flv(t(locale, key))
+    let em = flv(emoji)
+    return html("""<a class="mh-btn sec" href="/practica/{op}/{band}"><span aria-hidden="true">{em}</span>{et}</a>""")
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/practica/{op}")
+async fn practica_dificultad(session: Str?, lang: Str?, op: Str) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    // Tema inválido para el grado → volvé a elegir.
+    if (not tema_valido(op, ctx.grade)) {
+        return redirect_a("/practica")
+    }
+    let tema = flv(t(locale, tema_label_key(op)))
+    let facil = boton_banda(locale, op, 1, "😊", "practica.facil").raw
+    let medio = boton_banda(locale, op, 2, "😐", "practica.medio").raw
+    let dificil = boton_banda(locale, op, 3, "😤", "practica.dificil").raw
+    let body = html("""<div class="mh-card">
+<h2>{flv(t(locale, "practica.elegi_dificultad"))}</h2>
+<p style="text-align:center;font-size:1.2rem;font-weight:800;margin:.2rem 0 1rem">{tema}</p>
+{facil}
+{medio}
+{dificil}
+</div>
+<a class="mh-btn sec" href="/practica">{flv(t(locale, "perfiles.volver"))}</a>""")
+    let titulo = t(locale, "home.practica_libre") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
+
+// Paso 3: setea la cookie de config y arranca la práctica. GET que setea cookie
+// + 303 (mismo patrón que /lang/{code}). Cookie de sesión (sin max_age): la
+// config no debe sobrevivir al cierre del navegador. La auth la hace el destino
+// (/jugar/practica redirige a /login si no hay sesión).
+@get("/practica/{op}/{band}")
+fn practica_arrancar(op: Str, band: Int) -> Response {
+    let b = match band < 1 or band > 3 {
+        true => 2,
+        false => band,
+    }
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        cookies: [
+            Cookie {
+                name: "mathelp_practice",
+                value: "{op}:{b}",
+                path: "/",
+                same_site: "Lax",
+            },
+        ],
+        headers: { "Location": "/jugar/practica" },
+        body: "",
+    }
+}

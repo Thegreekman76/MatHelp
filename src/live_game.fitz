@@ -24,7 +24,7 @@ from auth import read_session, pid_from_token
 from perfiles import perfil_de_familia
 from models import GameSession, Attempt
 from engine import duracion_default, a_int
-from gen_arith import gen_mix, op_symbol
+from gen_arith import gen_mix, gen_for, op_symbol
 from Quiz import quiz
 
 // --- contexto de juego -------------------------------------------------------
@@ -216,4 +216,185 @@ async fn timer(ws: WsConn<LiveFrame>, cid: Str, sess_id: Int) -> Result<Null> {
         }
     }
     return Ok(null)
+}
+
+// --- práctica libre (F3): sin reloj ni puntaje -------------------------------
+//
+// Reusa el MISMO Quiz.fitzv, seedeado con mode="practice" + el tema y la banda
+// elegidos en el flujo /practica. Diferencias con el contrarreloj: NO spawnea
+// el reloj (partida abierta), persiste GameSession.mode="practica", y deriva los
+// ejercicios con gen_for("practice", topic, band, ...). La config viaja por la
+// cookie mathelp_practice="op:band" — misma vía que la sesión y el locale: el
+// @ws no acepta path params (el handshake es HTTP, la cookie sí llega).
+
+// Config elegida en el flujo de práctica (op ∈ add|sub|mul|div|mix, band ∈ 1|2|3).
+type PracticeCfg {
+    topic: Str = "mix"
+    band: Int = 2
+}
+
+fn clamp_band(b: Int) -> Int {
+    if (b < 1) {
+        return 1
+    }
+    if (b > 3) {
+        return 3
+    }
+    return b
+}
+
+// Parsea la cookie "op:band". Ausente/incompleta → mix/medio (el GET redirige a
+// /practica si falta, así el WS solo ve configs razonables).
+fn parse_practice(raw: Str?) -> PracticeCfg {
+    let s = match raw {
+        null => "",
+        v => v,
+    }
+    let parts = s.split(":")
+    if (parts.len() < 2) {
+        return PracticeCfg { topic: "mix", band: 2 }
+    }
+    let band = match parts[1].to_int() {
+        Ok(n) => clamp_band(n),
+        Err(_) => 2,
+    }
+    return PracticeCfg { topic: parts[0], band: band }
+}
+
+// ¿La cookie trae una config completa? (el GET redirige a /practica si no.)
+fn practice_lista(raw: Str?) -> Bool {
+    let s = match raw {
+        null => "",
+        v => v,
+    }
+    return s.split(":").len() >= 2
+}
+
+// Abre la sesión de práctica. mode="practica" (CHECK del SQL, en español, ≠ el
+// "practice" interno del componente); topic_code guarda el tema para el reporte
+// del padre (F5).
+async fn crear_sesion_practica(profile_id: Int, seed: Int, grade: Int, topic: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let sess = GameSession.insert(conn, GameSession {
+        profile_id: profile_id,
+        mode: "practica",
+        topic_code: topic,
+        level: grade,
+        seed: seed,
+    }).await?
+    return Ok(sess.id)
+}
+
+// Persiste una respuesta de práctica. Re-deriva el ejercicio con gen_for (el
+// mismo generador que corrige en el componente), así el server no confía en el
+// cliente para el enunciado ni la respuesta.
+async fn persistir_practica(sess_id: Int, profile_id: Int, topic: Str, band: Int, seed: Int, idx: Int, grade: Int, given: Int) -> Result<Int> {
+    let ex = gen_for("practice", topic, band, seed, idx, grade)
+    let acierto = given == ex.answer
+    let prompt = "{ex.a} {op_symbol(ex.op)} {ex.b}"
+    let conn = db.connect(db_url()).await?
+    let row = Attempt.insert(conn, Attempt {
+        session_id: sess_id,
+        profile_id: profile_id,
+        skill_code: ex.skill_code,
+        idx: idx,
+        prompt: prompt,
+        expected: "{ex.answer}",
+        given: "{given}",
+        correct: acierto,
+        ms: 0,
+        difficulty: ex.difficulty,
+    }).await?
+    return Ok(row.id)
+}
+
+// Cierra la sesión de práctica al desconectar el socket: la partida es abierta
+// (no hay reloj que la termine), así que el conteo final se guarda acá para el
+// panel del padre.
+async fn cerrar_practica(sess_id: Int, total: Int, correct: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = GameSession.where(fn(s) => s.id == sess_id).update(conn, {
+        "total": total,
+        "correct": correct,
+    }).await?
+    return Ok(1)
+}
+
+// Página de práctica. Vive en /jugar/practica (no /practica/jugar) para no
+// colisionar con /practica/{op} del picker de temas.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@cookie(name="mathelp_practice", into="practice")
+@get("/jugar/practica")
+async fn practica_get(session: Str?, lang: Str?, practice: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    // Sin config elegida → volvé a elegir tema.
+    if (not practice_lista(practice)) {
+        return redirect_a("/practica")
+    }
+    let cfg = parse_practice(practice)
+    let inicial = component_with("quiz", "ssr", quiz {
+        seed: 1,
+        grade: ctx.grade,
+        locale: locale,
+        topic: cfg.topic,
+        band: cfg.band,
+        mode: "practice",
+    })
+    let embed = live_embed("/live/practica", "quiz-app", inicial)
+    let titulo = t(locale, "home.practica_libre") + " — MatHelp"
+    return responder_html(page(locale, titulo, embed, html("")))
+}
+
+// Socket de práctica: seedea el componente en modo práctica, sin spawn del reloj.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@cookie(name="mathelp_practice", into="practice")
+@ws("/live/practica")
+async fn practica_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?, practice: Str?) {
+    let locale = locale_from_cookie(lang)
+    let ctx = resolver_contexto(session).await?
+    let cfg = parse_practice(practice)
+    let cid = Uuid.v4().to_str()
+    let seed = rand.int(1, 2000000000)
+    let sess_id = crear_sesion_practica(ctx.profile_id, seed, ctx.grade, cfg.topic).await?
+    let _ = component_with("quiz", cid, quiz {
+        seed: seed,
+        grade: ctx.grade,
+        locale: locale,
+        topic: cfg.topic,
+        band: cfg.band,
+        mode: "practice",
+    }).raw
+    ws.send(flv_frame("quiz", cid))?
+    // Sin reloj: partida abierta. El loop persiste cada respuesta esperada.
+    let next_idx = 0
+    loop {
+        let frame = match ws.recv() {
+            Ok(f) => f,
+            Err(_) => { break },
+        }
+        let ev = frame.event
+        let _ = dispatch_component_events(frame)
+        if (ev == "answer") {
+            let ei = pget_int(frame.payload, "ei", -1)
+            if (ei == next_idx) {
+                let given = pget_int(frame.payload, "v", -1)
+                let _ = persistir_practica(sess_id, ctx.profile_id, cfg.topic, cfg.band, seed, ei, ctx.grade, given).await
+                next_idx = next_idx + 1
+            }
+        }
+        match ws.send(flv_frame("quiz", cid)) {
+            Ok(_) => 0,
+            Err(_) => { break },
+        }
+    }
+    // Socket cerrado: guardá el conteo final y liberá el estado del store.
+    let st: quiz = component_state("quiz", cid)
+    let _ = cerrar_practica(sess_id, st.total, st.correct).await
+    let _ = flv_evict("quiz", cid)
 }

@@ -8,7 +8,9 @@
 
 ## 📍 Estado — actualizado 22/08/2026
 
-**Fase actual: F2 — Primer juego. Cerrada y verificada end-to-end. F0/F1 cerradas.**
+**Fase actual: F3 — Que aprenda. El slice de NAVEGACIÓN está cerrado (menú
+§6.5 + elegir juego + práctica libre); falta el motor adaptativo. F0/F1/F2
+cerradas.**
 
 > **Migración a nativo (fitz v0.55 + liveviews v0.50):** los módulos-workaround de
 > F0 (`rng`, `fmt`, `cookies`) se borraron y ahora se usan `rand`/`num`/`@cookie`
@@ -47,6 +49,26 @@
 > FITZ-17 (checker no cazaba bloque `{}` sin `return`), FITZ-19 (`@ws` con `?` +
 > fall-through) y FITZ-20 (tests de `tests/` importando módulos de `src/`).
 
+> **F3 — Navegación (slice, cerrada 22/08/2026):** el árbol shallow de §6.5
+> vivo, data-driven, sin JavaScript. Home de juego con cinco accesos (Jugar ya
+> / Desafío / Elegir juego / Práctica libre / Mi progreso); **Elegir juego**
+> (`/juegos`) es una grilla filtrada por `profile.grade` desde el catálogo
+> `src/juegos.fitz` (contrarreloj jugable, el resto bloqueado por grado o
+> "próximamente" F4/F5 — sumar un juego es una fila); **Práctica libre**
+> (`/practica` → tema → dificultad → `/jugar/practica`) **sin reloj ni puntaje**,
+> reusando el `Quiz.fitzv` en modo práctica (tema fijo + banda de dificultad que
+> mapea a un grado efectivo del generador vía `gen_for`), con `GameSession.mode
+> = "practica"` y la config viajando al `@ws` por cookie (el `@ws` no acepta
+> path params). Desafío del día y Mi progreso quedan como placeholder amable —
+> dependen del motor adaptativo, que es el resto de F3. Verificado con **8
+> `@test` nuevos** (banda→grado, `gen_for` timed idéntico a `gen_mix`, tema fijo
+> reproducible, temas por grado) y **paridad bit-a-bit `fitz run` ↔ binario
+> nativo**: rutas SSR idénticas (módulo line-endings) y práctica live por WS con
+> el mismo `mode="practica"` + attempt correcto en Postgres, sin regresión del
+> contrarreloj. Verificado contra `fitz 0.58.0` local; el Docker pasa a
+> `fitz:v0.58.1` (release aditivo — MatHelp no ejercita la feature nueva de
+> v0.58.1, su `gen_arith` mantiene el `RandGen` local).
+
 ### ✅ Hecho
 
 | Qué | Dónde | Verificado con |
@@ -77,16 +99,26 @@
 | **F2** · `/jugar` live + `@ws /live/quiz` + cronómetro por WS + persistencia | `src/live_game.fitz` | E2E WS (reloj 60→57, answer, sesión + attempt en Postgres) |
 | **F2** · `@table GameSession` + `Attempt` | `src/models.fitz` | Match exacto con `0001_init.sql` + writes reales |
 | **F2** · 3 claves i18n nuevas (jugar de nuevo, de, segundos) | `locales/*.json`, `src/cat_*.fitz` | 89 claves × 2 locales, sin faltantes |
+| **F3-nav** · Catálogo de juegos data-driven (grilla por grado) | `src/juegos.fitz` | `fitz check` + grilla renderizada (1 jugable + 5 lock + 7 soon) |
+| **F3-nav** · Home de juego §6.5 (5 accesos) + placeholders desafío/progreso | `src/main.fitz` | E2E: 5 links del menú, placeholder i18n |
+| **F3-nav** · Elegir juego (`/juegos`) + Práctica libre (`/practica` → tema → dificultad) | `src/menu.fitz` | E2E: temas del grado, 3 bandas, cookie+redirect |
+| **F3-nav** · Práctica live (Quiz en modo práctica, sin reloj ni puntaje) | `src/live_game.fitz`, `src/Quiz.fitzv`, `src/quiz_view.fitz` | E2E WS: `mode='practica'` + attempt correcto en Postgres, sin regresión del timed |
+| **F3-nav** · `gen_for` + `grade_for_band` + `temas_practica` + `tema_valido` | `src/gen_arith.fitz` | 8 `@test` (banda→grado, timed≡gen_mix, reproducible, temas por grado) |
+| **F3-nav** · 21 claves i18n nuevas (juegos, temas, bandas, próximamente) | `locales/*.json`, `src/cat_*.fitz` | 110 claves × 2 locales, sin faltantes |
 
 **F0: 33 tests** contra `fitz 0.47.0`. **F1: E2E `curl` + paridad `run`↔binario**
 contra `fitz 0.56.0`. **F2: 19 `@test` + E2E completo (HTTP + WS + persistencia) +
 paridad bit-a-bit `fitz run` ↔ binario nativo** contra `fitz 0.58.0`.
+**F3-nav: 27 `@test` (8 nuevos de práctica) + E2E de navegación + práctica live
+por WS + paridad bit-a-bit `run` ↔ binario** contra `fitz 0.58.0` (Docker en
+`fitz:v0.58.1`).
 
 ### 🔜 Lo que sigue
 
 | Fase | Qué falta | Bloqueado por |
 |---|---|---|
-| **F3** ← acá vamos | `mastery` + Elo-lite, repaso espaciado, racha diaria, mate-progreso, práctica libre, desafío del día | — |
+| **F3-nav** ✅ | menú §6.5 + elegir juego (grilla por grado) + práctica libre (tema+dificultad) | — |
+| **F3-motor** ← acá vamos | `mastery` + Elo-lite, repaso espaciado, racha diaria, mate-progreso, desafío del día (10 del mix adaptativo) | — |
 | **F4** | V/F, completá el hueco, teclado numérico propio, escalera de tablas, el kiosco, fracciones visuales | F2 |
 | **F5** | Panel del padre con reportes | F3 |
 | **F6** | Reanudar partida, accesibilidad, sonido opcional, instalable | F2 |
@@ -437,6 +469,13 @@ Todos pensados para **pulgar en celular**: botones grandes, nada de arrastrar, n
 
 ## 6.5 Navegación / IA de juego (F3–F5)
 
+> **Estado (22/08/2026): implementado en el slice F3-navegación.** El árbol de
+> abajo está vivo (`/`, `/juegos`, `/practica` → tema → dificultad → juego). Lo
+> pendiente son los nodos que dependen del motor adaptativo: **Desafío del día**
+> (10 del mix) y **Mi progreso** (mate-progreso + medallas + racha), hoy
+> placeholder. La grilla de juegos ya filtra por grado; solo el **contrarreloj**
+> es jugable (los demás llegan en F4/F5).
+
 **Decisión de diseño:** para un chico de 6–12 NO se arma un árbol profundo
 `grado → nivel → juego` (mucho tap, se pierde — anti-patrón para esa edad). El
 menú se **aplana** apoyándose en lo que la app ya sabe:
@@ -654,7 +693,7 @@ mathelp/
 | **F0 — Cimientos** ✅ | Proyecto + compose levantando, Postgres, migraciones, shell mobile-first, i18n es-AR/en con selector, logo + footer, `/favicon.svg` + manifest | `docker compose up` → pantalla MatHelp responsive, cambio de idioma OK |
 | **F1 — Identidad** ✅ | Registro/login de familia (Argon2id + JWT + cookie), alta de perfiles, selección de perfil con PIN | Login end-to-end ✓, cookie `HttpOnly` seteada ✓, redirect a `/login` sin sesión ✓, paridad `run`↔binario ✓ |
 | **F2 — Primer juego** | `rng.fitz` + generadores de las 4 operaciones + `Quiz.fitzv` contrarreloj + cronómetro por WS + persistencia de sesión | **Tu hija juega.** Tests del PRNG (distribución) y de los generadores |
-| **F3 — Que aprenda** | `mastery` + Elo-lite + repaso espaciado + racha diaria + práctica libre + desafío del día + mate-progreso | Simulación de 500 respuestas: el rating converge y la dificultad sigue |
+| **F3 — Que aprenda** | **navegación ✅** (menú §6.5 + elegir juego + práctica libre) · **pendiente:** `mastery` + Elo-lite + repaso espaciado + racha diaria + desafío del día + mate-progreso | Nav: E2E + paridad `run`↔binario ✅. Motor: simulación de 500 respuestas (el rating converge y la dificultad sigue) |
 | **F4 — Más juegos** | V/F, completá el hueco, numpad propio, escalera de tablas, el kiosco, fracciones visuales | 6 modos jugables en celu |
 | **F5 — Panel del padre** | Reportes por hijo: progreso por tema, errores frecuentes, tiempo, evolución; metas configurables | Gráficos con `bar_chart` / `progress_bar` / `stat_card` |
 | **F6 — Pulido** | Dark mode, accesibilidad (contraste, `lang`, foco visible), reanudar partida, sonido opcional, instalable en el celu | Lighthouse mobile + prueba real en un Android |

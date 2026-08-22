@@ -17,7 +17,7 @@
 // `component_state(...)` y el contexto del payload. Los `event` de un `.fitzv`
 // son mutaciones puras en memoria — sin `.await`, sin DB (patrón Admin ABM).
 
-from gen_arith import gen_mix
+from gen_arith import gen_for
 from engine import puntos, a_int
 from quiz_view import quiz_screen
 
@@ -34,6 +34,9 @@ component quiz {
     phase: Str = "playing"      // "playing" | "done"
     feedback: Str = ""          // "" | "ok" | "bad"
     last_answer: Int = 0        // la respuesta correcta del ejercicio recién fallado
+    topic: Str = "mix"          // tema fijo en práctica ("add".."div"|"mix"); "mix" en contrarreloj
+    band: Int = 2               // banda de dificultad de práctica (1=fácil,2=medio,3=difícil)
+    mode: Str = "timed"         // "timed" (contrarreloj) | "practice" (sin reloj ni puntaje)
   }
 
   event answer() {
@@ -43,7 +46,7 @@ component quiz {
           let ei = a_int(payload["ei"])
           if (ei == idx) {
             let chosen = a_int(payload["v"])
-            let ex = gen_mix(seed, idx, grade)
+            let ex = gen_for(mode, topic, band, seed, idx, grade)
             let acierto = chosen == ex.answer
             total = total + 1
             if (acierto) {
@@ -74,7 +77,7 @@ component quiz {
 
   <template>
     <div id="quiz-app" class="mh-quiz">
-      {quiz_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, last_answer).raw}
+      {quiz_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, last_answer, topic, band, mode).raw}
     </div>
   </template>
 }

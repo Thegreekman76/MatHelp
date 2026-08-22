@@ -112,6 +112,6 @@ MatHelp es el dogfooding de Fitz. Un bug que se esconde detrás de un workaround
 
 ## Fases
 
-F0 cimientos ✅ · **F1 auth y perfiles ← acá estamos** · F2 primer juego · F3 motor adaptativo · F4 más juegos · F5 panel del padre · F6 pulido · F7 secundaria
+F0 cimientos ✅ · F1 auth y perfiles ✅ · F2 primer juego ✅ · **F3 navegación ✅ (menú §6.5 + elegir juego + práctica libre) → F3 motor adaptativo ← acá** · F4 más juegos · F5 panel del padre · F6 pulido · F7 secundaria
 
 El detalle de cada una, en `docs/PLAN.md`.

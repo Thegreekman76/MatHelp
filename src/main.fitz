@@ -14,6 +14,7 @@ from auth import read_session, pid_from_token
 import perfiles
 import assets
 import live_game
+import menu
 // El juego vive en live_game.fitz (@get /jugar + @ws /live/quiz). Importar los
 // símbolos del componente acá es lo que dispara el auto-registro del LiveComponent
 // (el compilador pre-escanea los imports directos del entry y emite el
@@ -66,7 +67,12 @@ async fn home_publica(locale: Str) -> Response {
     return responder_html(page(locale, "MatHelp — " + t(locale, "app.tagline"), body, html("")))
 }
 
-// Home con perfil elegido: los accesos al juego. (El juego real llega en F2.)
+// Home de juego: el menú shallow de §6.5. Cinco accesos de un tap (la
+// navegación profunda grado→nivel→juego es anti-patrón para 6–12): Jugar ya
+// (contrarreloj, F2), Desafío del día y Mi progreso (llegan con el motor
+// adaptativo, F3), Elegir juego (grilla por grado) y Práctica libre (tema →
+// dificultad). El grado sale del perfil y el nivel es adaptativo: acá no se
+// elige ninguno de los dos (salvo en Práctica libre).
 fn home_jugar(locale: Str) -> Response {
     let marca = logo_lockup(56, locale).raw
     let tagline = flv(t(locale, "app.tagline"))
@@ -78,9 +84,11 @@ fn home_jugar(locale: Str) -> Response {
 
 <div class="mh-card">
 <h2>{flv(t(locale, "nav.jugar"))}</h2>
-<a class="mh-btn" href="/jugar">{flv(t(locale, "home.empezar"))}</a>
-<a class="mh-btn sec" href="/desafio">{flv(t(locale, "home.desafio_dia"))}</a>
-<a class="mh-btn sec" href="/practica">{flv(t(locale, "home.practica_libre"))}</a>
+<a class="mh-btn" href="/jugar"><span aria-hidden="true">▶️</span>{flv(t(locale, "home.jugar_ya"))}</a>
+<a class="mh-btn sec" href="/desafio"><span aria-hidden="true">🎯</span>{flv(t(locale, "home.desafio_dia"))}</a>
+<a class="mh-btn sec" href="/juegos"><span aria-hidden="true">🎮</span>{flv(t(locale, "home.elegir_juego"))}</a>
+<a class="mh-btn sec" href="/practica"><span aria-hidden="true">📚</span>{flv(t(locale, "home.practica_libre"))}</a>
+<a class="mh-btn sec" href="/progreso"><span aria-hidden="true">🏅</span>{flv(t(locale, "nav.progreso"))}</a>
 </div>
 
 <div class="mh-card">
@@ -141,6 +149,9 @@ fn set_lang(code: Str, referer: Str?) -> Response {
 
 // /jugar (contrarreloj en vivo) lo sirve live_game.fitz.
 
+// Desafío del día y Mi progreso llegan con el motor adaptativo (F3): 10 del mix
+// que alimenta la racha, y el mate-progreso + medallas. Por ahora, placeholder.
+// (Elegir juego → /juegos y Práctica libre → /practica los sirve menu.fitz.)
 @cookie(name="mathelp_session", into="session")
 @cookie(name="mathelp_lang", into="lang")
 @get("/desafio")
@@ -148,7 +159,7 @@ async fn desafio(session: Str?, lang: Str?) -> Response {
     let locale = locale_from_cookie(lang)
     match guard_juego(session).await {
         Ok(destino) => match destino == "" {
-            true => return proximamente(locale, t(locale, "home.desafio_dia"), "F3"),
+            true => return proximamente(locale, t(locale, "home.desafio_dia")),
             false => return redirect_a(destino),
         },
         Err(_) => return redirect_a("/login"),
@@ -157,12 +168,12 @@ async fn desafio(session: Str?, lang: Str?) -> Response {
 
 @cookie(name="mathelp_session", into="session")
 @cookie(name="mathelp_lang", into="lang")
-@get("/practica")
-async fn practica(session: Str?, lang: Str?) -> Response {
+@get("/progreso")
+async fn progreso(session: Str?, lang: Str?) -> Response {
     let locale = locale_from_cookie(lang)
     match guard_juego(session).await {
         Ok(destino) => match destino == "" {
-            true => return proximamente(locale, t(locale, "home.practica_libre"), "F3"),
+            true => return proximamente(locale, t(locale, "nav.progreso")),
             false => return redirect_a(destino),
         },
         Err(_) => return redirect_a("/login"),
@@ -181,13 +192,15 @@ async fn guard_juego(session: Str?) -> Result<Str> {
     return Ok("")
 }
 
-fn proximamente(locale: Str, titulo: Str, fase: Str) -> Response {
+// Placeholder amable para las pantallas que todavía no llegaron (Desafío, Mi
+// progreso). Sin texto de dev: un cartel de obra y "Volver".
+fn proximamente(locale: Str, titulo: Str) -> Response {
     let t_esc = flv(titulo)
-    let body = html("""<div class="mh-card">
-<h2>{fase}</h2>
-<p style="font-size:1.35rem;font-weight:800;margin:.2rem 0 1rem">{t_esc}</p>
-<p style="color:var(--mh-suave);margin:0 0 1.2rem">Esta pantalla llega en la fase {fase}.</p>
-<a class="mh-btn sec" href="/">←</a>
+    let body = html("""<div class="mh-card" style="text-align:center">
+<div style="font-size:3rem;line-height:1">🚧</div>
+<p style="font-size:1.35rem;font-weight:800;margin:.4rem 0">{t_esc}</p>
+<p style="color:var(--mh-suave);margin:0 0 1.2rem">{flv(t(locale, "proximamente.texto"))}</p>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
 </div>""")
     return responder_html(page(locale, titulo + " — MatHelp", body, html("")))
 }

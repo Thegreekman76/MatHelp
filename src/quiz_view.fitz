@@ -10,12 +10,17 @@
 // (índice del ejercicio) viaja también, para descartar taps viejos server-side.
 
 from fitz_liveviews import Html, html, flv, h_join
-from gen_arith import gen_mix, op_symbol
+from gen_arith import gen_mix, gen_for, op_symbol
 from i18n import t, t1
 from fmt import fmt_int
 
-// Punto de entrada: decide entre la partida en curso y el resumen final.
-fn quiz_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, last_answer: Int) -> Html {
+// Punto de entrada. `mode` decide la pantalla:
+//   - "practice": práctica libre (sin reloj ni puntaje, tema+banda fijos).
+//   - "timed" (contrarreloj): partida en curso o resumen final.
+fn quiz_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, last_answer: Int, topic: Str, band: Int, mode: Str) -> Html {
+    if (mode == "practice") {
+        return quiz_practica(seed, idx, grade, locale, topic, band, correct, feedback, last_answer)
+    }
     if (phase == "done") {
         return quiz_resumen(locale, score, correct, total)
     }
@@ -60,6 +65,32 @@ fn quiz_jugando(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, time_l
 <div class="q-prompt">{a} {sym} {b}</div>
 <div class="q-options">{opciones}</div>
 <div class="q-fbwrap">{banner}</div>""")
+}
+
+// Práctica libre: mismo ejercicio de opción múltiple, pero SIN reloj ni puntaje
+// (§6). El ejercicio sale de `gen_for("practice", ...)` — el tema y la banda
+// fijan la operación y el rango; el mismo generador que corrige en Quiz.fitzv,
+// así lo mostrado y lo puntuado coinciden. Se juega abierto: no hay resumen, se
+// sale con "Terminar". Mostramos las correctas como progreso, no como score.
+fn quiz_practica(seed: Int, idx: Int, grade: Int, locale: Str, topic: Str, band: Int, correct: Int, feedback: Str, last_answer: Int) -> Html {
+    let ex = gen_for("practice", topic, band, seed, idx, grade)
+    let a = flv(fmt_int(locale, ex.a))
+    let b = flv(fmt_int(locale, ex.b))
+    let sym = flv(op_symbol(ex.op))
+    let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
+    let banner = feedback_banner(locale, feedback, last_answer)
+    let modo = flv(t(locale, "practica.modo"))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let salir = flv(t(locale, "juego.terminar"))
+    return html("""<div class="q-hud">
+<div class="q-mode">{modo}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+</div>
+<div class="q-prompt">{a} {sym} {b}</div>
+<div class="q-options">{opciones}</div>
+<div class="q-fbwrap">{banner}</div>
+<a class="mh-btn sec" href="/">{salir}</a>""")
 }
 
 fn quiz_resumen(locale: Str, score: Int, correct: Int, total: Int) -> Html {
