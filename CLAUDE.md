@@ -115,7 +115,7 @@ MatHelp es el dogfooding de Fitz. Un bug que se esconde detrás de un workaround
 
 ## Fases
 
-F0 cimientos ✅ · F1 auth y perfiles ✅ · F2 primer juego ✅ · **F3 que aprenda ✅ (navegación §6.5 + motor adaptativo: Elo-lite, selección 70/20/10, repaso espaciado, racha diaria, medallas, desafío del día, mate-progreso)** · **F4 más juegos ← acá** · F5 panel del padre · F6 pulido · F7 secundaria
+F0 cimientos ✅ · F1 auth y perfiles ✅ · F2 primer juego ✅ · **F3 que aprenda ✅ (navegación §6.5 + motor adaptativo: Elo-lite, selección 70/20/10, repaso espaciado, racha diaria, medallas, desafío del día, mate-progreso)** · **F4 más juegos ✅ (V/F, completá el hueco con teclado propio, escalera de tablas, el kiosco, fracciones a la vista — cada uno enchufado como fila en `juegos.fitz` + `.fitzv` + `live_*.fitz`, alimenta mastery/racha igual que el contrarreloj)** · **F5 panel del padre ← acá** · F6 pulido · F7 secundaria
 
 El motor adaptativo (F3) vive en `src/engine.fitz` (Elo-lite puro, testeado en
 `tests/motor.fitz`), `src/gen_arith.fitz` (`gen_adaptive` 70/20/10),

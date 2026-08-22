@@ -1,0 +1,69 @@
+// Escalera.fitzv — "Escalera de tablas", como LiveComponent SSR.
+//
+// Multiplicación pura con mecánica de escalera: subís un escalón por acierto,
+// bajás dos por error. Llegás a la meta → ganás (phase="done"). Sin reloj: la
+// tensión es la escalera, no el tiempo. Reusa el motor (gen_escalera, adaptativo
+// sobre el rating de mul) y alimenta mastery/racha por respuesta igual que el
+// contrarreloj.
+//
+// Un evento: answer(). El payload trae la opción elegida (v) y el índice (ei).
+
+from gen_arith import gen_escalera
+from engine import a_int
+from escalera_view import escalera_screen
+
+component escalera {
+  state {
+    seed: Int = 0
+    idx: Int = 0
+    grade: Int = 4
+    locale: Str = "es-AR"
+    step: Int = 0                  // escalón actual (0..meta)
+    meta: Int = 10                 // escalón de la cima (ganar)
+    correct: Int = 0
+    total: Int = 0
+    phase: Str = "playing"         // "playing" | "done"
+    feedback: Str = ""             // "" | "ok" | "bad"
+    last_answer: Int = 0           // el producto correcto del ejercicio recién fallado
+    r_mul: Float = 800.0           // rating de multiplicación (escala las tablas)
+  }
+
+  event answer() {
+    if (phase == "playing") {
+      if (payload.has("v")) {
+        if (payload.has("ei")) {
+          let ei = a_int(payload["ei"])
+          if (ei == idx) {
+            let chosen = a_int(payload["v"])
+            let ex = gen_escalera(seed, idx, grade, r_mul)
+            let acierto = chosen == ex.answer
+            total = total + 1
+            if (acierto) {
+              correct = correct + 1
+              step = step + 1
+              feedback = "ok"
+            }
+            if (not acierto) {
+              step = step - 2        // caés dos escalones
+              if (step < 0) {
+                step = 0
+              }
+              feedback = "bad"
+              last_answer = ex.answer
+            }
+            idx = idx + 1
+            if (step >= meta) {
+              phase = "done"         // llegaste a la cima
+            }
+          }
+        }
+      }
+    }
+  }
+
+  <template>
+    <div id="escalera-app" class="mh-quiz">
+      {escalera_screen(seed, idx, grade, locale, step, meta, correct, total, phase, feedback, last_answer, r_mul).raw}
+    </div>
+  </template>
+}

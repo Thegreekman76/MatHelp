@@ -1,0 +1,28 @@
+// keypad_view.fitz — el HTML del teclado numérico propio (F4).
+//
+// Compartido por los juegos con entrada tipeada (Completá el hueco, El kiosco):
+// 1..9, después borrar / 0 / enter ("Listo"). Cada dígito manda su valor en
+// data-flv-value-d; enter manda la entrada actual (data-flv-value-v="{entrada}")
+// + el índice del ejercicio, mismo shape de payload que el resto de los juegos.
+// El evento cae al componente que lo contiene (data-flv-component-name), así el
+// mismo teclado sirve a cualquier juego.
+//
+// La lógica de acumulación (Int: *10+d / /10) vive en keypad.fitz (pura, testeada).
+
+from fitz_liveviews import Html, html, flv
+from i18n import t
+
+fn keypad_html(locale: Str, entrada: Int, idx: Int) -> Str {
+    let filas = ""
+    for d in ["1", "2", "3", "4", "5", "6", "7", "8", "9"] {
+        filas = filas + html("""<button class="kp-key" type="button" data-flv-click="digito" data-flv-value-d="{d}">{flv(d)}</button>""").raw
+    }
+    let borrar = flv(t(locale, "kp.borrar"))
+    let listo = flv(t(locale, "kp.listo"))
+    return html("""<div class="kp">
+{filas}
+<button class="kp-key aux" type="button" data-flv-click="borrar" aria-label="{borrar}">⌫</button>
+<button class="kp-key" type="button" data-flv-click="digito" data-flv-value-d="0">0</button>
+<button class="kp-key ok" type="button" data-flv-click="answer" data-flv-value-v="{entrada}" data-flv-value-ei="{idx}">{listo}</button>
+</div>""").raw
+}

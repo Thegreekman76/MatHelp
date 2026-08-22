@@ -122,5 +122,21 @@
   "vf.falso": "Falso",
   "vf.era": "Casi. Era {0}.",
   "kp.borrar": "Borrar",
-  "kp.listo": "Listo"
+  "kp.listo": "Listo",
+  "escalera.escalon": "Escalón",
+  "escalera.ganaste": "¡Llegaste a la cima!",
+  "kiosco.compras": "Comprás {0}.",
+  "kiosco.cuesta": "Cuesta {0}",
+  "kiosco.pagas": "pagás con {0}",
+  "kiosco.vuelto": "¿Cuánto vuelto?",
+  "kiosco.alfajor": "un alfajor",
+  "kiosco.chicle": "un chicle",
+  "kiosco.agua": "una botella de agua",
+  "kiosco.galletitas": "un paquete de galletitas",
+  "kiosco.caramelo": "un caramelo",
+  "kiosco.chocolate": "un chocolate",
+  "kiosco.jugo": "un jugo",
+  "kiosco.turron": "un turrón",
+  "frac.pregunta": "¿Qué fracción está pintada?",
+  "frac.era": "Casi. Era {0}."
 }

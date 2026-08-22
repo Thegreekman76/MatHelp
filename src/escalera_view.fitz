@@ -1,0 +1,70 @@
+// escalera_view.fitz — el render de "Escalera de tablas".
+//
+// Multiplicación pura con una mecánica de escalera: subís un escalón por acierto,
+// bajás dos por error. Llegar arriba (meta) gana la partida. El ejercicio se
+// deriva de (seed, idx) con gen_escalera (siempre `mul`, escalado por el rating
+// de multiplicación). Reusa opt_button + feedback_banner del contrarreloj —
+// mismas 4 opciones, mismo feedback — así el foco está en la mecánica, no en re-
+// inventar el render.
+
+from fitz_liveviews import Html, html, flv, h_join
+from gen_arith import gen_escalera, op_symbol
+from quiz_view import opt_button, feedback_banner
+from i18n import t, t1
+from fmt import fmt_int
+
+fn escalera_screen(seed: Int, idx: Int, grade: Int, locale: Str, step: Int, meta: Int, correct: Int, total: Int, phase: Str, feedback: Str, last_answer: Int, r_mul: Float) -> Html {
+    if (phase == "done") {
+        return escalera_resumen(locale, meta, correct, total)
+    }
+    let ex = gen_escalera(seed, idx, grade, r_mul)
+    let a = flv(fmt_int(locale, ex.a))
+    let b = flv(fmt_int(locale, ex.b))
+    let sym = flv(op_symbol(ex.op))
+    let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
+    let banner = feedback_banner(locale, feedback, last_answer)
+    let ladder = escalera_ladder(locale, step, meta)
+    return html("""{ladder}
+<div class="q-prompt">{a} {sym} {b} = ?</div>
+<div class="q-options">{opciones}</div>
+<div class="q-fbwrap">{banner}</div>""")
+}
+
+// La escalera: `meta` escalones apilados (el de más arriba es la meta), llenos
+// hasta `step`. Muestra "Escalón X de N" arriba. Los escalones se dibujan de
+// arriba (meta) hacia abajo (0) para que "subir" sea visualmente subir.
+fn escalera_ladder(locale: Str, step: Int, meta: Int) -> Str {
+    let rungs = ""
+    let i = meta
+    while (i >= 1) {
+        let clase = match i <= step {
+            true => "rung on",
+            false => "rung",
+        }
+        rungs = rungs + html("""<div class="{clase}"></div>""").raw
+        i = i - 1
+    }
+    let esc_lbl = flv(t(locale, "escalera.escalon"))
+    let paso = flv(fmt_int(locale, step))
+    let de = flv(t(locale, "juego.de"))
+    let tot = flv(fmt_int(locale, meta))
+    return html("""<div class="esc-hud">
+<div class="esc-ladder">{rungs}</div>
+<div class="esc-info"><span class="esc-emoji">🪜</span><span class="esc-num">{esc_lbl} {paso} {de} {tot}</span></div>
+</div>""").raw
+}
+
+fn escalera_resumen(locale: Str, meta: Int, correct: Int, total: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    return html("""<div class="q-done">
+<div class="q-medal">🏆</div>
+<h2>{flv(t(locale, "escalera.ganaste"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+<div class="q-actions">
+<a class="mh-btn" href="/escalera">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

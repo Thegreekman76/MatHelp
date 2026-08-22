@@ -122,5 +122,21 @@
   "vf.falso": "False",
   "vf.era": "Almost. It was {0}.",
   "kp.borrar": "Delete",
-  "kp.listo": "Done"
+  "kp.listo": "Done",
+  "escalera.escalon": "Step",
+  "escalera.ganaste": "You reached the top!",
+  "kiosco.compras": "You buy {0}.",
+  "kiosco.cuesta": "It costs {0}",
+  "kiosco.pagas": "you pay with {0}",
+  "kiosco.vuelto": "How much change?",
+  "kiosco.alfajor": "an alfajor",
+  "kiosco.chicle": "a piece of gum",
+  "kiosco.agua": "a water bottle",
+  "kiosco.galletitas": "a pack of cookies",
+  "kiosco.caramelo": "a candy",
+  "kiosco.chocolate": "a chocolate bar",
+  "kiosco.jugo": "a juice",
+  "kiosco.turron": "a nougat bar",
+  "frac.pregunta": "Which fraction is shaded?",
+  "frac.era": "Almost. It was {0}."
 }

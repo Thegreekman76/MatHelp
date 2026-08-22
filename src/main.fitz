@@ -16,6 +16,9 @@ import assets
 import live_game
 import live_vf
 import live_completa
+import live_escalera
+import live_kiosco
+import live_fracciones
 import menu
 import progreso
 // Los juegos viven en sus live_*.fitz (@get + @ws). Importar los símbolos de cada
@@ -25,6 +28,9 @@ import progreso
 from Quiz import quiz, quiz_render, quiz_answer, quiz_tick
 from VerdaderoFalso import verdadero_falso, verdadero_falso_render, verdadero_falso_answer, verdadero_falso_tick
 from Completa import completa, completa_render, completa_answer, completa_digito, completa_borrar
+from Escalera import escalera, escalera_render, escalera_answer
+from Kiosco import kiosco, kiosco_render, kiosco_answer, kiosco_digito, kiosco_borrar
+from Fracciones import fracciones, fracciones_render, fracciones_answer
 
 // --- Home ----------------------------------------------------------------
 

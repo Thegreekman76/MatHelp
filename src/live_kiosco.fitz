@@ -1,0 +1,131 @@
+// live_kiosco.fitz — "El kiosco" en vivo: página, socket y persistencia.
+//
+// Ronda fija de N sin reloj (modelo Completá el hueco). Reusa el generador de
+// kiosco + persistencia por respuesta → alimenta mastery (`dec.dinero`) + racha
+// igual que el contrarreloj. El server re-deriva el problema y compara given ==
+// it.change (el vuelto). No-adaptativo: escala por el grado del perfil (el
+// snapshot de mastery sólo tiene las 4 operaciones; dinero se acumula igual en la
+// tabla mastery para el panel del padre, F5).
+
+from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, flv_frame, component_state, flv_evict, live_embed
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from models import GameSession, Attempt
+from engine import desafio_n
+from mastery import actualizar_mastery
+from streaks import registrar_y_premiar
+from gen_kiosco import gen_kiosco
+from live_game import resolver_contexto, pget_int
+from Kiosco import kiosco
+
+async fn crear_sesion_kiosco(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let sess = GameSession.insert(conn, GameSession {
+        profile_id: profile_id,
+        mode: "kiosco",            // CHECK sessions_mode_valido (0001_init.sql)
+        topic_code: "dec.dinero",
+        level: grade,
+        seed: seed,
+    }).await?
+    return Ok(sess.id)
+}
+
+async fn persistir_kiosco(sess_id: Int, profile_id: Int, seed: Int, idx: Int, grade: Int, given: Int) -> Result<Int> {
+    let it = gen_kiosco(seed, idx, grade)
+    let acierto = given == it.change
+    let prompt = "vuelto de {it.paid} − {it.price}"
+    let conn = db.connect(db_url()).await?
+    let row = Attempt.insert(conn, Attempt {
+        session_id: sess_id,
+        profile_id: profile_id,
+        skill_code: "dec.dinero",
+        idx: idx,
+        prompt: prompt,
+        expected: "{it.change}",
+        given: "{given}",
+        correct: acierto,
+        ms: 0,
+        difficulty: it.difficulty,
+    }).await?
+    let _ = actualizar_mastery(profile_id, "dec.dinero", it.difficulty, acierto, 0).await
+    return Ok(row.id)
+}
+
+async fn cerrar_kiosco(sess_id: Int, total: Int, correct: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = GameSession.where(fn(s) => s.id == sess_id).update(conn, {
+        "total": total,
+        "correct": correct,
+    }).await?
+    return Ok(1)
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/kiosco")
+async fn kiosco_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let inicial = component_with("kiosco", "ssr", kiosco {
+        seed: 1,
+        grade: ctx.grade,
+        locale: locale,
+        limit: desafio_n(),
+    })
+    let embed = live_embed("/live/kiosco", "kiosco-app", inicial)
+    let titulo = t(locale, "juego.kiosco") + " — MatHelp"
+    return responder_html(page(locale, titulo, embed, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@ws("/live/kiosco")
+async fn kiosco_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
+    let locale = locale_from_cookie(lang)
+    let ctx = resolver_contexto(session).await?
+    let cid = Uuid.v4().to_str()
+    let seed = rand.int(1, 2000000000)
+    let sess_id = crear_sesion_kiosco(ctx.profile_id, seed, ctx.grade).await?
+    let _ = component_with("kiosco", cid, kiosco {
+        seed: seed,
+        grade: ctx.grade,
+        locale: locale,
+        limit: desafio_n(),
+    }).raw
+    ws.send(flv_frame("kiosco", cid))?
+    let next_idx = 0
+    let finalizado = false
+    loop {
+        let frame = match ws.recv() {
+            Ok(f) => f,
+            Err(_) => { break },
+        }
+        let ev = frame.event
+        let _ = dispatch_component_events(frame)
+        if (ev == "answer") {
+            let ei = pget_int(frame.payload, "ei", -1)
+            let given = pget_int(frame.payload, "v", -1)
+            if (ei == next_idx and given > 0) {
+                let _ = persistir_kiosco(sess_id, ctx.profile_id, seed, ei, ctx.grade, given).await
+                let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
+                next_idx = next_idx + 1
+            }
+        }
+        match ws.send(flv_frame("kiosco", cid)) {
+            Ok(_) => 0,
+            Err(_) => { break },
+        }
+        let st: kiosco = component_state("kiosco", cid)
+        if (st.phase == "done") {
+            if (not finalizado) {
+                let _ = cerrar_kiosco(sess_id, st.total, st.correct).await
+                finalizado = true
+            }
+        }
+    }
+    let _ = flv_evict("kiosco", cid)
+}

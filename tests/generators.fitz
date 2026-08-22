@@ -12,7 +12,7 @@
 //
 // Corré con:  fitz test
 
-from gen_arith import gen, gen_mix, gen_for, gen_adaptive, grado_efectivo, op_mas_floja, grade_for_band, temas_practica, tema_valido, op_symbol, ops_for_grade, add_max, mul_max, vf_shown, Exercise
+from gen_arith import gen, gen_mix, gen_for, gen_adaptive, gen_escalera, grado_efectivo, op_mas_floja, grade_for_band, temas_practica, tema_valido, op_symbol, ops_for_grade, add_max, mul_max, vf_shown, Exercise
 
 // --- helpers ----------------------------------------------------------------
 
@@ -466,6 +466,43 @@ fn contains_str(xs: List<Str>, target: Str) -> Bool {
     // Reparto razonable de un 50/50 sobre 300 tiradas (ni degenera ni se sesga).
     assert_eq(verdaderas > 80, true)
     assert_eq(falsas > 80, true)
+}
+
+// --- Escalera de tablas (F4) -------------------------------------------------
+
+// Siempre multiplicación, válido y reproducible.
+@test fn escalera_siempre_multiplicacion_valida() {
+    let idx = 0
+    while (idx < 150) {
+        let ex = gen_escalera(7373, idx, 4, 800.0)
+        assert_eq(ex.op, "mul")
+        assert_eq(ejercicio_valido(ex), true)
+        let ex2 = gen_escalera(7373, idx, 4, 800.0)
+        assert_eq(ex.a, ex2.a)
+        assert_eq(ex.b, ex2.b)
+        assert_eq(ex.answer, ex2.answer)
+        idx = idx + 1
+    }
+}
+
+// La escalera sube de tablas: con rating alto los factores llegan, en el máximo
+// de un lote, más grandes que con rating bajo (mismos seeds).
+@test fn escalera_rating_alto_tablas_mas_grandes() {
+    let max_bajo = 0
+    let max_alto = 0
+    let idx = 0
+    while (idx < 200) {
+        let bajo = gen_escalera(414, idx, 3, 600.0)
+        let alto = gen_escalera(414, idx, 3, 1400.0)
+        if (bajo.a > max_bajo) {
+            max_bajo = bajo.a
+        }
+        if (alto.a > max_alto) {
+            max_alto = alto.a
+        }
+        idx = idx + 1
+    }
+    assert_eq(max_alto > max_bajo, true)
 }
 
 // --- símbolos ----------------------------------------------------------------

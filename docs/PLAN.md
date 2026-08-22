@@ -8,8 +8,8 @@
 
 ## 📍 Estado — actualizado 22/08/2026
 
-**Fase actual: F3 — Que aprenda. CERRADA ENTERA (navegación + motor
-adaptativo). F0/F1/F2 cerradas. Próximo: F4 (más juegos).**
+**Fase actual: F4 — Más juegos. CERRADA ENTERA (cinco juegos nuevos).
+F0/F1/F2/F3 cerradas. Próximo: F5 (panel del padre).**
 
 > **Migración a nativo (fitz v0.55 + liveviews v0.50):** los módulos-workaround de
 > F0 (`rng`, `fmt`, `cookies`) se borraron y ahora se usan `rand`/`num`/`@cookie`
@@ -93,6 +93,34 @@ adaptativo). F0/F1/F2 cerradas. Próximo: F4 (más juegos).**
 > `fitz:v0.58.1` (release aditivo — MatHelp no ejercita la feature nueva de
 > v0.58.1, su `gen_arith` mantiene el `RandGen` local).
 
+> **F4 — Más juegos (cerrada 22/08/2026):** cinco juegos nuevos, cada uno
+> enchufado como el patrón §6.5 —**una fila en `src/juegos.fitz` + un `.fitzv` +
+> un `live_*.fitz`**— reusando el motor adaptativo (`gen_for` + snapshot de
+> mastery) y la persistencia por respuesta (Attempt + `actualizar_mastery` +
+> `registrar_y_premiar`), así **cada juego alimenta mastery/racha igual que el
+> contrarreloj**. **Verdadero o Falso** (`/vf`, 60s adaptativo): afirmación
+> `a op b = shown` + dos botones gigantes; `vf_shown` determinista (mitad verdad,
+> mitad distractor). **Completá el hueco** (`/completa`, ronda de 10 sin reloj):
+> `a op __ = answer` con **teclado numérico propio** (`<button>`, no `<input>`
+> → sin teclado del SO; entrada como Int en `keypad.fitz`). **Escalera de
+> tablas** (`/escalera`): multiplicación pura, subís un escalón por acierto,
+> bajás dos por error, llegás a la cima (10); adaptativo sobre `r_mul`. **El
+> kiosco** (`/kiosco`): comprás y calculás el vuelto con teclado, precios en
+> pesos (`fmt_money`), producto **localizado** (§4); generador nuevo
+> `gen_kiosco`. **Fracciones a la vista** (`/fracciones`): barra pintada (divs,
+> no SVG por el diff) y elegís la fracción; generador nuevo `gen_frac` con
+> **distractores no equivalentes** (cross-mult), respuesta como Str. Verificado
+> con **21 `@test` nuevos** (67 totales; `tests/kiosco.fitz`,
+> `tests/fracciones.fitz`, `tests/teclado.fitz`, más los de `gen_arith`) + `fitz
+> build` (binario nativo) + **E2E paridad bit-a-bit `fitz run` ↔ binario** de los
+> cinco (`tools/e2e_game.py`: HTTP auth + WS + verificación en Postgres — attempts
+> persistidos, mastery movido, racha del día), más las mecánicas validadas
+> end-to-end (teclado que re-renderiza, escalera que sube/baja, vuelto del
+> kiosco, barra→fracción correcta). Contra `fitz 0.58.0`. **Ningún bug nuevo del
+> core** — solo se pegó FITZ-21 (ya conocido: un test no puede llamarse igual que
+> el módulo que importa → `tests/teclado.fitz`, no `keypad`). El `mode 'escalera'`
+> se sumó al CHECK de `sessions` (`migrations/0001_init.sql` + ALTER en la DB).
+
 ### ✅ Hecho
 
 | Qué | Dónde | Verificado con |
@@ -137,6 +165,14 @@ adaptativo). F0/F1/F2 cerradas. Próximo: F4 (más juegos).**
 | **F3-motor** · Mi progreso (`/progreso`: mate-progreso + medallas + racha) | `src/progreso.fitz` | E2E: barras por destreza + medalla + racha renderizados |
 | **F3-motor** · `@table Mastery`/`Streak`/`Award` | `src/models.fitz` | Match exacto con `0001_init.sql` + writes reales |
 | **F3-motor** · 9 claves i18n nuevas (progreso, medallas) es-AR/en | `locales/*.json`, `src/cat_*.fitz` | 119 claves × 2 locales, sin faltantes |
+| **F4** · Verdadero o Falso (afirmación + 2 botones, 60s adaptativo) | `src/VerdaderoFalso.fitzv`, `vf_view.fitz`, `live_vf.fitz`, `gen_arith.vf_shown` | 3 `@test` + E2E paridad `run`↔binario (mode `truefalse`) |
+| **F4** · Completá el hueco (teclado numérico propio, ronda de 10) | `src/Completa.fitzv`, `completa_view.fitz`, `live_completa.fitz`, `keypad.fitz` | 5 `@test` (`tests/teclado.fitz`) + E2E paridad + teclado end-to-end |
+| **F4** · Escalera de tablas (mult., sube1/baja2, cima 10, adaptativo por `r_mul`) | `src/Escalera.fitzv`, `escalera_view.fitz`, `live_escalera.fitz`, `gen_arith.gen_escalera` | 2 `@test` + E2E paridad + mecánica end-to-end (mode `escalera`) |
+| **F4** · El kiosco (vuelto en pesos, teclado, producto localizado) | `src/Kiosco.fitzv`, `kiosco_view.fitz`, `live_kiosco.fitz`, `gen_kiosco.fitz`, `fmt.fitz` | 5 `@test` (`tests/kiosco.fitz`) + E2E paridad + vuelto end-to-end (mode `kiosco`) |
+| **F4** · Fracciones a la vista (barra pintada, distractores no-equivalentes) | `src/Fracciones.fitzv`, `frac_view.fitz`, `live_fracciones.fitz`, `gen_frac.fitz` | 6 `@test` (`tests/fracciones.fitz`) + E2E paridad + barra→fracción end-to-end (mode `fracciones`) |
+| **F4** · Teclado numérico compartido + `fmt_money` + `mode 'escalera'` | `src/keypad_view.fitz`, `fmt.fitz`, `migrations/0001_init.sql` | Teclado `<button>` (sin teclado del SO), reusado por Completá + Kiosco |
+| **F4** · Harness E2E reusable (HTTP auth + WS + Postgres) | `tools/e2e_game.py` | Paridad `run`↔binario de los cinco juegos |
+| **F4** · 16 claves i18n nuevas (vf, kp, escalera, kiosco, frac) es-AR/en | `locales/*.json`, `src/cat_*.fitz` | 140 claves × 2 locales, sin faltantes |
 
 **F0: 33 tests** contra `fitz 0.47.0`. **F1: E2E `curl` + paridad `run`↔binario**
 contra `fitz 0.56.0`. **F2: 19 `@test` + E2E completo (HTTP + WS + persistencia) +
@@ -147,6 +183,11 @@ por WS + paridad bit-a-bit `run` ↔ binario** contra `fitz 0.58.0` (Docker en
 `tests/motor.fitz` con la simulación §11 + 6 de selección adaptativa en
 `tests/generators.fitz`) + E2E completo (mastery/racha/medallas/desafío/progreso
 contra Postgres) + paridad bit-a-bit `run` ↔ binario** contra `fitz 0.58.0`.
+**F4: 67 `@test` totales (21 nuevos: 5 del teclado en `tests/teclado.fitz`, 5 del
+kiosco en `tests/kiosco.fitz`, 6 de fracciones en `tests/fracciones.fitz`, 5 de
+V/F/escalera en `tests/generators.fitz`) + `fitz build` (binario nativo) + E2E
+paridad bit-a-bit `run` ↔ binario de los cinco juegos (`tools/e2e_game.py`) +
+mecánicas validadas end-to-end** contra `fitz 0.58.0`.
 
 ### 🔜 Lo que sigue
 
@@ -154,8 +195,8 @@ contra Postgres) + paridad bit-a-bit `run` ↔ binario** contra `fitz 0.58.0`.
 |---|---|---|
 | **F3-nav** ✅ | menú §6.5 + elegir juego (grilla por grado) + práctica libre (tema+dificultad) | — |
 | **F3-motor** ✅ | `mastery` + Elo-lite, selección 70/20/10, repaso espaciado, racha diaria, medallas, desafío del día, mate-progreso | — |
-| **F4** ← acá vamos | V/F, completá el hueco, teclado numérico propio, escalera de tablas, el kiosco, fracciones visuales | F2 |
-| **F5** | Panel del padre con reportes | F3 |
+| **F4** ✅ | V/F, completá el hueco (teclado propio), escalera de tablas, el kiosco, fracciones a la vista | — |
+| **F5** ← acá vamos | Panel del padre con reportes | F3 |
 | **F6** | Reanudar partida, accesibilidad, sonido opcional, instalable | F2 |
 | **F7** | Secundaria (13–17) | F4 |
 
@@ -504,13 +545,16 @@ Todos pensados para **pulgar en celular**: botones grandes, nada de arrastrar, n
 
 ## 6.5 Navegación / IA de juego (F3–F5)
 
-> **Estado (22/08/2026): F3 completa (navegación + motor).** El árbol de abajo
-> está vivo ENTERO: `/`, `/juegos`, `/practica` → tema → dificultad, **Desafío
-> del día** (`/desafio`, 10 del mix adaptativo, alimenta la racha) y **Mi
-> progreso** (`/progreso`: mate-progreso + medallas + racha). El nivel dentro
-> del contrarreloj/desafío es adaptativo (Elo-lite + selección 70/20/10). La
-> grilla de juegos filtra por grado; solo el **contrarreloj** tiene mecánica
-> propia (los demás juegos llegan en F4/F5).
+> **Estado (22/08/2026): F3 + F4 completas.** El árbol de abajo está vivo
+> ENTERO: `/`, `/juegos`, `/practica` → tema → dificultad, **Desafío del día**
+> (`/desafio`, 10 del mix adaptativo, alimenta la racha) y **Mi progreso**
+> (`/progreso`: mate-progreso + medallas + racha). El nivel dentro del
+> contrarreloj/desafío es adaptativo (Elo-lite + selección 70/20/10). La grilla
+> de juegos filtra por grado y ya tiene **seis juegos con mecánica propia**:
+> contrarreloj, Verdadero/Falso, Completá el hueco, Escalera de tablas, El kiosco
+> y Fracciones a la vista (F4). Los que faltan (¿Qué hora es?, Geometría,
+> Porcentaje, Volumen, Enteros, Ecuaciones, Problemas con historia) llegan en
+> F5/F7.
 
 **Decisión de diseño:** para un chico de 6–12 NO se arma un árbol profundo
 `grado → nivel → juego` (mucho tap, se pierde — anti-patrón para esa edad). El
@@ -730,7 +774,7 @@ mathelp/
 | **F1 — Identidad** ✅ | Registro/login de familia (Argon2id + JWT + cookie), alta de perfiles, selección de perfil con PIN | Login end-to-end ✓, cookie `HttpOnly` seteada ✓, redirect a `/login` sin sesión ✓, paridad `run`↔binario ✓ |
 | **F2 — Primer juego** | `rng.fitz` + generadores de las 4 operaciones + `Quiz.fitzv` contrarreloj + cronómetro por WS + persistencia de sesión | **Tu hija juega.** Tests del PRNG (distribución) y de los generadores |
 | **F3 — Que aprenda** ✅ | navegación (menú §6.5 + elegir juego + práctica) + motor adaptativo (`mastery` Elo-lite, selección 70/20/10, repaso espaciado, racha diaria, medallas, desafío del día, mate-progreso) | Simulación §11 (rating converge ±80, dificultad sigue) ✅ + E2E completo + paridad bit-a-bit `run`↔binario ✅ |
-| **F4 — Más juegos** | V/F, completá el hueco, numpad propio, escalera de tablas, el kiosco, fracciones visuales | 6 modos jugables en celu |
+| **F4 — Más juegos** ✅ | V/F, completá el hueco (teclado propio), escalera de tablas, el kiosco, fracciones a la vista | 5 modos jugables en celu + paridad `run`↔binario ✅ |
 | **F5 — Panel del padre** | Reportes por hijo: progreso por tema, errores frecuentes, tiempo, evolución; metas configurables | Gráficos con `bar_chart` / `progress_bar` / `stat_card` |
 | **F6 — Pulido** | Dark mode, accesibilidad (contraste, `lang`, foco visible), reanudar partida, sonido opcional, instalable en el celu | Lighthouse mobile + prueba real en un Android |
 | **F7 — Secundaria** | Currículum 13–17: enteros, ecuaciones, funciones, geometría analítica, trigonometría | Nuevos generadores, cero cambios de arquitectura |

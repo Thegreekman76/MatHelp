@@ -1,0 +1,116 @@
+// tests/fracciones.fitz — el generador de "Fracciones a la vista" (gen_frac.fitz).
+//
+// (Nombre distinto del módulo importado → sin ciclo, FITZ-21.)
+//
+// Lo crítico de un juego de fracciones de opción múltiple: los distractores NO
+// pueden ser EQUIVALENTES al correcto ni entre sí (si aparecen 2/4 y 1/2, hay dos
+// respuestas correctas). Se verifica comparando por valor (cross-mult).
+
+from gen_frac import gen_frac, frac_den_max, FracItem
+
+// Parsea "n/d" a (num, den). Los tests sólo pasan strings del generador, siempre
+// bien formados.
+fn parse_num(s: Str) -> Int {
+    let parts = s.split("/")
+    return match parts[0].to_int() {
+        Ok(n) => n,
+        Err(_) => -1,
+    }
+}
+
+fn parse_den(s: Str) -> Int {
+    let parts = s.split("/")
+    return match parts[1].to_int() {
+        Ok(n) => n,
+        Err(_) => -1,
+    }
+}
+
+// ¿Dos fracciones "a/b" y "c/d" tienen el MISMO valor? (cross-mult)
+fn mismo_valor(x: Str, y: Str) -> Bool {
+    return parse_num(x) * parse_den(y) == parse_num(y) * parse_den(x)
+}
+
+fn contiene(xs: List<Str>, t: Str) -> Bool {
+    for x in xs {
+        if (x == t) {
+            return true
+        }
+    }
+    return false
+}
+
+@test fn frac_reproducible() {
+    let idx = 0
+    while (idx < 100) {
+        let a = gen_frac(6161, idx, 5)
+        let b = gen_frac(6161, idx, 5)
+        assert_eq(a.correct, b.correct)
+        assert_eq(a.options, b.options)
+        idx = idx + 1
+    }
+}
+
+@test fn frac_correcta_es_num_sobre_den() {
+    let idx = 0
+    while (idx < 200) {
+        let f = gen_frac(4242, idx, 4)
+        assert_eq(f.correct, "{f.num}/{f.den}")
+        assert_eq(f.num >= 1 and f.num < f.den, true)   // fracción propia
+        idx = idx + 1
+    }
+}
+
+@test fn frac_cuatro_opciones_con_la_correcta() {
+    let idx = 0
+    while (idx < 200) {
+        let f = gen_frac(7373, idx, 6)
+        assert_eq(f.options.len(), 4)
+        assert_eq(contiene(f.options, f.correct), true)
+        idx = idx + 1
+    }
+}
+
+// NINGÚN par de opciones tiene el mismo valor (sin equivalentes → respuesta única).
+@test fn frac_opciones_sin_equivalentes() {
+    let idx = 0
+    while (idx < 300) {
+        let f = gen_frac(2026, idx, 5)
+        let n = f.options.len()
+        let i = 0
+        while (i < n) {
+            let j = i + 1
+            while (j < n) {
+                assert_eq(mismo_valor(f.options[i], f.options[j]), false)
+                j = j + 1
+            }
+            i = i + 1
+        }
+        idx = idx + 1
+    }
+}
+
+// Todas las opciones son fracciones propias (1 <= n < d).
+@test fn frac_opciones_propias() {
+    let idx = 0
+    while (idx < 200) {
+        let f = gen_frac(555, idx, 6)
+        for o in f.options {
+            let nn = parse_num(o)
+            let dd = parse_den(o)
+            assert_eq(nn >= 1 and nn < dd, true)
+        }
+        idx = idx + 1
+    }
+}
+
+// Denominadores dentro del rango del grado (más finos a mayor grado).
+@test fn frac_den_en_rango_del_grado() {
+    let hi = frac_den_max(4)                 // 6
+    let idx = 0
+    while (idx < 150) {
+        let f = gen_frac(818, idx, 4)
+        assert_eq(f.den >= 2 and f.den <= hi, true)
+        idx = idx + 1
+    }
+}

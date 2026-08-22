@@ -1,0 +1,70 @@
+// gen_kiosco.fitz — generador del juego "El kiosco" (F4).
+//
+// Situación con contexto (§6.6): comprás un producto que cuesta $X, pagás con un
+// billete de $Y, y calculás el VUELTO (Y − X). Es una resta con contexto de plata
+// — el eje "dinero" del currículum (skill `dec.dinero`). Reproducible desde
+// (seed, idx, grade): el server re-deriva el mismo problema y valida el vuelto.
+//
+// Precios redondos (múltiplos de 50) y pago con el billete siguiente hacia arriba
+// (100, 200, 500, 1000...), así el vuelto es siempre positivo y "de kiosco". El
+// producto se elige del pool por su clave i18n (kiosco.<item>) — el contexto se
+// localiza, no sólo los botones (§4). El RandGen `g` es local (FITZ-01).
+
+from gen_arith import sub_seed, difficulty_for
+
+// Un problema de kiosco: producto (clave i18n), precio, con cuánto pagás y el
+// vuelto (la respuesta = paid − price).
+type KioscoItem {
+    item: Str = ""            // clave i18n del producto: "kiosco.<item>"
+    price: Int = 0
+    paid: Int = 0
+    change: Int = 0           // la respuesta (paid − price)
+    difficulty: Int = 1
+}
+
+// Precio máximo (múltiplo de 50) según el grado. De pocos cientos en 1º-3º a
+// varios miles en 6º-7º.
+fn kiosco_max(grade: Int) -> Int {
+    if (grade <= 3) {
+        return 500
+    }
+    if (grade <= 5) {
+        return 2000
+    }
+    return 5000
+}
+
+// El billete con que pagás: el más chico ESTRICTAMENTE mayor al precio, así el
+// vuelto es siempre > 0 (nunca justo). Los billetes van hasta 10.000, y el precio
+// máximo es 5.000, así que siempre hay uno mayor.
+fn kiosco_paid(price: Int) -> Int {
+    let billetes = [100, 200, 500, 1000, 2000, 5000, 10000]
+    for bb in billetes {
+        if (bb > price) {
+            return bb
+        }
+    }
+    return price + 100        // fallback (no debería alcanzarse)
+}
+
+// Los productos del kiosco (claves i18n). El generador elige uno determinista.
+fn kiosco_items() -> List<Str> {
+    return ["alfajor", "chicle", "agua", "galletitas", "caramelo", "chocolate", "jugo", "turron"]
+}
+
+// Genera un problema de kiosco. Determinista desde (seed, idx, grade).
+fn gen_kiosco(seed: Int, idx: Int, grade: Int) -> KioscoItem {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let items = kiosco_items()
+    let it = items[g.int(0, items.len() - 1)]
+    let max = kiosco_max(grade)
+    let price = g.int(1, max / 50) * 50        // múltiplo de 50 en [50, max]
+    let paid = kiosco_paid(price)
+    return KioscoItem {
+        item: it,
+        price: price,
+        paid: paid,
+        change: paid - price,
+        difficulty: difficulty_for("sub", grade),
+    }
+}

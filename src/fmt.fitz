@@ -26,3 +26,14 @@ fn fmt_int(loc: Str, n: Int) -> Str {
 fn fmt_pct(loc: Str, x: Float, digits: Int) -> Str {
     return num.percent(x, num_locale(loc), digits)
 }
+
+// Dinero en pesos enteros (juego del kiosco). NO usa num.currency porque ése
+// fuerza 2 decimales ("$ 350,00") — un kiosco de primaria trabaja con pesos
+// redondos, así que mostramos el símbolo + el entero agrupado ("$ 1.250" en
+// es-AR, "$1,250" en en). El agrupamiento por locale lo hace fmt_int.
+fn fmt_money(loc: Str, n: Int) -> Str {
+    if (loc == "en") {
+        return "$" + fmt_int(loc, n)
+    }
+    return "$ " + fmt_int(loc, n)
+}

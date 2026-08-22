@@ -1,0 +1,88 @@
+// frac_view.fitz — el render de "Fracciones a la vista".
+//
+// Muestra una BARRA dividida en `den` partes con `num` pintadas y pide elegir la
+// fracción (opción múltiple, 4 botones con "n/d" apilado). La barra es de divs en
+// flex (no SVG inline: el parser del diff de liveviews no admite <style>/<script>
+// en el root y un <svg> es riesgo innecesario; una barra de segmentos da el mismo
+// "a la vista" y es seguro con el diff). Una pizza en SVG queda como mejora futura.
+//
+// El item se deriva de (seed, idx, grade) con gen_frac; el server re-deriva y
+// compara la fracción elegida (Str) con it.correct. Los botones llevan la
+// fracción cruda en data-flv-value-v y la muestran apilada.
+
+from fitz_liveviews import Html, html, flv, h_join
+from gen_frac import gen_frac
+from i18n import t, t1
+from fmt import fmt_int
+
+fn frac_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Str) -> Html {
+    if (phase == "done") {
+        return frac_resumen(locale, correct, total)
+    }
+    let it = gen_frac(seed, idx, grade)
+    let barra = frac_bar_html(it.num, it.den)
+    let opciones = h_join(it.options.map(fn(o) => frac_opt_button(o, idx)))
+    let banner = frac_feedback(locale, feedback, last_answer)
+    let pregunta = flv(t(locale, "frac.pregunta"))
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    return html("""<div class="q-hud">
+<div class="q-mode">🍕 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+</div>
+{barra}
+<p class="frac-preg">{pregunta}</p>
+<div class="q-options frac-opts">{opciones}</div>
+<div class="q-fbwrap">{banner}</div>""")
+}
+
+// La barra: `den` segmentos en flex, los primeros `num` pintados.
+fn frac_bar_html(num: Int, den: Int) -> Str {
+    let segs = ""
+    let i = 0
+    while (i < den) {
+        let cls = match i < num {
+            true => "fseg on",
+            false => "fseg",
+        }
+        segs = segs + html("""<div class="{cls}"></div>""").raw
+        i = i + 1
+    }
+    return html("""<div class="frac-bar" role="img">{segs}</div>""").raw
+}
+
+// Un botón de opción: fracción "n/d" apilada (numerador sobre denominador).
+fn frac_opt_button(o: Str, idx: Int) -> Html {
+    let parts = o.split("/")
+    let n = flv(parts[0])
+    let d = flv(parts[1])
+    return html("""<button class="q-opt" type="button" data-flv-click="answer" data-flv-value-v="{o}" data-flv-value-ei="{idx}"><span class="frac"><span class="fnum">{n}</span><span class="fden">{d}</span></span></button>""")
+}
+
+fn frac_feedback(locale: Str, feedback: Str, last_answer: Str) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "frac.era", last_answer))}</div>""").raw
+    }
+    return ""
+}
+
+fn frac_resumen(locale: Str, correct: Int, total: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+<div class="q-actions">
+<a class="mh-btn" href="/fracciones">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

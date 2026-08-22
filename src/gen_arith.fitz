@@ -406,6 +406,18 @@ fn vf_shown(ex: Exercise, seed: Int, idx: Int) -> Int {
     return distractores[di]
 }
 
+// --- Escalera de tablas (F4) -------------------------------------------------
+//
+// Juego de multiplicación pura (tablas): siempre `gen("mul", ...)`, pero con el
+// grado efectivo escalado por el rating de multiplicación del chico (§7). Así la
+// escalera sube de tablas fáciles a difíciles a medida que domina — sin salirse
+// de la multiplicación. Determinista desde (seed, idx, r_mul): render y scoring
+// derivan el MISMO ejercicio.
+fn gen_escalera(seed: Int, idx: Int, grade: Int, r_mul: Float) -> Exercise {
+    let eff = grado_efectivo(grade, r_mul)
+    return gen("mul", seed, idx, eff)
+}
+
 // Temas de práctica disponibles según el grado: las operaciones del grado más
 // "mix" (mezcla). `ops_for_grade` devuelve un literal fresco, así que el push no
 // alias-ea la lista de nadie.

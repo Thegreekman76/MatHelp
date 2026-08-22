@@ -1,0 +1,82 @@
+// tests/kiosco.fitz — el generador de "El kiosco" (gen_kiosco.fitz).
+//
+// (Se llama `kiosco`, no `gen_kiosco`: distinto nombre del módulo importado, así
+// que no hay auto-import ni ciclo — FITZ-21.)
+//
+// Cubre: reproducibilidad, el vuelto correcto (paid − price) y positivo, precios
+// redondos dentro del rango del grado, y que el pago sea el billete siguiente.
+
+from gen_kiosco import gen_kiosco, kiosco_max, kiosco_items, KioscoItem
+
+fn contiene_str(xs: List<Str>, t: Str) -> Bool {
+    for x in xs {
+        if (x == t) {
+            return true
+        }
+    }
+    return false
+}
+
+@test fn kiosco_reproducible() {
+    let idx = 0
+    while (idx < 100) {
+        let a = gen_kiosco(5151, idx, 4)
+        let b = gen_kiosco(5151, idx, 4)
+        assert_eq(a.item, b.item)
+        assert_eq(a.price, b.price)
+        assert_eq(a.paid, b.paid)
+        assert_eq(a.change, b.change)
+        idx = idx + 1
+    }
+}
+
+@test fn vuelto_correcto_y_positivo() {
+    let idx = 0
+    while (idx < 300) {
+        let k = gen_kiosco(2727, idx, 5)
+        assert_eq(k.change, k.paid - k.price)
+        assert_eq(k.change > 0, true)          // nunca justo: siempre hay vuelto
+        assert_eq(k.paid > k.price, true)
+        idx = idx + 1
+    }
+}
+
+@test fn precio_redondo_y_en_rango() {
+    let hi = kiosco_max(3)                       // 500
+    let idx = 0
+    while (idx < 200) {
+        let k = gen_kiosco(9090, idx, 3)
+        assert_eq(k.price % 50, 0)               // múltiplo de 50
+        assert_eq(k.price >= 50 and k.price <= hi, true)
+        idx = idx + 1
+    }
+}
+
+@test fn producto_del_pool() {
+    let pool = kiosco_items()
+    let idx = 0
+    while (idx < 100) {
+        let k = gen_kiosco(333, idx, 4)
+        assert_eq(contiene_str(pool, k.item), true)
+        idx = idx + 1
+    }
+}
+
+// Grados más altos → precios (en el máximo de un lote) más grandes.
+@test fn grado_alto_precios_mas_grandes() {
+    let max_bajo = 0
+    let max_alto = 0
+    let idx = 0
+    while (idx < 200) {
+        let bajo = gen_kiosco(646, idx, 2)
+        let alto = gen_kiosco(646, idx, 7)
+        if (bajo.price > max_bajo) {
+            max_bajo = bajo.price
+        }
+        if (alto.price > max_alto) {
+            max_alto = alto.price
+        }
+        idx = idx + 1
+    }
+    assert_eq(max_alto > max_bajo, true)
+}

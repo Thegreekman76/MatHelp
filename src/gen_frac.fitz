@@ -1,0 +1,113 @@
+// gen_frac.fitz — generador de "Fracciones a la vista" (F4).
+//
+// Muestra una barra dividida en `den` partes con `num` pintadas, y el chico elige
+// qué fracción está pintada (opción múltiple). El eje "fracciones" del currículum
+// (skill `frac.parte`, 4º en adelante). Reproducible desde (seed, idx, grade): el
+// server re-deriva la misma fracción y las mismas opciones.
+//
+// Clave del diseño: los distractores nunca son EQUIVALENTES al correcto ni entre
+// sí (2/4 y 1/2 no pueden aparecer juntas). Se comparan por valor con
+// cross-multiplication (n1·d2 == n2·d1) — sin fracciones equivalentes, la
+// respuesta es única. El RandGen `g` es local (FITZ-01).
+
+from gen_arith import sub_seed
+
+// Una fracción pintada + 4 opciones "n/d" (una es la correcta), barajadas.
+type FracItem {
+    num: Int = 0              // partes pintadas
+    den: Int = 0             // partes totales
+    options: List<Str> = []   // 4 fracciones "n/d", valores distintos, una correcta
+    correct: Str = ""         // "num/den"
+    difficulty: Int = 1
+}
+
+// Denominador máximo por grado. Fracciones más finas a mayor grado.
+fn frac_den_max(grade: Int) -> Int {
+    if (grade <= 4) {
+        return 6
+    }
+    if (grade <= 5) {
+        return 8
+    }
+    return 10
+}
+
+fn frac_dificultad(den: Int) -> Int {
+    let d = 2 + den / 3
+    if (d > 5) {
+        return 5
+    }
+    return d
+}
+
+// Genera una fracción con 4 opciones de valor distinto. Determinista desde
+// (seed, idx, grade).
+fn gen_frac(seed: Int, idx: Int, grade: Int) -> FracItem {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let dmax = frac_den_max(grade)
+    let den = g.int(2, dmax)
+    let num = g.int(1, den - 1)          // fracción propia (0 < num < den)
+
+    // Pool de candidatos "n/d" propios sobre den, den+1, den+2 (siempre da
+    // suficientes distractores aun con den chico como 2 o 3).
+    let cand_n: List<Int> = []
+    let cand_d: List<Int> = []
+    for dd in [den, den + 1, den + 2] {
+        let k = 1
+        while (k < dd) {
+            cand_n.push(k)
+            cand_d.push(dd)
+            k = k + 1
+        }
+    }
+
+    // Filtro por VALOR: descarto los equivalentes al correcto y los que repiten
+    // un valor ya agregado (cross-mult). Arranco el "ya visto" con el correcto.
+    let vseen_n: List<Int> = [num]
+    let vseen_d: List<Int> = [den]
+    let dist: List<Str> = []
+    let i = 0
+    while (i < cand_n.len()) {
+        let n = cand_n[i]
+        let d = cand_d[i]
+        let dup = false
+        let j = 0
+        while (j < vseen_n.len()) {
+            if (n * vseen_d[j] == vseen_n[j] * d) {
+                dup = true
+            }
+            j = j + 1
+        }
+        if (not dup) {
+            dist.push("{n}/{d}")
+            vseen_n.push(n)
+            vseen_d.push(d)
+        }
+        i = i + 1
+    }
+
+    // Barajo y tomo 3 distractores.
+    let dshuf = g.shuffle(dist)
+    let tres: List<Str> = []
+    for x in dshuf {
+        if (tres.len() < 3) {
+            tres.push(x)
+        }
+    }
+
+    // Opciones: correcto + 3 distractores, barajadas.
+    let correct = "{num}/{den}"
+    let raw = [correct]
+    for x in tres {
+        raw.push(x)
+    }
+    let options = g.shuffle(raw)
+
+    return FracItem {
+        num: num,
+        den: den,
+        options: options,
+        correct: correct,
+        difficulty: frac_dificultad(den),
+    }
+}
