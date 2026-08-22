@@ -131,6 +131,10 @@ fn imin(x: Int, y: Int) -> Int {
     return x
 }
 
+fn iclamp(x: Int, lo: Int, hi: Int) -> Int {
+    return imin(imax(x, lo), hi)
+}
+
 // El skill code lleva la operación adentro; `op` es el corto para el símbolo.
 fn skill_a_op(skill: Str) -> Str {
     return match skill {
@@ -266,11 +270,19 @@ fn grade_for_band(grade: Int, band: Int) -> Int {
 
 // Generador UNIFICADO: lo usan tanto el render (quiz_view) como el scoring
 // (Quiz.fitzv). Que sea uno solo es la garantía de que el ejercicio mostrado y
-// el corregido coinciden.
+// el corregido coinciden. Los `r_*` son el snapshot de mastery (ratings por
+// operación); solo el modo adaptativo los usa.
+//   - modo "adaptive" (contrarreloj / desafío): selección 70/20/10 por rating.
 //   - modo "practice": tema fijo ("add"|"sub"|"mul"|"div"|"mix") con banda.
-//   - cualquier otro modo (contrarreloj): gen_mix al grado del perfil — idéntico
-//     bit-a-bit a lo que hacía antes (paridad del juego existente).
-fn gen_for(mode: Str, topic: Str, band: Int, seed: Int, idx: Int, grade: Int) -> Exercise {
+//   - modo "timed": gen_mix al grado del perfil — bit-a-bit como antes (paridad
+//     del juego previo a F3; lo mantiene por si se quiere un contrarreloj no
+//     adaptativo, y para los tests de paridad de generadores).
+fn gen_for(mode: Str, topic: Str, band: Int, seed: Int, idx: Int, grade: Int, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Exercise {
+    if (mode == "adaptive" or mode == "desafio") {
+        // El contrarreloj (adaptive) y el Desafío del día (desafio) comparten la
+        // selección 70/20/10 por rating; difieren en el corte (reloj vs N fijo).
+        return gen_adaptive(seed, idx, grade, r_add, r_sub, r_mul, r_div)
+    }
     if (mode == "practice") {
         let eg = grade_for_band(grade, band)
         if (topic == "mix") {
@@ -279,6 +291,86 @@ fn gen_for(mode: Str, topic: Str, band: Int, seed: Int, idx: Int, grade: Int) ->
         return gen(topic, seed, idx, eg)
     }
     return gen_mix(seed, idx, grade)
+}
+
+// --- Selección adaptativa (F3, §7) -------------------------------------------
+//
+// El motor sirve el próximo ejercicio según el rating Elo-lite del chico en cada
+// operación (el "snapshot" de mastery, congelado al abrir la partida). Regla
+// 70/20/10: 70% en la zona de desarrollo próximo (una operación al azar, a su
+// grado efectivo), 20% repaso (la operación MÁS floja — la que más necesita
+// práctica), 10% desafío (una operación al azar, un grado más difícil).
+// Determinista desde (seed, idx, snapshot): render, scoring y persistencia
+// derivan el MISMO ejercicio. Reproducible dentro de la sesión; entre sesiones
+// el snapshot evoluciona → la dificultad se acomoda al chico.
+
+// Grado efectivo del generador según el rating de una destreza. El rating
+// arranca en 800 al grado del perfil; a medida que sube, corre el grado hacia
+// arriba (rangos más grandes) y hacia abajo si baja — la dificultad SIGUE al
+// rating (§11). 800→sin cambio, 1000→+1, 1200→+2, 600→−1. Clamp del corrimiento
+// a ±3 y del grado final a 1..7 (primaria).
+fn grado_efectivo(grado_perfil: Int, rating: Float) -> Int {
+    let delta = round((rating - 800.0) / 200.0)
+    let d = iclamp(delta, -3, 3)
+    return iclamp(grado_perfil + d, 1, 7)
+}
+
+// Rating de una operación en el snapshot (por nombre corto "add"/"sub"/"mul"/"div").
+fn rating_op(op: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Float {
+    return match op {
+        "add" => r_add,
+        "sub" => r_sub,
+        "mul" => r_mul,
+        "div" => r_div,
+        _ => r_add,
+    }
+}
+
+// La operación con MENOR rating entre las disponibles (la que más necesita
+// repaso). Empates → la primera en `ops` (determinista). El repaso "real" por
+// due_at vencido vive en la capa de DB (Desafío/selección de sesión, F3); acá,
+// dentro del contrarreloj, la más floja es la mejor proxy sin timestamps.
+fn op_mas_floja(ops: List<Str>, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Str {
+    let mejor = ops[0]
+    let mejor_r = rating_op(mejor, r_add, r_sub, r_mul, r_div)
+    for op in ops {
+        let r = rating_op(op, r_add, r_sub, r_mul, r_div)
+        if (r < mejor_r) {
+            mejor = op
+            mejor_r = r
+        }
+    }
+    return mejor
+}
+
+// Genera el próximo ejercicio adaptativo. `r_*` son los ratings por operación
+// (800 si el chico nunca la vio). Determinista desde (seed, idx): el mismo
+// (seed, idx, ratings) da SIEMPRE el mismo ejercicio.
+fn gen_adaptive(seed: Int, idx: Int, grade: Int, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Exercise {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let ops = ops_for_grade(grade)
+    let roll = g.int(0, 99)
+    let op = "add"
+    let eff = grade
+    if (roll < 70) {
+        // 70% zona de desarrollo próximo: una op al azar, a su grado efectivo.
+        let oi = g.int(0, ops.len() - 1)
+        op = ops[oi]
+        eff = grado_efectivo(grade, rating_op(op, r_add, r_sub, r_mul, r_div))
+    }
+    if (roll >= 70 and roll < 90) {
+        // 20% repaso: la op más floja, a su grado efectivo.
+        op = op_mas_floja(ops, r_add, r_sub, r_mul, r_div)
+        eff = grado_efectivo(grade, rating_op(op, r_add, r_sub, r_mul, r_div))
+    }
+    if (roll >= 90) {
+        // 10% desafío: una op al azar, un grado más difícil.
+        let oi = g.int(0, ops.len() - 1)
+        op = ops[oi]
+        eff = iclamp(grado_efectivo(grade, rating_op(op, r_add, r_sub, r_mul, r_div)) + 1, 1, 7)
+    }
+    // gen re-seedea con el MISMO sub_seed → operandos deterministas para `eff`.
+    return gen(op, seed, idx, eff)
 }
 
 // Temas de práctica disponibles según el grado: las operaciones del grado más

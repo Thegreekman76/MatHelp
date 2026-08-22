@@ -75,6 +75,29 @@ type GameSession {
     duration_ms: Int = 0
 }
 
+// --- F3: motor adaptativo ---------------------------------------------------
+//
+// `mastery` es lo que mueve el motor: un rating Elo-lite por (perfil, destreza).
+// Columnas espejadas 1:1 con migrations/0001_init.sql (UNIQUE (profile_id,
+// skill_code)). El upsert por respuesta y las lecturas del progreso NO usan el
+// ORM: van por SQL crudo (conn.exec ... ON CONFLICT / conn.query) en
+// mastery.fitz — el ORM de Fitz no tiene upsert nativo, y ON CONFLICT en un
+// solo statement es atómico y race-safe (docs/db-orm.md). Este @table queda
+// como documentación del esquema y para lecturas ORM futuras (F5).
+@table("mastery")
+type Mastery {
+    @primary id: Int = 0
+    profile_id: Int = 0
+    skill_code: Str = ""              // "add" | "sub" | "mul.tabla" | "div.exacta"
+    rating: Float = 800.0             // Elo-lite del chico en esa destreza
+    seen: Int = 0
+    hits: Int = 0
+    streak: Int = 0                   // aciertos SEGUIDOS (repaso espaciado)
+    avg_ms: Int = 0
+    last_seen_at: Str? = null
+    due_at: Str? = null               // cuándo toca repasar (NOW() + N días)
+}
+
 @table("attempts")
 type Attempt {
     @primary id: Int = 0
@@ -89,4 +112,29 @@ type Attempt {
     ms: Int = 0
     difficulty: Int = 1
     @db_default created_at: Str = ""
+}
+
+// Racha diaria: una fila por (perfil, día). Se incrementa `exercises` con cada
+// respuesta; `goal_met` se marca cuando llega a la meta del perfil (daily_goal).
+// La racha "de N días seguidos" se calcula caminando estas filas hacia atrás
+// (streaks.fitz). `day` como Str (Postgres DATE ↔ 'YYYY-MM-DD') — el I/O es SQL
+// crudo, este @table documenta el esquema (UNIQUE (profile_id, day)).
+@table("streaks")
+type Streak {
+    @primary id: Int = 0
+    profile_id: Int = 0
+    day: Str = ""
+    exercises: Int = 0
+    goal_met: Bool = false
+}
+
+// Medallas por dominio real (no por tiempo de pantalla): "primer_mate",
+// "racha7", etc. Se otorgan con INSERT ... ON CONFLICT DO NOTHING (idempotente,
+// UNIQUE (profile_id, code)). `earned_at` lo llena Postgres (NOW()).
+@table("awards")
+type Award {
+    @primary id: Int = 0
+    profile_id: Int = 0
+    code: Str = ""
+    @db_default earned_at: Str = ""
 }

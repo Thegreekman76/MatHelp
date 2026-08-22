@@ -108,5 +108,14 @@
   "practica.medio": "Normal",
   "practica.dificil": "Hard",
   "practica.modo": "Practice",
-  "proximamente.texto": "This screen is coming soon."
+  "proximamente.texto": "This screen is coming soon.",
+  "progreso.destrezas": "How you're doing",
+  "progreso.medallas": "Medals",
+  "progreso.sin_medallas": "No medals yet. Go play!",
+  "progreso.racha_dias": "day streak",
+  "progreso.racha_cero": "Start your streak today",
+  "progreso.sin_datos": "You haven't played yet. Tap “Play now” to start.",
+  "award.primer_mate": "First mate",
+  "award.racha7": "7-day streak",
+  "award.generico": "Achievement"
 }

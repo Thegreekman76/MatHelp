@@ -16,15 +16,45 @@ from fmt import fmt_int
 
 // Punto de entrada. `mode` decide la pantalla:
 //   - "practice": práctica libre (sin reloj ni puntaje, tema+banda fijos).
-//   - "timed" (contrarreloj): partida en curso o resumen final.
-fn quiz_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, last_answer: Int, topic: Str, band: Int, mode: Str) -> Html {
+//   - "desafio": Desafío del día (sin reloj, progreso X/N, mix adaptativo).
+//   - "adaptive" / "timed" (contrarreloj): partida en curso o resumen final.
+// Los `r_*` son el snapshot de mastery (ratings por operación); los usa la
+// selección adaptativa (gen_for "adaptive"/"desafio"). En práctica se ignoran.
+fn quiz_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, last_answer: Int, topic: Str, band: Int, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, limit: Int) -> Html {
     if (mode == "practice") {
         return quiz_practica(seed, idx, grade, locale, topic, band, correct, feedback, last_answer)
     }
     if (phase == "done") {
-        return quiz_resumen(locale, score, correct, total)
+        return quiz_resumen(locale, score, correct, total, mode)
     }
-    return quiz_jugando(seed, idx, grade, locale, score, time_left, feedback, last_answer)
+    if (mode == "desafio") {
+        return quiz_desafio(seed, idx, grade, locale, correct, total, limit, feedback, last_answer, r_add, r_sub, r_mul, r_div)
+    }
+    return quiz_jugando(mode, seed, idx, grade, locale, score, time_left, feedback, last_answer, r_add, r_sub, r_mul, r_div)
+}
+
+// Desafío del día: mismo ejercicio adaptativo que el contrarreloj, pero sin
+// reloj — un progreso "X de N" en lugar del cronómetro. Termina al completar N
+// (el componente marca phase="done" → quiz_resumen).
+fn quiz_desafio(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, feedback: Str, last_answer: Int, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Html {
+    let ex = gen_for("desafio", "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
+    let a = flv(fmt_int(locale, ex.a))
+    let b = flv(fmt_int(locale, ex.b))
+    let sym = flv(op_symbol(ex.op))
+    let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
+    let banner = feedback_banner(locale, feedback, last_answer)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    return html("""<div class="q-hud">
+<div class="q-mode">🎯 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+</div>
+<div class="q-prompt">{a} {sym} {b}</div>
+<div class="q-options">{opciones}</div>
+<div class="q-fbwrap">{banner}</div>""")
 }
 
 // Un botón de opción. Valor crudo en el atributo, formateado en el texto.
@@ -46,8 +76,10 @@ fn feedback_banner(locale: Str, feedback: Str, last_answer: Int) -> Str {
     return ""
 }
 
-fn quiz_jugando(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, time_left: Int, feedback: Str, last_answer: Int) -> Html {
-    let ex = gen_mix(seed, idx, grade)
+fn quiz_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, score: Int, time_left: Int, feedback: Str, last_answer: Int, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Html {
+    // El contrarreloj usa modo "adaptive" (selección 70/20/10 por rating). El
+    // "topic"/"band" no aplican acá — gen_for los ignora en modo adaptativo.
+    let ex = gen_for(mode, "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
     let a = flv(fmt_int(locale, ex.a))
     let b = flv(fmt_int(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
@@ -73,7 +105,9 @@ fn quiz_jugando(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, time_l
 // así lo mostrado y lo puntuado coinciden. Se juega abierto: no hay resumen, se
 // sale con "Terminar". Mostramos las correctas como progreso, no como score.
 fn quiz_practica(seed: Int, idx: Int, grade: Int, locale: Str, topic: Str, band: Int, correct: Int, feedback: Str, last_answer: Int) -> Html {
-    let ex = gen_for("practice", topic, band, seed, idx, grade)
+    // Práctica libre NO es adaptativa: tema+banda fijos. Los ratings del
+    // snapshot no aplican (por eso pasa 800.0 — gen_for los ignora en "practice").
+    let ex = gen_for("practice", topic, band, seed, idx, grade, 800.0, 800.0, 800.0, 800.0)
     let a = flv(fmt_int(locale, ex.a))
     let b = flv(fmt_int(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
@@ -93,18 +127,23 @@ fn quiz_practica(seed: Int, idx: Int, grade: Int, locale: Str, topic: Str, band:
 <a class="mh-btn sec" href="/">{salir}</a>""")
 }
 
-fn quiz_resumen(locale: Str, score: Int, correct: Int, total: Int) -> Html {
+fn quiz_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str) -> Html {
     let sc = flv(fmt_int(locale, score))
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
+    // "Jugar de nuevo" vuelve al mismo modo (contrarreloj o desafío).
+    let de_nuevo_href = match mode == "desafio" {
+        true => "/desafio",
+        false => "/jugar",
+    }
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>
 <div class="q-stat"><span class="q-big">{sc}</span><span class="q-lbl">{flv(t(locale, "juego.puntaje"))}</span></div>
 <div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
 <div class="q-actions">
-<a class="mh-btn" href="/jugar">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn" href="{de_nuevo_href}">{flv(t(locale, "juego.de_nuevo"))}</a>
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
 </div>
 </div>""")

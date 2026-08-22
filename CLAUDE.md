@@ -59,6 +59,9 @@ Vigentes:
 - Los statements de top level corren al arrancar; `fn main()` sola no corre nada.
 - `fitz run src/main.fitz` **no resuelve dependencias**. Usá `fitz run` a secas (modo manifiesto).
 - **Residual conocido de fitz** (follow-up abierto): un map literal `Map<Str,Any>` **no-vacío** (`{ "k": 10 }`) no coacciona entradas → E0308. Construí el map vacío + `m[k] = v`.
+- **check✓/build✗ en aridad de fns importadas (FITZ-22).** `fitz check` NO caza una llamada con aridad incorrecta a una fn de otro módulo; recién explota en `fitz build`. Refuerza la regla: corré `fitz build` antes de cerrar. (Anotado en el norte de fitz.)
+- **Un test no puede llamarse igual que el módulo que importa (FITZ-21).** `tests/foo.fitz` con `from foo import ...` (apuntando a `src/foo.fitz`) se auto-importa → "ciclo de imports". Por eso el test del motor es `tests/motor.fitz`, no `tests/engine.fitz`. (Anotado en el norte de fitz.)
+- **El ORM no tiene upsert nativo.** Para "insert-or-update" (mastery, streaks, awards) usá `conn.exec("INSERT ... ON CONFLICT (...) DO UPDATE ...", [params])` — atómico y race-safe. La lista de params puede ser heterogénea (`[Int, Str, Float, ...]`) pero debe ser **literal inline** en el call site (no una variable) para que `fitz build` la acepte.
 
 ---
 
@@ -112,6 +115,13 @@ MatHelp es el dogfooding de Fitz. Un bug que se esconde detrás de un workaround
 
 ## Fases
 
-F0 cimientos ✅ · F1 auth y perfiles ✅ · F2 primer juego ✅ · **F3 navegación ✅ (menú §6.5 + elegir juego + práctica libre) → F3 motor adaptativo ← acá** · F4 más juegos · F5 panel del padre · F6 pulido · F7 secundaria
+F0 cimientos ✅ · F1 auth y perfiles ✅ · F2 primer juego ✅ · **F3 que aprenda ✅ (navegación §6.5 + motor adaptativo: Elo-lite, selección 70/20/10, repaso espaciado, racha diaria, medallas, desafío del día, mate-progreso)** · **F4 más juegos ← acá** · F5 panel del padre · F6 pulido · F7 secundaria
+
+El motor adaptativo (F3) vive en `src/engine.fitz` (Elo-lite puro, testeado en
+`tests/motor.fitz`), `src/gen_arith.fitz` (`gen_adaptive` 70/20/10),
+`src/mastery.fitz` (upsert `ON CONFLICT` por respuesta + snapshot),
+`src/streaks.fitz` (racha diaria + medallas) y `src/progreso.fitz` (Mi progreso).
+El upsert de mastery/streaks/awards es SQL crudo atómico — el ORM de Fitz no
+tiene upsert nativo.
 
 El detalle de cada una, en `docs/PLAN.md`.

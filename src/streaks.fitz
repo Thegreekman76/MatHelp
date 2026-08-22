@@ -1,0 +1,88 @@
+// streaks.fitz — racha diaria y medallas (F3).
+//
+// Dos mecánicas de motivación "sana" (§6: nada de casino, sin vidas ni timers
+// de espera):
+//   - RACHA DIARIA: cada respuesta suma en la fila del día (streaks); al llegar
+//     a la meta del perfil (daily_goal) el día queda "cumplido". La racha de N
+//     días seguidos se calcula caminando las filas cumplidas hacia atrás desde
+//     hoy.
+//   - MEDALLAS (awards): por dominio real. Se otorgan idempotentes (ON CONFLICT
+//     DO NOTHING) — otorgar la misma dos veces no hace nada.
+//
+// Todo el I/O es SQL crudo (upsert atómico + fechas de Postgres). La fecha de
+// "hoy" y el paso "día anterior" se hacen con Date nativo (Date.today() /
+// .subtract_days() / .to_str()), que matchea el 'YYYY-MM-DD' de `day::text`.
+
+from config import db_url
+
+// ¿La lista de días (YYYY-MM-DD) contiene ese día?
+fn contiene(dias: List<Str>, dia: Str) -> Bool {
+    for d in dias {
+        if (d == dia) {
+            return true
+        }
+    }
+    return false
+}
+
+// Suma una respuesta a la racha de HOY. Upsert atómico de la fila del día:
+// incrementa exercises y marca goal_met cuando alcanza la meta. `day` =
+// CURRENT_DATE de Postgres (misma tz que el server).
+async fn registrar_actividad(profile_id: Int, daily_goal: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let up = "INSERT INTO streaks (profile_id, day, exercises, goal_met) VALUES ($1, CURRENT_DATE, 1, (1 >= $2)) ON CONFLICT (profile_id, day) DO UPDATE SET exercises = streaks.exercises + 1, goal_met = (streaks.exercises + 1 >= $2)"
+    return conn.exec(up, [profile_id, daily_goal]).await
+}
+
+// Otorga una medalla. Idempotente: si ya la tenía, no hace nada.
+async fn otorgar(profile_id: Int, code: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let sql = "INSERT INTO awards (profile_id, code) VALUES ($1, $2) ON CONFLICT (profile_id, code) DO NOTHING"
+    return conn.exec(sql, [profile_id, code]).await
+}
+
+// Racha actual: días CONSECUTIVOS con la meta cumplida, terminando hoy (o ayer,
+// si hoy todavía no la cumplió — la racha sigue viva hasta que se saltee un día
+// entero). Lee los días cumplidos recientes y cuenta hacia atrás con Date.
+async fn racha_actual(profile_id: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT day::text AS d FROM streaks WHERE profile_id = $1 AND goal_met ORDER BY day DESC LIMIT 90", [profile_id]).await?
+    let dias: List<Str> = []
+    for r in rows {
+        dias.push(r.get_str("d")?)
+    }
+    if (dias.len() == 0) {
+        return Ok(0)
+    }
+    let hoy = Date.today()
+    let cursor = hoy
+    // Si hoy no cumplió todavía, la racha puede terminar ayer (sigue viva).
+    if (not contiene(dias, cursor.to_str())) {
+        cursor = hoy.subtract_days(1)
+        if (not contiene(dias, cursor.to_str())) {
+            return Ok(0)                    // ni hoy ni ayer: racha cortada
+        }
+    }
+    let racha = 0
+    // Cota por seguridad: la lista trae a lo sumo 90 días.
+    while (contiene(dias, cursor.to_str())) {
+        racha = racha + 1
+        cursor = cursor.subtract_days(1)
+    }
+    return Ok(racha)
+}
+
+// Orquestador que corre por cada respuesta: suma a la racha del día, otorga
+// "primer_mate" (empezar a jugar) y "racha7" (7 días seguidos). Devuelve la
+// racha actual (para mostrarla). Best-effort — cada paso propaga con `?`, pero
+// el caller lo invoca con un `let _ = ...await` (si la DB falla, la partida
+// sigue: el attempt ya quedó).
+async fn registrar_y_premiar(profile_id: Int, daily_goal: Int) -> Result<Int> {
+    let _ = registrar_actividad(profile_id, daily_goal).await?
+    let _ = otorgar(profile_id, "primer_mate").await?
+    let racha = racha_actual(profile_id).await?
+    if (racha >= 7) {
+        let _ = otorgar(profile_id, "racha7").await?
+    }
+    return Ok(racha)
+}

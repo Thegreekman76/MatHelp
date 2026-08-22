@@ -8,7 +8,9 @@
 
 from gen_arith import gen_mix, Exercise
 
-fn duracion_default() -> Int => 60          // segundos por partida
+fn duracion_default() -> Int => 60          // segundos por partida (contrarreloj)
+
+fn desafio_n() -> Int => 10                 // ejercicios del Desafío del día
 
 // El ejercicio del índice `idx` de la partida `seed`, para el grado dado.
 // Reproducible: mismo (seed, idx, grade) ⇒ mismo ejercicio.
@@ -32,4 +34,101 @@ fn a_int(s: Str) -> Int {
         Ok(n) => n,
         Err(_) => -1,
     }
+}
+
+// --- Motor adaptativo (F3): Elo-lite ----------------------------------------
+//
+// El corazón del §7 del PLAN. Todo acá es PURO (Float/Int, sin DB ni tiempo):
+// es la parte testeable que la simulación de §11 (500 respuestas → el rating
+// converge y la dificultad sigue) ejercita sin tocar Postgres. La persistencia
+// (tabla `mastery`) y la selección 70/20/10 se apoyan en estas funciones desde
+// mastery.fitz / el @ws, sin re-derivar la matemática.
+//
+// Modelo Elo estándar en base 10:
+//   - cada destreza del chico tiene un `rating` (arranca en 800).
+//   - cada ejercicio tiene una `difficulty` 1..5; su "rival" es difficulty*200+400
+//     (d=1→600, d=3→1000, d=5→1400).
+//   - esperado = probabilidad de acertar = logística de la diferencia de ratings.
+//   - tras responder: rating += K*(score − esperado), score = 1 acierto / 0 error.
+//
+// No hay `exp`/`**` en Fitz, pero sí `pow(base, exp)` (→ Float): la curva de Elo
+// usa base 10, así que `pow(10.0, ...)` alcanza. La división SIEMPRE con `/400.0`
+// (Float) — `/` entre dos Int trunca.
+
+fn rating_inicial() -> Float => 800.0
+
+// Cuánto mueve cada respuesta. K alto = converge rápido (buena UX: el juego se
+// acomoda al chico en pocas rondas), a costa de más ruido en equilibrio. 32 es
+// el K clásico del ajedrez y da una convergencia de ~30 respuestas.
+fn k_factor() -> Float => 32.0
+
+// Rating "rival" de un ejercicio de dificultad `difficulty` (1..5).
+fn rating_dificultad(difficulty: Int) -> Float {
+    return (difficulty * 200 + 400) * 1.0        // Int * Float → Float
+}
+
+// Probabilidad esperada de que un chico con `rating` acierte un ejercicio de
+// dificultad `difficulty`. Logística de Elo (base 10). ∈ (0, 1).
+fn esperado(rating: Float, difficulty: Int) -> Float {
+    let d = (rating_dificultad(difficulty) - rating) / 400.0
+    return 1.0 / (1.0 + pow(10.0, d))
+}
+
+// Rating actualizado tras una respuesta. acierto → sube; error → baja. Cuánto
+// depende de la sorpresa: acertar algo esperado sube poco, acertar algo difícil
+// (esperado bajo) sube mucho; simétrico para el error.
+fn nuevo_rating(rating: Float, difficulty: Int, acierto: Bool) -> Float {
+    let e = esperado(rating, difficulty)
+    let score = match acierto {
+        true => 1.0,
+        false => 0.0,
+    }
+    return rating + k_factor() * (score - e)
+}
+
+fn iclamp(x: Int, lo: Int, hi: Int) -> Int {
+    if (x < lo) {
+        return lo
+    }
+    if (x > hi) {
+        return hi
+    }
+    return x
+}
+
+// Dificultad objetivo (1..5) para un `rating`: la que empareja al rival con el
+// chico (esperado ≈ 0.5) — la zona de desarrollo próximo. d = (rating−400)/200,
+// redondeado y clampeado. Es la dificultad del 70% del mix (§7); el 10% de
+// desafío suma un escalón (dificultad_desafio).
+fn dificultad_objetivo(rating: Float) -> Int {
+    let d = round((rating - 400.0) / 200.0)      // round → Int
+    return iclamp(d, 1, 5)
+}
+
+// Un escalón arriba de la zona de desarrollo próximo (el 10% de desafío).
+fn dificultad_desafio(rating: Float) -> Int {
+    return iclamp(dificultad_objetivo(rating) + 1, 1, 5)
+}
+
+// Progreso 0..100 de una destreza para la barra "mate que se llena" (§6). Mapea
+// el rating a un porcentaje: 600 (recién empezando) → 0%, 1200 (dominada,
+// dificultad 4) → 100%. Clampeado.
+fn progreso_pct(rating: Float) -> Int {
+    let pct = round((rating - 600.0) / 6.0)
+    return iclamp(pct, 0, 100)
+}
+
+// --- Repaso espaciado (F3) ---------------------------------------------------
+//
+// Cuántos días esperar antes de volver a una destreza, según cuántas veces
+// SEGUIDAS se acertó (§7): 1 / 3 / 7 / 16 / 35 días. Ante un error, la racha
+// vuelve a 0 → se repasa mañana (la destreza no dominada se ve seguido; la
+// dominada se espacia). El caller persiste `due_at = NOW() + N días`.
+fn intervalo_repaso(racha_correcta: Int) -> Int {
+    let tabla = [1, 3, 7, 16, 35]
+    if (racha_correcta <= 0) {
+        return 1                          // recién falló: repasar mañana
+    }
+    let i = iclamp(racha_correcta - 1, 0, 4)
+    return tabla[i]
 }

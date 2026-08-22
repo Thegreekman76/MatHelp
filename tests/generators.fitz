@@ -12,7 +12,7 @@
 //
 // Corré con:  fitz test
 
-from gen_arith import gen, gen_mix, gen_for, grade_for_band, temas_practica, tema_valido, op_symbol, ops_for_grade, add_max, mul_max, Exercise
+from gen_arith import gen, gen_mix, gen_for, gen_adaptive, grado_efectivo, op_mas_floja, grade_for_band, temas_practica, tema_valido, op_symbol, ops_for_grade, add_max, mul_max, Exercise
 
 // --- helpers ----------------------------------------------------------------
 
@@ -276,7 +276,7 @@ fn contains_str(xs: List<Str>, target: Str) -> Bool {
 @test fn gen_for_timed_es_gen_mix() {
     let idx = 0
     while (idx < 100) {
-        let a = gen_for("timed", "mix", 2, 555, idx, 4)
+        let a = gen_for("timed", "mix", 2, 555, idx, 4, 800.0, 800.0, 800.0, 800.0)
         let b = gen_mix(555, idx, 4)
         assert_eq(a.a, b.a)
         assert_eq(a.b, b.b)
@@ -289,7 +289,7 @@ fn contains_str(xs: List<Str>, target: Str) -> Bool {
 
 // Práctica con tema "mix" y banda media == gen_mix al grado (identidad).
 @test fn practica_mix_banda_media_es_gen_mix() {
-    let a = gen_for("practice", "mix", 2, 909, 3, 5)
+    let a = gen_for("practice", "mix", 2, 909, 3, 5, 800.0, 800.0, 800.0, 800.0)
     let b = gen_mix(909, 3, 5)
     assert_eq(a.op, b.op)
     assert_eq(a.answer, b.answer)
@@ -302,11 +302,11 @@ fn contains_str(xs: List<Str>, target: Str) -> Bool {
     for op in temas {
         let idx = 0
         while (idx < 60) {
-            let ex = gen_for("practice", op, 2, 4242, idx, 5)
+            let ex = gen_for("practice", op, 2, 4242, idx, 5, 800.0, 800.0, 800.0, 800.0)
             assert_eq(ex.op, op)
             assert_eq(ejercicio_valido(ex), true)
             // Reproducible: mismo (topic, band, seed, idx, grade) ⇒ mismo ej.
-            let ex2 = gen_for("practice", op, 2, 4242, idx, 5)
+            let ex2 = gen_for("practice", op, 2, 4242, idx, 5, 800.0, 800.0, 800.0, 800.0)
             assert_eq(ex.a, ex2.a)
             assert_eq(ex.b, ex2.b)
             assert_eq(ex.answer, ex2.answer)
@@ -321,7 +321,7 @@ fn contains_str(xs: List<Str>, target: Str) -> Bool {
     for band in bandas {
         let idx = 0
         while (idx < 40) {
-            let ex = gen_for("practice", "mul", band, 77, idx, 4)
+            let ex = gen_for("practice", "mul", band, 77, idx, 4, 800.0, 800.0, 800.0, 800.0)
             assert_eq(ex.op, "mul")
             assert_eq(ejercicio_valido(ex), true)
             idx = idx + 1
@@ -348,6 +348,74 @@ fn contains_str(xs: List<Str>, target: Str) -> Bool {
     assert_eq(tema_valido("div", 3), true)
     assert_eq(tema_valido("mul", 2), true)
     assert_eq(tema_valido("mul", 1), false)
+}
+
+// --- selección adaptativa (F3, §7) ------------------------------------------
+
+// El grado efectivo del generador sigue al rating: 800 = grado del perfil, y
+// corre ±1 cada 200 puntos. Es el mecanismo que hace que "la dificultad siga".
+@test fn grado_efectivo_sigue_al_rating() {
+    assert_eq(grado_efectivo(4, 800.0), 4)     // rating inicial → grado del perfil
+    assert_eq(grado_efectivo(4, 1000.0), 5)    // +1
+    assert_eq(grado_efectivo(4, 1200.0), 6)    // +2
+    assert_eq(grado_efectivo(4, 600.0), 3)     // −1
+}
+
+@test fn grado_efectivo_clampea_a_primaria() {
+    assert_eq(grado_efectivo(1, 200.0), 1)     // no baja de 1º
+    assert_eq(grado_efectivo(7, 2000.0), 7)    // no sube de 7º
+    assert_eq(grado_efectivo(4, 5000.0), 7)    // corrimiento clampeado a +3 → 7º
+}
+
+// El repaso (20%) elige la operación más floja: la de menor rating.
+@test fn op_mas_floja_es_la_de_menor_rating() {
+    let ops = ops_for_grade(4)                  // [add, sub, mul, div]
+    assert_eq(op_mas_floja(ops, 1000.0, 1000.0, 600.0, 1000.0), "mul")
+    assert_eq(op_mas_floja(ops, 500.0, 1000.0, 1000.0, 1000.0), "add")
+}
+
+// La selección adaptativa produce siempre ejercicios válidos (sobre un lote,
+// con todas las ops de 4º y el 70/20/10 activo).
+@test fn gen_adaptive_siempre_valido() {
+    let idx = 0
+    while (idx < 200) {
+        let ex = gen_adaptive(9090, idx, 4, 800.0, 800.0, 800.0, 800.0)
+        assert_eq(ejercicio_valido(ex), true)
+        idx = idx + 1
+    }
+}
+
+// Reproducible: mismo (seed, idx, snapshot) ⇒ mismo ejercicio (lo que hace que
+// render, scoring y persistencia coincidan bit-a-bit).
+@test fn gen_adaptive_es_reproducible() {
+    let a = gen_adaptive(555, 7, 4, 1100.0, 900.0, 1300.0, 800.0)
+    let b = gen_adaptive(555, 7, 4, 1100.0, 900.0, 1300.0, 800.0)
+    assert_eq(a.op, b.op)
+    assert_eq(a.a, b.a)
+    assert_eq(a.b, b.b)
+    assert_eq(a.answer, b.answer)
+    assert_eq(a.options, b.options)
+}
+
+// La dificultad SIGUE al rating: con ratings altos los operandos son, en el
+// máximo de un lote, más grandes que con ratings bajos (mismos seeds). El
+// generador escala el grado efectivo con el rating.
+@test fn gen_adaptive_ratings_altos_dan_numeros_mas_grandes() {
+    let max_bajo = 0
+    let max_alto = 0
+    let idx = 0
+    while (idx < 200) {
+        let bajo = gen_adaptive(313, idx, 4, 600.0, 600.0, 600.0, 600.0)
+        let alto = gen_adaptive(313, idx, 4, 1400.0, 1400.0, 1400.0, 1400.0)
+        if (bajo.a > max_bajo) {
+            max_bajo = bajo.a
+        }
+        if (alto.a > max_alto) {
+            max_alto = alto.a
+        }
+        idx = idx + 1
+    }
+    assert_eq(max_alto > max_bajo, true)
 }
 
 // --- símbolos ----------------------------------------------------------------

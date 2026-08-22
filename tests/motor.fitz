@@ -1,0 +1,179 @@
+// tests/engine.fitz — el motor adaptativo (Elo-lite) de engine.fitz.
+//
+// Cubre las dos cosas que el motor no puede equivocar:
+//   - PROPIEDADES del Elo: esperado ∈ (0,1), 0.5 al empatar, monótono en
+//     dificultad y en rating; el rating sube al acertar / baja al fallar, y la
+//     sorpresa pesa (acertar algo difícil sube más que acertar algo fácil).
+//   - CONVERGENCIA (§11 del PLAN): un chico con habilidad fija responde 500
+//     ejercicios; el rating (que arranca a ciegas en 800) debe CONVERGER cerca
+//     de su habilidad real, y la dificultad servida debe SEGUIR al rating —
+//     tanto hacia arriba (chico que sabe más de lo que el juego suponía) como
+//     hacia abajo. Es la prueba de que el motor "aprende" al jugador.
+//
+// Todo es puro: sin DB, sin tiempo. El "chico" simulado acierta con la
+// probabilidad REAL esperado(theta, d); las monedas salen de un rand.seeded
+// local (reproducible).
+//
+// Corré con:  fitz test
+
+from engine import rating_inicial, k_factor, rating_dificultad, esperado, nuevo_rating, dificultad_objetivo, dificultad_desafio, intervalo_repaso, progreso_pct
+
+// --- helper ------------------------------------------------------------------
+
+// Igualdad de floats con tolerancia (nunca == directo sobre Float).
+fn aprox(a: Float, b: Float, tol: Float) -> Bool {
+    let d = a - b
+    if (d < 0.0) {
+        d = 0.0 - d
+    }
+    return d <= tol
+}
+
+// --- propiedades de la esperanza --------------------------------------------
+
+// Rival == rating ⇒ esperado exactamente 0.5 (empate). d=3 → rival 1000.
+@test fn esperado_es_medio_cuando_empatan() {
+    assert_eq(aprox(esperado(1000.0, 3), 0.5, 0.0001), true)
+    assert_eq(aprox(esperado(600.0, 1), 0.5, 0.0001), true)   // rival(1)=600
+    assert_eq(aprox(esperado(1400.0, 5), 0.5, 0.0001), true)  // rival(5)=1400
+}
+
+// A igual rating, más dificultad ⇒ menos probabilidad de acertar.
+@test fn esperado_baja_con_la_dificultad() {
+    let e1 = esperado(1000.0, 1)
+    let e3 = esperado(1000.0, 3)
+    let e5 = esperado(1000.0, 5)
+    assert_eq(e1 > e3, true)
+    assert_eq(e3 > e5, true)
+    // Y siempre en (0, 1).
+    assert_eq(e5 > 0.0 and e1 < 1.0, true)
+}
+
+// A igual dificultad, más rating ⇒ más probabilidad de acertar.
+@test fn esperado_sube_con_el_rating() {
+    assert_eq(esperado(1400.0, 3) > esperado(800.0, 3), true)
+}
+
+// --- actualización del rating -----------------------------------------------
+
+@test fn acertar_sube_fallar_baja() {
+    assert_eq(nuevo_rating(1000.0, 3, true) > 1000.0, true)
+    assert_eq(nuevo_rating(1000.0, 3, false) < 1000.0, true)
+}
+
+// Acertar algo difícil (esperado bajo) sube MÁS que acertar algo fácil.
+@test fn acertar_dificil_sube_mas() {
+    let sube_facil = nuevo_rating(1000.0, 1, true) - 1000.0
+    let sube_dificil = nuevo_rating(1000.0, 5, true) - 1000.0
+    assert_eq(sube_dificil > sube_facil, true)
+}
+
+// Fallar algo fácil (esperado alto) baja MÁS que fallar algo difícil.
+@test fn fallar_facil_baja_mas() {
+    let baja_facil = 1000.0 - nuevo_rating(1000.0, 1, false)
+    let baja_dificil = 1000.0 - nuevo_rating(1000.0, 5, false)
+    assert_eq(baja_facil > baja_dificil, true)
+}
+
+// El paso máximo está acotado por K (nunca mueve más que k_factor).
+@test fn el_paso_esta_acotado_por_k() {
+    let sube = nuevo_rating(1000.0, 5, true) - 1000.0     // acierto muy improbable
+    assert_eq(sube < k_factor(), true)
+    assert_eq(sube > 0.0, true)
+}
+
+// --- dificultad objetivo -----------------------------------------------------
+
+@test fn dificultad_objetivo_mapea_el_rating() {
+    assert_eq(dificultad_objetivo(600.0), 1)     // (600-400)/200 = 1
+    assert_eq(dificultad_objetivo(800.0), 2)     // el rating inicial → dificultad 2
+    assert_eq(dificultad_objetivo(1000.0), 3)
+    assert_eq(dificultad_objetivo(1200.0), 4)
+    assert_eq(dificultad_objetivo(1400.0), 5)
+}
+
+@test fn dificultad_objetivo_clampea_a_1_5() {
+    assert_eq(dificultad_objetivo(200.0), 1)     // no baja de 1
+    assert_eq(dificultad_objetivo(3000.0), 5)    // no sube de 5
+}
+
+@test fn dificultad_desafio_es_un_escalon_arriba() {
+    assert_eq(dificultad_desafio(1000.0), 4)     // objetivo 3 + 1
+    assert_eq(dificultad_desafio(1400.0), 5)     // objetivo 5, clampeado (no 6)
+}
+
+// --- repaso espaciado --------------------------------------------------------
+
+// La secuencia canónica 1/3/7/16/35 a medida que se acierta seguido, y el
+// reinicio a "mañana" (1 día) ante un error (racha 0).
+@test fn intervalo_repaso_sigue_la_secuencia() {
+    assert_eq(intervalo_repaso(0), 1)            // recién falló → mañana
+    assert_eq(intervalo_repaso(1), 1)            // 1er acierto
+    assert_eq(intervalo_repaso(2), 3)
+    assert_eq(intervalo_repaso(3), 7)
+    assert_eq(intervalo_repaso(4), 16)
+    assert_eq(intervalo_repaso(5), 35)
+    assert_eq(intervalo_repaso(20), 35)          // se estanca en 35 (no crece más)
+}
+
+// --- progreso (barra "mate que se llena") ------------------------------------
+
+@test fn progreso_pct_mapea_el_rating() {
+    assert_eq(progreso_pct(600.0), 0)            // recién empezando
+    assert_eq(progreso_pct(900.0), 50)           // a mitad de camino
+    assert_eq(progreso_pct(1200.0), 100)         // destreza dominada
+    assert_eq(progreso_pct(500.0), 0)            // clamp abajo
+    assert_eq(progreso_pct(1600.0), 100)         // clamp arriba
+}
+
+// --- convergencia (§11) ------------------------------------------------------
+
+// El motor "aprende" al jugador. K=32 converge rápido (el rating llega a la
+// zona real en ~30 respuestas — buena UX) a costa de oscilar en equilibrio:
+// el punto fijo del Elo es EXACTAMENTE theta (dentro de cada banda de
+// dificultad, esperado(rating,d)=esperado(theta,d) ⟺ rating=theta), pero el
+// paso ±K hace que ronde theta con ruido. Por eso la simulación corre 2000
+// respuestas y promedia las últimas 1500 (warmup 500): la media del proceso ES
+// theta; con 1500 muestras el estimador es estable a ±unos pocos puntos.
+
+fn simular(theta: Float, seed: Int, pasos: Int, warmup: Int) -> Float {
+    let g = rand.seeded(seed)
+    let rating = rating_inicial()
+    let suma = 0.0
+    let n = 0
+    while (n < pasos) {
+        let d = dificultad_objetivo(rating)
+        // El "chico" acierta con la probabilidad REAL de su habilidad.
+        let p = esperado(theta, d)
+        let umbral = round(p * 1000.0)
+        let roll = g.int(1, 1000)
+        let acierto = roll <= umbral
+        rating = nuevo_rating(rating, d, acierto)
+        if (n >= warmup) {
+            suma = suma + rating
+        }
+        n = n + 1
+    }
+    let muestras = (pasos - warmup) * 1.0
+    return suma / muestras
+}
+
+// Un chico que sabe MÁS de lo que el juego suponía (theta 1200 ≈ dificultad 4):
+// el rating (que arranca a ciegas en 800) converge a ~1200 y la dificultad
+// servida sube de 2 a ~4. Un chico que sabe MENOS (theta 600 ≈ dificultad 1):
+// converge a ~600 y la dificultad baja a ~1 — el juego no lo deja frustrado.
+@test fn el_rating_converge_a_la_habilidad_real() {
+    let arriba = simular(1200.0, 20260822, 2000, 500)
+    assert_eq(arriba > 1200.0 - 80.0, true)
+    assert_eq(arriba < 1200.0 + 80.0, true)
+
+    let abajo = simular(600.0, 13571113, 2000, 500)
+    assert_eq(abajo > 600.0 - 80.0, true)
+    assert_eq(abajo < 600.0 + 80.0, true)
+
+    // Y la dificultad SIGUE al rating: al arrancar (800) es 2, tras converger a
+    // theta alto es ~4 y a theta bajo es ~1.
+    assert_eq(dificultad_objetivo(rating_inicial()), 2)
+    assert_eq(dificultad_objetivo(arriba), 4)
+    assert_eq(dificultad_objetivo(abajo), 1)
+}

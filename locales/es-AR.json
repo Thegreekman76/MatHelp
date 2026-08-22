@@ -108,5 +108,14 @@
   "practica.medio": "Normal",
   "practica.dificil": "Difícil",
   "practica.modo": "Práctica",
-  "proximamente.texto": "Esta pantalla llega pronto."
+  "proximamente.texto": "Esta pantalla llega pronto.",
+  "progreso.destrezas": "Cómo vas",
+  "progreso.medallas": "Medallas",
+  "progreso.sin_medallas": "Todavía sin medallas. ¡A jugar!",
+  "progreso.racha_dias": "días seguidos",
+  "progreso.racha_cero": "Empezá tu racha hoy",
+  "progreso.sin_datos": "Todavía no jugaste. Tocá «Jugar ya» y arrancá.",
+  "award.primer_mate": "Primer mate",
+  "award.racha7": "7 días seguidos",
+  "award.generico": "Logro"
 }

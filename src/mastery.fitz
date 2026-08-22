@@ -1,0 +1,102 @@
+// mastery.fitz — dominio por destreza (motor adaptativo, F3).
+//
+// Una fila `mastery` por (perfil, destreza) con el rating Elo-lite del chico.
+// Se actualiza APENAS ocurre cada respuesta: se lee el rating actual, se
+// recalcula con el Elo PURO de engine.fitz (testeado en tests/motor.fitz), y se
+// persiste con un upsert ATÓMICO (INSERT ... ON CONFLICT DO UPDATE en un solo
+// statement — el ORM de Fitz no tiene upsert nativo, y un solo statement es
+// race-safe). El due_at (repaso espaciado, §7) sale de engine.intervalo_repaso
+// y se guarda como NOW() + N días (Postgres evalúa el interval; el driver pasa
+// el SQL verbatim).
+//
+// Por qué SQL crudo y no el ORM: (1) no hay `.upsert` nativo; (2) el binding de
+// params heterogéneos ([Int, Str, Float, ...]) funciona bit-a-bit run↔build
+// SIEMPRE que la lista sea literal inline en el call site (por eso el
+// `conn.exec(up, [ ... ])` tiene la lista escrita a mano, no en una variable).
+//
+// La matemática vive en engine.fitz; acá solo está el I/O. Todo número que
+// entra al Elo es Float (rating es DOUBLE PRECISION en Postgres).
+
+from config import db_url
+from engine import nuevo_rating, intervalo_repaso
+
+// Snapshot de mastery: el rating Elo-lite por operación. Se lee UNA vez al abrir
+// la partida (congelado) y se siembra en el componente; la selección adaptativa
+// (gen_adaptive) lo usa para elegir el próximo ejercicio. 800 = destreza que el
+// chico nunca vio (arranque a ciegas del Elo).
+type MasterySnapshot {
+    r_add: Float = 800.0
+    r_sub: Float = 800.0
+    r_mul: Float = 800.0
+    r_div: Float = 800.0
+}
+
+// Lee el snapshot de mastery del perfil. Mapea skill_code → operación:
+// "add"→r_add, "sub"→r_sub, "mul.tabla"→r_mul, "div.exacta"→r_div. Destrezas
+// sin fila quedan en 800 (el default del tipo).
+async fn leer_snapshot(profile_id: Int) -> Result<MasterySnapshot> {
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT skill_code, rating FROM mastery WHERE profile_id = $1", [profile_id]).await?
+    let snap = MasterySnapshot { }
+    for r in rows {
+        let sc = r.get_str("skill_code")?
+        let rat = r.get_float("rating")?
+        if (sc == "add") {
+            snap.r_add = rat
+        }
+        if (sc == "sub") {
+            snap.r_sub = rat
+        }
+        if (sc == "mul.tabla") {
+            snap.r_mul = rat
+        }
+        if (sc == "div.exacta") {
+            snap.r_div = rat
+        }
+    }
+    return Ok(snap)
+}
+
+// Registra el resultado de UNA respuesta en la destreza `skill_code`. Lee el
+// estado previo (o los defaults de arranque: rating 800, el "a ciegas" del Elo),
+// recalcula, y hace upsert. Devuelve el rating nuevo (útil para el selector
+// adaptativo y para tests). `ms` es el tiempo de respuesta (F2 pasa 0 hasta que
+// se mida); alimenta el promedio móvil de fluidez.
+async fn actualizar_mastery(profile_id: Int, skill_code: Str, difficulty: Int, acierto: Bool, ms: Int) -> Result<Float> {
+    let conn = db.connect(db_url()).await?
+
+    // Estado previo. Sin fila (primera vez que ve la destreza) → defaults.
+    let sel = "SELECT rating, streak, seen, avg_ms FROM mastery WHERE profile_id = $1 AND skill_code = $2"
+    let rows = conn.query(sel, [profile_id, skill_code]).await?
+    let old_rating = 800.0
+    let old_streak = 0
+    let old_seen = 0
+    let old_avg = 0
+    if (rows.len() > 0) {
+        let r = rows[0]
+        old_rating = r.get_float("rating")?
+        old_streak = r.get_int("streak")?
+        old_seen = r.get_int("seen")?
+        old_avg = r.get_int("avg_ms")?
+    }
+
+    let new_rating = nuevo_rating(old_rating, difficulty, acierto)
+    let new_streak = match acierto {
+        true => old_streak + 1,      // aciertos seguidos: espacia el repaso
+        false => 0,                  // un error reinicia la racha (se repasa ya)
+    }
+    let hit = match acierto {
+        true => 1,
+        false => 0,
+    }
+    // Promedio móvil del tiempo de respuesta (F2 pasa ms=0; queda listo).
+    let new_avg = (old_avg * old_seen + ms) / (old_seen + 1)
+    let dias = intervalo_repaso(new_streak)
+
+    // Upsert atómico. seen/hits se incrementan del lado de Postgres (race-safe);
+    // rating/streak/avg_ms/due_at se pisan con lo recalculado. El interval se
+    // arma con NOW() + N días (N es Int → CAST a text para el `||`).
+    let up = "INSERT INTO mastery (profile_id, skill_code, rating, seen, hits, streak, avg_ms, last_seen_at, due_at) VALUES ($1, $2, $3, 1, $4, $5, $6, NOW(), NOW() + (CAST($7 AS text) || ' days')::interval) ON CONFLICT (profile_id, skill_code) DO UPDATE SET rating = $3, seen = mastery.seen + 1, hits = mastery.hits + $4, streak = $5, avg_ms = $6, last_seen_at = NOW(), due_at = NOW() + (CAST($7 AS text) || ' days')::interval"
+    let _ = conn.exec(up, [profile_id, skill_code, new_rating, hit, new_streak, new_avg, dias]).await?
+    return Ok(new_rating)
+}

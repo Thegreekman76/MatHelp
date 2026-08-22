@@ -36,7 +36,15 @@ component quiz {
     last_answer: Int = 0        // la respuesta correcta del ejercicio recién fallado
     topic: Str = "mix"          // tema fijo en práctica ("add".."div"|"mix"); "mix" en contrarreloj
     band: Int = 2               // banda de dificultad de práctica (1=fácil,2=medio,3=difícil)
-    mode: Str = "timed"         // "timed" (contrarreloj) | "practice" (sin reloj ni puntaje)
+    mode: Str = "timed"         // "adaptive" (contrarreloj F3) | "practice" | "timed" (legacy)
+    // Snapshot de mastery: rating Elo-lite por operación, congelado al abrir la
+    // partida (el @ws lo lee de la DB y lo siembra). La selección adaptativa
+    // (gen_for "adaptive") elige el próximo ejercicio con esto. 800 = a ciegas.
+    r_add: Float = 800.0
+    r_sub: Float = 800.0
+    r_mul: Float = 800.0
+    r_div: Float = 800.0
+    limit: Int = 0              // 0 = sin límite (contrarreloj/práctica); >0 = termina tras N (Desafío)
   }
 
   event answer() {
@@ -46,7 +54,7 @@ component quiz {
           let ei = a_int(payload["ei"])
           if (ei == idx) {
             let chosen = a_int(payload["v"])
-            let ex = gen_for(mode, topic, band, seed, idx, grade)
+            let ex = gen_for(mode, topic, band, seed, idx, grade, r_add, r_sub, r_mul, r_div)
             let acierto = chosen == ex.answer
             total = total + 1
             if (acierto) {
@@ -59,6 +67,12 @@ component quiz {
               last_answer = ex.answer
             }
             idx = idx + 1
+            // Desafío del día: termina al completar N ejercicios (sin reloj).
+            if (limit > 0) {
+              if (total >= limit) {
+                phase = "done"
+              }
+            }
           }
         }
       }
@@ -77,7 +91,7 @@ component quiz {
 
   <template>
     <div id="quiz-app" class="mh-quiz">
-      {quiz_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, last_answer, topic, band, mode).raw}
+      {quiz_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, last_answer, topic, band, mode, r_add, r_sub, r_mul, r_div, limit).raw}
     </div>
   </template>
 }

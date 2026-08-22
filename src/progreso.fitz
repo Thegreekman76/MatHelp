@@ -1,0 +1,179 @@
+// progreso.fitz — "Mi progreso" (F3): mate-progreso + medallas + racha diaria.
+//
+// Página de lectura (sin socket): lee el mastery del perfil (rating por
+// destreza), las medallas y la racha, y las muestra. La barra de cada destreza
+// es el "mate que se llena" (§6): el % sale de progreso_pct(rating). Todo texto
+// por t(), todo número por fmt_int (reglas del proyecto).
+//
+// Lecturas por SQL crudo (mastery/awards) — consistente con mastery.fitz; el
+// ORM se reservaría para F5. La racha la calcula streaks.racha_actual.
+
+from fitz_liveviews import Html, html, flv, h_join
+from config import db_url
+from i18n import t, t1, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from fmt import fmt_int
+from engine import progreso_pct
+from streaks import racha_actual
+from live_game import resolver_contexto
+
+// --- etiquetas ---------------------------------------------------------------
+
+// skill_code → clave i18n del nombre (reusa las de "tema.*").
+fn skill_label_key(sc: Str) -> Str {
+    return match sc {
+        "add" => "tema.suma",
+        "sub" => "tema.resta",
+        "mul.tabla" => "tema.multiplicacion",
+        "div.exacta" => "tema.division",
+        _ => "tema.mezcla",
+    }
+}
+
+fn skill_icon(sc: Str) -> Str {
+    return match sc {
+        "add" => "➕",
+        "sub" => "➖",
+        "mul.tabla" => "✖️",
+        "div.exacta" => "➗",
+        _ => "🎲",
+    }
+}
+
+fn award_emoji(code: Str) -> Str {
+    return match code {
+        "primer_mate" => "🧉",
+        "racha7" => "🔥",
+        _ => "🏅",
+    }
+}
+
+fn award_label_key(code: Str) -> Str {
+    return match code {
+        "primer_mate" => "award.primer_mate",
+        "racha7" => "award.racha7",
+        _ => "award.generico",
+    }
+}
+
+// --- render ------------------------------------------------------------------
+
+// Una barra "mate que se llena" por destreza: nombre + % + aciertos.
+fn barra_destreza(locale: Str, sc: Str, rating: Float, seen: Int, hits: Int) -> Html {
+    let nombre = flv(t(locale, skill_label_key(sc)))
+    let icon = flv(skill_icon(sc))
+    let pct = progreso_pct(rating)
+    let pct_txt = flv(fmt_int(locale, pct))
+    let hits_f = flv(fmt_int(locale, hits))
+    let de = flv(t(locale, "juego.de"))
+    let seen_f = flv(fmt_int(locale, seen))
+    return html("""<div style="margin:.9rem 0">
+<div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;margin-bottom:.35rem">
+<span>{icon} {nombre}</span><span style="color:var(--mh-suave)">{pct_txt}%</span>
+</div>
+<div style="background:var(--mh-borde,#e2e8f0);border-radius:99px;height:16px;overflow:hidden">
+<div style="width:{pct}%;height:100%;background:var(--mh-acento,#0E7A63);border-radius:99px;transition:width .3s"></div>
+</div>
+<div style="font-size:.85rem;color:var(--mh-suave);margin-top:.3rem">{hits_f} {de} {seen_f}</div>
+</div>""")
+}
+
+fn medalla(locale: Str, code: Str) -> Html {
+    let em = flv(award_emoji(code))
+    let nombre = flv(t(locale, award_label_key(code)))
+    return html("""<div style="text-align:center;min-width:88px">
+<div style="font-size:2.4rem;line-height:1">{em}</div>
+<div style="font-size:.85rem;font-weight:700;margin-top:.2rem">{nombre}</div>
+</div>""")
+}
+
+// Arma el cuerpo de la página con los datos ya leídos. Propaga errores de DB
+// con `?`; el handler los traduce a una pantalla de error amable.
+async fn render_progreso(profile_id: Int, locale: Str) -> Result<Html> {
+    let conn = db.connect(db_url()).await?
+    let mrows = conn.query("SELECT skill_code, rating, seen, hits FROM mastery WHERE profile_id = $1 ORDER BY skill_code", [profile_id]).await?
+    let arows = conn.query("SELECT code FROM awards WHERE profile_id = $1 ORDER BY earned_at", [profile_id]).await?
+    let racha = racha_actual(profile_id).await?
+
+    // Racha diaria arriba de todo.
+    let racha_html = match racha > 0 {
+        true => html("""<div class="mh-card" style="text-align:center">
+<div style="font-size:2.6rem;line-height:1">🔥</div>
+<div style="font-size:1.5rem;font-weight:800">{flv(fmt_int(locale, racha))}</div>
+<div style="color:var(--mh-suave)">{flv(t(locale, "progreso.racha_dias"))}</div>
+</div>""").raw,
+        false => html("""<div class="mh-card" style="text-align:center">
+<div style="font-size:2.6rem;line-height:1">🌱</div>
+<div style="color:var(--mh-suave)">{flv(t(locale, "progreso.racha_cero"))}</div>
+</div>""").raw,
+    }
+
+    // Sin ninguna destreza jugada → estado vacío amable.
+    if (mrows.len() == 0) {
+        let vacio = html("""{racha_html}
+<div class="mh-card" style="text-align:center">
+<p style="color:var(--mh-suave);margin:.4rem 0 1.2rem">{flv(t(locale, "progreso.sin_datos"))}</p>
+<a class="mh-btn" href="/jugar">{flv(t(locale, "home.jugar_ya"))}</a>
+</div>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+        return Ok(vacio)
+    }
+
+    let barras: List<Html> = []
+    for r in mrows {
+        let sc = r.get_str("skill_code")?
+        let rating = r.get_float("rating")?
+        let seen = r.get_int("seen")?
+        let hits = r.get_int("hits")?
+        barras.push(barra_destreza(locale, sc, rating, seen, hits))
+    }
+    let barras_html = h_join(barras)
+
+    // Medallas (o mensaje si todavía no tiene ninguna).
+    let medallas_html = match arows.len() > 0 {
+        true => "",
+        false => html("""<p style="color:var(--mh-suave);text-align:center;margin:.2rem 0">{flv(t(locale, "progreso.sin_medallas"))}</p>""").raw,
+    }
+    let medallas: List<Html> = []
+    for r in arows {
+        medallas.push(medalla(locale, r.get_str("code")?))
+    }
+    let medallas_grid = h_join(medallas)
+
+    let body = html("""{racha_html}
+<div class="mh-card">
+<h2>{flv(t(locale, "progreso.destrezas"))}</h2>
+{barras_html}
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "progreso.medallas"))}</h2>
+{medallas_html}
+<div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
+{medallas_grid}
+</div>
+</div>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+    return Ok(body)
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/progreso")
+async fn progreso_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let titulo = t(locale, "nav.progreso") + " — MatHelp"
+    match render_progreso(ctx.profile_id, locale).await {
+        Ok(body) => return responder_html(page(locale, titulo, body, html(""))),
+        Err(_) => {
+            let err = html("""<div class="mh-card" style="text-align:center">
+<p style="color:var(--mh-suave)">{flv(t(locale, "estado.db_error"))}</p>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>""")
+            return responder_html(page(locale, titulo, err, html("")))
+        }
+    }
+}

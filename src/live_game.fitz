@@ -23,7 +23,9 @@ from layout import page, responder_html, redirect_a
 from auth import read_session, pid_from_token
 from perfiles import perfil_de_familia
 from models import GameSession, Attempt
-from engine import duracion_default, a_int
+from engine import duracion_default, desafio_n, a_int
+from mastery import actualizar_mastery, leer_snapshot, MasterySnapshot
+from streaks import registrar_y_premiar
 from gen_arith import gen_mix, gen_for, op_symbol
 from Quiz import quiz
 
@@ -35,6 +37,7 @@ from Quiz import quiz
 type GameCtx {
     profile_id: Int = 0
     grade: Int = 4
+    daily_goal: Int = 10          // meta de ejercicios/día (racha diaria, F3)
 }
 
 // Resuelve sesión → perfil. Err lleva el destino del redirect (zona protegida).
@@ -52,7 +55,7 @@ async fn resolver_contexto(session: Str?) -> Result<GameCtx> {
         Ok(p) => p,
         Err(_) => return Err("/perfiles"),
     }
-    return Ok(GameCtx { profile_id: perfil.id, grade: perfil.grade })
+    return Ok(GameCtx { profile_id: perfil.id, grade: perfil.grade, daily_goal: perfil.daily_goal })
 }
 
 // --- persistencia ------------------------------------------------------------
@@ -70,11 +73,13 @@ async fn crear_sesion(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
     return Ok(sess.id)
 }
 
-// Persiste una respuesta apenas ocurre. Re-deriva el ejercicio desde (seed, idx,
-// grade) — determinista, así el server no confía en el cliente para el enunciado
-// ni la respuesta correcta.
-async fn persistir_respuesta(sess_id: Int, profile_id: Int, seed: Int, idx: Int, grade: Int, given: Int) -> Result<Int> {
-    let ex = gen_mix(seed, idx, grade)
+// Persiste una respuesta apenas ocurre. Re-deriva el ejercicio con la MISMA
+// selección adaptativa que el componente (gen_for "adaptive" + el snapshot de
+// mastery congelado al abrir la partida) — determinista, así el server no confía
+// en el cliente para el enunciado ni la respuesta correcta, y el ejercicio
+// re-derivado coincide bit-a-bit con el que vio el chico.
+async fn persistir_respuesta(sess_id: Int, profile_id: Int, seed: Int, idx: Int, grade: Int, given: Int, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Result<Int> {
+    let ex = gen_for("adaptive", "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
     let acierto = given == ex.answer
     let prompt = "{ex.a} {op_symbol(ex.op)} {ex.b}"
     let conn = db.connect(db_url()).await?
@@ -90,6 +95,9 @@ async fn persistir_respuesta(sess_id: Int, profile_id: Int, seed: Int, idx: Int,
         ms: 0,                 // F2 no mide el ms por respuesta (deuda menor)
         difficulty: ex.difficulty,
     }).await?
+    // Motor adaptativo (F3): actualizá el rating de la destreza con esta
+    // respuesta. Best-effort — si falla, la partida sigue (el attempt ya quedó).
+    let _ = actualizar_mastery(profile_id, ex.skill_code, ex.difficulty, acierto, 0).await
     return Ok(row.id)
 }
 
@@ -136,6 +144,7 @@ async fn jugar_get(session: Str?, lang: Str?) -> Response {
         seed: 1,
         grade: ctx.grade,
         locale: locale,
+        mode: "adaptive",
     })
     let embed = live_embed("/live/quiz", "quiz-app", inicial)
     let titulo = t(locale, "juego.contrarreloj") + " — MatHelp"
@@ -159,13 +168,26 @@ async fn quiz_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     let cid = Uuid.v4().to_str()
     let seed = rand.int(1, 2000000000)
     let sess_id = crear_sesion(ctx.profile_id, seed, ctx.grade).await?
-    // Sembrar el componente con el estado de ESTA partida y mandar el primer
-    // frame (el ejercicio idx 0 del seed).
+    // Snapshot de mastery, congelado al abrir la partida: alimenta la selección
+    // adaptativa (§7). Best-effort — sin fila / error de DB → defaults (800, a
+    // ciegas). El componente y persistir_respuesta usan ESTE mismo snapshot, así
+    // el ejercicio mostrado y el corregido coinciden dentro de la sesión.
+    let snap = match leer_snapshot(ctx.profile_id).await {
+        Ok(s) => s,
+        Err(_) => MasterySnapshot { },
+    }
+    // Sembrar el componente con el estado de ESTA partida (modo adaptativo +
+    // snapshot) y mandar el primer frame (el ejercicio idx 0 del seed).
     let _ = component_with("quiz", cid, quiz {
         seed: seed,
         grade: ctx.grade,
         locale: locale,
         time_left: duracion_default(),
+        mode: "adaptive",
+        r_add: snap.r_add,
+        r_sub: snap.r_sub,
+        r_mul: snap.r_mul,
+        r_div: snap.r_div,
     }).raw
     ws.send(flv_frame("quiz", cid))?
     // Cronómetro server-pushed: 1 tick/seg. Cierra la partida al llegar a 0.
@@ -185,7 +207,10 @@ async fn quiz_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
             let ei = pget_int(frame.payload, "ei", -1)
             if (ei == next_idx) {
                 let given = pget_int(frame.payload, "v", -1)
-                let _ = persistir_respuesta(sess_id, ctx.profile_id, seed, ei, ctx.grade, given).await
+                let _ = persistir_respuesta(sess_id, ctx.profile_id, seed, ei, ctx.grade, given, snap.r_add, snap.r_sub, snap.r_mul, snap.r_div).await
+                // Racha diaria + medallas (F3): suma a la racha del día y otorga
+                // "primer_mate"/"racha7" cuando corresponde.
+                let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
                 next_idx = next_idx + 1
             }
         }
@@ -289,7 +314,8 @@ async fn crear_sesion_practica(profile_id: Int, seed: Int, grade: Int, topic: St
 // mismo generador que corrige en el componente), así el server no confía en el
 // cliente para el enunciado ni la respuesta.
 async fn persistir_practica(sess_id: Int, profile_id: Int, topic: Str, band: Int, seed: Int, idx: Int, grade: Int, given: Int) -> Result<Int> {
-    let ex = gen_for("practice", topic, band, seed, idx, grade)
+    // Práctica NO es adaptativa: ratings a 800 (gen_for los ignora en "practice").
+    let ex = gen_for("practice", topic, band, seed, idx, grade, 800.0, 800.0, 800.0, 800.0)
     let acierto = given == ex.answer
     let prompt = "{ex.a} {op_symbol(ex.op)} {ex.b}"
     let conn = db.connect(db_url()).await?
@@ -305,6 +331,9 @@ async fn persistir_practica(sess_id: Int, profile_id: Int, topic: Str, band: Int
         ms: 0,
         difficulty: ex.difficulty,
     }).await?
+    // Motor adaptativo (F3): la práctica también entrena el rating de la
+    // destreza (aunque no tenga reloj ni puntaje).
+    let _ = actualizar_mastery(profile_id, ex.skill_code, ex.difficulty, acierto, 0).await
     return Ok(row.id)
 }
 
@@ -385,6 +414,8 @@ async fn practica_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?, pract
             if (ei == next_idx) {
                 let given = pget_int(frame.payload, "v", -1)
                 let _ = persistir_practica(sess_id, ctx.profile_id, cfg.topic, cfg.band, seed, ei, ctx.grade, given).await
+                // La práctica también cuenta para la racha diaria (§6).
+                let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
                 next_idx = next_idx + 1
             }
         }
@@ -396,5 +427,116 @@ async fn practica_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?, pract
     // Socket cerrado: guardá el conteo final y liberá el estado del store.
     let st: quiz = component_state("quiz", cid)
     let _ = cerrar_practica(sess_id, st.total, st.correct).await
+    let _ = flv_evict("quiz", cid)
+}
+
+// --- Desafío del día (F3): 10 del mix adaptativo, sin reloj ------------------
+//
+// Mismo motor adaptativo que el contrarreloj (gen_for "desafio" == "adaptive":
+// misma selección 70/20/10 por rating), pero SIN cronómetro: termina al
+// completar N ejercicios (el componente marca phase="done" cuando total >=
+// limit). Cada respuesta alimenta la racha diaria (§11: "alimenta la racha").
+
+async fn crear_sesion_desafio(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let sess = GameSession.insert(conn, GameSession {
+        profile_id: profile_id,
+        mode: "desafio",
+        topic_code: "mix",
+        level: grade,
+        seed: seed,
+    }).await?
+    return Ok(sess.id)
+}
+
+// Cierra el desafío con el resumen. Sin duration_ms (no hay reloj).
+async fn finalizar_desafio(sess_id: Int, total: Int, correct: Int, score: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = GameSession.where(fn(s) => s.id == sess_id).update(conn, {
+        "total": total,
+        "correct": correct,
+        "score": score,
+    }).await?
+    return Ok(1)
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/desafio")
+async fn desafio_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let inicial = component_with("quiz", "ssr", quiz {
+        seed: 1,
+        grade: ctx.grade,
+        locale: locale,
+        mode: "desafio",
+        limit: desafio_n(),
+    })
+    let embed = live_embed("/live/desafio", "quiz-app", inicial)
+    let titulo = t(locale, "home.desafio_dia") + " — MatHelp"
+    return responder_html(page(locale, titulo, embed, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@ws("/live/desafio")
+async fn desafio_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
+    let locale = locale_from_cookie(lang)
+    let ctx = resolver_contexto(session).await?
+    let cid = Uuid.v4().to_str()
+    let seed = rand.int(1, 2000000000)
+    let sess_id = crear_sesion_desafio(ctx.profile_id, seed, ctx.grade).await?
+    let snap = match leer_snapshot(ctx.profile_id).await {
+        Ok(s) => s,
+        Err(_) => MasterySnapshot { },
+    }
+    let _ = component_with("quiz", cid, quiz {
+        seed: seed,
+        grade: ctx.grade,
+        locale: locale,
+        mode: "desafio",
+        limit: desafio_n(),
+        r_add: snap.r_add,
+        r_sub: snap.r_sub,
+        r_mul: snap.r_mul,
+        r_div: snap.r_div,
+    }).raw
+    ws.send(flv_frame("quiz", cid))?
+    // Sin reloj: termina cuando el componente marca phase="done" (total >=
+    // limit). Finalizamos UNA vez y dejamos el socket abierto en el resumen.
+    let next_idx = 0
+    let finalizado = false
+    loop {
+        let frame = match ws.recv() {
+            Ok(f) => f,
+            Err(_) => { break },
+        }
+        let ev = frame.event
+        let _ = dispatch_component_events(frame)
+        if (ev == "answer") {
+            let ei = pget_int(frame.payload, "ei", -1)
+            if (ei == next_idx) {
+                let given = pget_int(frame.payload, "v", -1)
+                let _ = persistir_respuesta(sess_id, ctx.profile_id, seed, ei, ctx.grade, given, snap.r_add, snap.r_sub, snap.r_mul, snap.r_div).await
+                let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
+                next_idx = next_idx + 1
+            }
+        }
+        match ws.send(flv_frame("quiz", cid)) {
+            Ok(_) => 0,
+            Err(_) => { break },
+        }
+        let st: quiz = component_state("quiz", cid)
+        if (st.phase == "done") {
+            if (not finalizado) {
+                let _ = finalizar_desafio(sess_id, st.total, st.correct, st.score).await
+                finalizado = true
+            }
+        }
+    }
     let _ = flv_evict("quiz", cid)
 }
