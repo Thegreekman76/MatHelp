@@ -55,16 +55,13 @@ fn pid_from_token(session: Str?) -> Str {
         Ok(c) => c,
         Err(_) => return "",
     }
-    // jwt.decode devuelve Map<Str, __FitzValue>, así que claims.get(...) da
-    // Result<__FitzValue>. La coerción __FitzValue → Str solo la aplica el
-    // codegen cuando el ÚNICO arm productivo es el Ok (los demás divergen) +
-    // el binding está anotado :Str. Por eso el Err arm hace `return ""` en
-    // vez de producir "" — mismo patrón que read_session con el email.
-    let pid: Str = match claims.get("pid") {
+    // jwt.decode devuelve Map<Str, __FitzValue>; claims.get(...) da Result<Any>.
+    // El codegen coacciona el arm Ok (__FitzValue → Str) porque el arm Err fija
+    // el LUB en Str. Sin pid (perfil no elegido) es un caso válido → "".
+    return match claims.get("pid") {
         Ok(v) => v,
-        Err(_) => return "",
+        Err(_) => "",
     }
-    return pid
 }
 
 // Response de redirect que setea (o pisa) la cookie de sesión HttpOnly.

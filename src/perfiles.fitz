@@ -14,7 +14,7 @@ from config import db_url
 from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from auth import read_session, mint_session, redirect_con_sesion
-from models import Profile, Family
+from models import Profile
 
 // --- DB ------------------------------------------------------------------
 
@@ -194,7 +194,7 @@ type PinForm {
 @get("/perfiles")
 async fn perfiles_get(session: Str?, lang: Str?) -> Response {
     let locale = locale_from_cookie(lang)
-    let fam: Family = match read_session(session).await {
+    let fam = match read_session(session).await {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
@@ -223,7 +223,7 @@ async fn nuevo_get(session: Str?, lang: Str?) -> Response {
 @post("/perfiles/nuevo")
 async fn nuevo_post(session: Str?, lang: Str?, form: NuevoPerfilForm) -> Response {
     let locale = locale_from_cookie(lang)
-    let fam: Family = match read_session(session).await {
+    let fam = match read_session(session).await {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
@@ -250,7 +250,7 @@ async fn nuevo_post(session: Str?, lang: Str?, form: NuevoPerfilForm) -> Respons
 @cookie(name="mathelp_session", into="session")
 @post("/perfiles/elegir")
 async fn elegir_post(session: Str?, form: ElegirForm) -> Response {
-    let fam: Family = match read_session(session).await {
+    let fam = match read_session(session).await {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
@@ -275,7 +275,7 @@ async fn elegir_post(session: Str?, form: ElegirForm) -> Response {
 @get("/perfiles/pin/{id}")
 async fn pin_get(session: Str?, lang: Str?, id: Int) -> Response {
     let locale = locale_from_cookie(lang)
-    let fam: Family = match read_session(session).await {
+    let fam = match read_session(session).await {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
@@ -290,7 +290,7 @@ async fn pin_get(session: Str?, lang: Str?, id: Int) -> Response {
 @post("/perfiles/pin")
 async fn pin_post(session: Str?, lang: Str?, form: PinForm) -> Response {
     let locale = locale_from_cookie(lang)
-    let fam: Family = match read_session(session).await {
+    let fam = match read_session(session).await {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
