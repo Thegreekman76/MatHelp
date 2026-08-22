@@ -1,0 +1,99 @@
+// tests/rng.fitz — el PRNG sembrado nativo (rand.seeded), como lo usa el juego.
+//
+// La distribución cruda de SplitMix64 la testea el core de Fitz (FITZ-01). Acá
+// verificamos lo que MatHelp necesita de él:
+//   - REPRODUCIBILIDAD: misma semilla ⇒ misma secuencia (es lo que hace
+//     reconstruible una partida desde el seed).
+//   - RANGO: rand.seeded(s).int(lo, hi) cae siempre en [lo, hi].
+//   - DISTRIBUCIÓN: sobre 6.000 tiradas de un d6, ninguna cara se pierde ni
+//     acapara — reparto parejo (banda floja alrededor de 1000).
+//
+// Corré con:  fitz test
+
+// --- reproducibilidad --------------------------------------------------------
+
+@test fn misma_semilla_misma_secuencia() {
+    let a = rand.seeded(2026)
+    let b = rand.seeded(2026)
+    let i = 0
+    while (i < 50) {
+        assert_eq(a.int(1, 1000000), b.int(1, 1000000))
+        i = i + 1
+    }
+}
+
+@test fn semillas_distintas_secuencias_distintas() {
+    let a = rand.seeded(1)
+    let b = rand.seeded(2)
+    // La primera tirada ya difiere (con altísima probabilidad).
+    assert_ne(a.int(1, 1000000), b.int(1, 1000000))
+}
+
+// --- rango -------------------------------------------------------------------
+
+@test fn int_respeta_los_limites() {
+    let g = rand.seeded(777)
+    let i = 0
+    while (i < 2000) {
+        let v = g.int(3, 9)
+        assert_eq(v >= 3 and v <= 9, true)
+        i = i + 1
+    }
+}
+
+@test fn rango_de_un_solo_valor() {
+    let g = rand.seeded(5)
+    let i = 0
+    while (i < 20) {
+        assert_eq(g.int(7, 7), 7)
+        i = i + 1
+    }
+}
+
+// --- distribución ------------------------------------------------------------
+
+// 6.000 tiradas de d6: cada cara ~1000. Banda floja [800, 1200]: no queremos
+// un test flaky, queremos cazar un sesgo grosero o una cara muerta.
+@test fn dado_reparte_parejo() {
+    let g = rand.seeded(123456)
+    let c1 = 0
+    let c2 = 0
+    let c3 = 0
+    let c4 = 0
+    let c5 = 0
+    let c6 = 0
+    let i = 0
+    while (i < 6000) {
+        let f = g.int(1, 6)
+        if (f == 1) {
+            c1 = c1 + 1
+        }
+        if (f == 2) {
+            c2 = c2 + 1
+        }
+        if (f == 3) {
+            c3 = c3 + 1
+        }
+        if (f == 4) {
+            c4 = c4 + 1
+        }
+        if (f == 5) {
+            c5 = c5 + 1
+        }
+        if (f == 6) {
+            c6 = c6 + 1
+        }
+        i = i + 1
+    }
+    // Ninguna cara muerta.
+    assert_eq(c1 > 0 and c2 > 0 and c3 > 0 and c4 > 0 and c5 > 0 and c6 > 0, true)
+    // Todas dentro de la banda [800, 1200].
+    assert_eq(c1 >= 800 and c1 <= 1200, true)
+    assert_eq(c2 >= 800 and c2 <= 1200, true)
+    assert_eq(c3 >= 800 and c3 <= 1200, true)
+    assert_eq(c4 >= 800 and c4 <= 1200, true)
+    assert_eq(c5 >= 800 and c5 <= 1200, true)
+    assert_eq(c6 >= 800 and c6 <= 1200, true)
+    // Y la suma cierra en 6000 (no se perdió ninguna tirada).
+    assert_eq(c1 + c2 + c3 + c4 + c5 + c6, 6000)
+}

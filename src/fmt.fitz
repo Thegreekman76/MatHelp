@@ -1,0 +1,28 @@
+// fmt.fitz — política de formateo de números de la UI.
+//
+// NO es un workaround: el formateo real lo hace el módulo nativo `num`
+// (`num.format`/`num.percent`/`num.currency`, FITZ-04). Esta capa hace dos
+// cosas que el proyecto necesita en UN solo lugar:
+//   1. Traduce el locale de la app (`es-AR` | `en`) al locale de `num`
+//      (`es-AR` | `en-US`) — `num` no conoce `en` a secas.
+//   2. Expone los helpers `fmt_*` que exige la regla del proyecto: ningún
+//      número crudo en la UI, siempre vía `fmt_*` (así `1.234,5` sale bien en
+//      es-AR y `1,234.5` en en, sin repetir el mapeo por cada llamada).
+
+fn num_locale(loc: Str) -> Str {
+    if (loc == "en") {
+        return "en-US"
+    }
+    return "es-AR"
+}
+
+// Entero agrupado por miles según el locale. Es el único que usa F2 (operandos,
+// opciones, puntaje, tiempo, aciertos son todos Int).
+fn fmt_int(loc: Str, n: Int) -> Str {
+    return num.format(n, num_locale(loc))
+}
+
+// Porcentaje con `digits` decimales (para el resumen de la partida).
+fn fmt_pct(loc: Str, x: Float, digits: Int) -> Str {
+    return num.percent(x, num_locale(loc), digits)
+}

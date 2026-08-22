@@ -1,0 +1,35 @@
+// engine.fitz — motor de ronda.
+//
+// F2 es deliberadamente simple: el próximo ejercicio es el siguiente índice del
+// seed (contrarreloj lineal), y el puntaje es plano por acierto con un pequeño
+// bonus por dificultad. El motor adaptativo de verdad (Elo-lite, selección por
+// zona de desarrollo próximo, repaso espaciado) llega en F3 y crece acá sin
+// tocar el resto del juego.
+
+from gen_arith import gen_mix, Exercise
+
+fn duracion_default() -> Int => 60          // segundos por partida
+
+// El ejercicio del índice `idx` de la partida `seed`, para el grado dado.
+// Reproducible: mismo (seed, idx, grade) ⇒ mismo ejercicio.
+fn ejercicio(seed: Int, idx: Int, grade: Int) -> Exercise {
+    return gen_mix(seed, idx, grade)
+}
+
+// Puntos por respuesta. F2: 0 si falla; si acierta, base 10 + un plus por
+// dificultad (una división de 6º pesa más que una suma de 1º).
+fn puntos(acierto: Bool, difficulty: Int) -> Int {
+    if (acierto) {
+        return 10 + difficulty * 2
+    }
+    return 0
+}
+
+// Parseo tolerante de un valor del payload (Map<Str, Str>) a Int. Devuelve el
+// centinela -1 si no es un entero — nunca panica.
+fn a_int(s: Str) -> Int {
+    return match s.to_int() {
+        Ok(n) => n,
+        Err(_) => -1,
+    }
+}

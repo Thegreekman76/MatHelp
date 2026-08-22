@@ -1,0 +1,80 @@
+// quiz_view.fitz — el render del contrarreloj.
+//
+// Deriva el ejercicio actual desde (seed, idx, grade) — no lo guarda: la
+// plantilla del componente es "tonta", llama a `quiz_screen(...)` con los
+// campos de estado y esta capa arma el HTML. Todo texto pasa por `t()`; todo
+// número por `fmt_int()` (reglas del proyecto).
+//
+// Los botones de opción llevan el valor CRUDO en `data-flv-value-v` (para que
+// el server lo parsee) y el valor FORMATEADO como texto visible. El `ei`
+// (índice del ejercicio) viaja también, para descartar taps viejos server-side.
+
+from fitz_liveviews import Html, html, flv, h_join
+from gen_arith import gen_mix, op_symbol
+from i18n import t, t1
+from fmt import fmt_int
+
+// Punto de entrada: decide entre la partida en curso y el resumen final.
+fn quiz_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, last_answer: Int) -> Html {
+    if (phase == "done") {
+        return quiz_resumen(locale, score, correct, total)
+    }
+    return quiz_jugando(seed, idx, grade, locale, score, time_left, feedback, last_answer)
+}
+
+// Un botón de opción. Valor crudo en el atributo, formateado en el texto.
+fn opt_button(locale: Str, o: Int, idx: Int) -> Html {
+    let etiqueta = flv(fmt_int(locale, o))
+    return html("""<button class="q-opt" type="button" data-flv-click="answer" data-flv-value-v="{o}" data-flv-value-ei="{idx}">{etiqueta}</button>""")
+}
+
+// Banner de feedback tras responder: verde si acertó, ámbar con la respuesta
+// correcta si no. Vacío al empezar cada ejercicio nuevo.
+fn feedback_banner(locale: Str, feedback: Str, last_answer: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_int(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn quiz_jugando(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, time_left: Int, feedback: Str, last_answer: Int) -> Html {
+    let ex = gen_mix(seed, idx, grade)
+    let a = flv(fmt_int(locale, ex.a))
+    let b = flv(fmt_int(locale, ex.b))
+    let sym = flv(op_symbol(ex.op))
+    let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
+    let banner = feedback_banner(locale, feedback, last_answer)
+    let t_lbl = flv(t(locale, "juego.tiempo"))
+    let seg = flv(t(locale, "juego.unidad_seg"))
+    let tiempo = flv(fmt_int(locale, time_left))
+    let pts_lbl = flv(t(locale, "juego.puntaje"))
+    let pts = flv(fmt_int(locale, score))
+    return html("""<div class="q-hud">
+<div class="q-timer" aria-label="{t_lbl}"><span class="q-tnum">{tiempo}</span><span class="q-unit">{seg}</span></div>
+<div class="q-score">{pts_lbl}<span class="q-snum">{pts}</span></div>
+</div>
+<div class="q-prompt">{a} {sym} {b}</div>
+<div class="q-options">{opciones}</div>
+<div class="q-fbwrap">{banner}</div>""")
+}
+
+fn quiz_resumen(locale: Str, score: Int, correct: Int, total: Int) -> Html {
+    let sc = flv(fmt_int(locale, score))
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{sc}</span><span class="q-lbl">{flv(t(locale, "juego.puntaje"))}</span></div>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+<div class="q-actions">
+<a class="mh-btn" href="/jugar">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

@@ -5,7 +5,7 @@
 // handlers @get/@post al router vía import (W16).
 // El juego en sí llega en F2 (ver docs/PLAN.md).
 
-from fitz_liveviews import Html, html, flv, html_response
+from fitz_liveviews import Html, html, flv, html_response, flv_register
 from config import db_url, app_name, lang_cookie_name, default_locale
 from i18n import t, locale_from_cookie, es_locale_valido, nombre_locale
 from brand import logo_lockup
@@ -13,6 +13,12 @@ from layout import page, responder_html, redirect_a
 from auth import read_session, pid_from_token
 import perfiles
 import assets
+import live_game
+// El juego vive en live_game.fitz (@get /jugar + @ws /live/quiz). Importar los
+// símbolos del componente acá es lo que dispara el auto-registro del LiveComponent
+// (el compilador pre-escanea los imports directos del entry y emite el
+// flv_register("quiz", ...) al arrancar — §9.bb del core).
+from Quiz import quiz, quiz_render, quiz_answer, quiz_tick
 
 // --- Home ----------------------------------------------------------------
 
@@ -133,19 +139,7 @@ fn set_lang(code: Str, referer: Str?) -> Response {
 
 // --- Rutas de juego (protegidas: exigen sesión + perfil elegido) ---------
 
-@cookie(name="mathelp_session", into="session")
-@cookie(name="mathelp_lang", into="lang")
-@get("/jugar")
-async fn jugar(session: Str?, lang: Str?) -> Response {
-    let locale = locale_from_cookie(lang)
-    match guard_juego(session).await {
-        Ok(destino) => match destino == "" {
-            true => return proximamente(locale, t(locale, "nav.jugar"), "F2"),
-            false => return redirect_a(destino),
-        },
-        Err(_) => return redirect_a("/login"),
-    }
-}
+// /jugar (contrarreloj en vivo) lo sirve live_game.fitz.
 
 @cookie(name="mathelp_session", into="session")
 @cookie(name="mathelp_lang", into="lang")

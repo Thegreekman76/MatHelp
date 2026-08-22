@@ -1,0 +1,219 @@
+// live_game.fitz — el contrarreloj en vivo: la página, el socket, el reloj y la
+// persistencia.
+//
+// Arquitectura (combina dos patrones probados de liveviews):
+//   - Estado del juego en el COMPONENT STORE (como el clock): un cronómetro
+//     server-pushed necesita re-renderizar el componente por su cuenta, así que
+//     el estado vive keyed por el instance_id del socket, no en locales del loop.
+//   - Persistencia en el LOOP del `@ws` (como el Admin ABM): los `event` del
+//     `.fitzv` son mutaciones puras; la DB la escribe el loop, que lee el estado
+//     con `component_state(...)` y el contexto del payload del frame.
+//
+// Flujo:
+//   1. GET /jugar   → auth + perfil → paint SSR del primer ejercicio + live_embed.
+//   2. WS /live/quiz → auth + perfil → cid propio → INSERT de la partida →
+//      sembrar el componente → primer frame → spawn del reloj → loop.
+//   3. Cada `answer` del loop persiste un `attempt`. El reloj, al llegar a 0,
+//      cierra la partida (UPDATE de totales) y termina.
+
+from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, dispatch_to, flv_frame, component_state, flv_evict, live_embed
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session, pid_from_token
+from perfiles import perfil_de_familia
+from models import GameSession, Attempt
+from engine import duracion_default, a_int
+from gen_arith import gen_mix, op_symbol
+from Quiz import quiz
+
+// --- contexto de juego -------------------------------------------------------
+
+// Lo que el juego necesita del jugador. La partida guarda el grade como `level`
+// (el esquema no tiene columna grade): con seed + índice + grade se reconstruye
+// el ejercicio, así que el grade tiene que persistir para poder "rejugar" (F5).
+type GameCtx {
+    profile_id: Int = 0
+    grade: Int = 4
+}
+
+// Resuelve sesión → perfil. Err lleva el destino del redirect (zona protegida).
+async fn resolver_contexto(session: Str?) -> Result<GameCtx> {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return Err("/login"),
+    }
+    let pid_str = pid_from_token(session)
+    if (pid_str == "") {
+        return Err("/perfiles")
+    }
+    let pid = a_int(pid_str)
+    let perfil = match perfil_de_familia(fam.id, pid).await {
+        Ok(p) => p,
+        Err(_) => return Err("/perfiles"),
+    }
+    return Ok(GameCtx { profile_id: perfil.id, grade: perfil.grade })
+}
+
+// --- persistencia ------------------------------------------------------------
+
+// Abre la partida al conectar el socket. Devuelve el id para colgar los attempts.
+async fn crear_sesion(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let sess = GameSession.insert(conn, GameSession {
+        profile_id: profile_id,
+        mode: "quiz",
+        topic_code: "mix",
+        level: grade,          // el esquema no tiene columna grade: la guardamos acá
+        seed: seed,
+    }).await?
+    return Ok(sess.id)
+}
+
+// Persiste una respuesta apenas ocurre. Re-deriva el ejercicio desde (seed, idx,
+// grade) — determinista, así el server no confía en el cliente para el enunciado
+// ni la respuesta correcta.
+async fn persistir_respuesta(sess_id: Int, profile_id: Int, seed: Int, idx: Int, grade: Int, given: Int) -> Result<Int> {
+    let ex = gen_mix(seed, idx, grade)
+    let acierto = given == ex.answer
+    let prompt = "{ex.a} {op_symbol(ex.op)} {ex.b}"
+    let conn = db.connect(db_url()).await?
+    let row = Attempt.insert(conn, Attempt {
+        session_id: sess_id,
+        profile_id: profile_id,
+        skill_code: ex.skill_code,
+        idx: idx,
+        prompt: prompt,
+        expected: "{ex.answer}",
+        given: "{given}",
+        correct: acierto,
+        ms: 0,                 // F2 no mide el ms por respuesta (deuda menor)
+        difficulty: ex.difficulty,
+    }).await?
+    return Ok(row.id)
+}
+
+// Cierra la partida con el resumen. Se llama UNA vez, desde el reloj, al agotarse
+// el tiempo.
+async fn finalizar_sesion(sess_id: Int, total: Int, correct: Int, score: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = GameSession.where(fn(s) => s.id == sess_id).update(conn, {
+        "total": total,
+        "correct": correct,
+        "score": score,
+        "duration_ms": duracion_default() * 1000,
+    }).await?
+    return Ok(1)
+}
+
+// --- payload helpers (no exportados por la lib de liveviews) -----------------
+
+fn pget_int(p: Map<Str, Str>, k: Str, dflt: Int) -> Int {
+    let s = match p.get(k) {
+        Ok(v) => v,
+        Err(_) => "",
+    }
+    return match s.to_int() {
+        Ok(n) => n,
+        Err(_) => dflt,
+    }
+}
+
+// --- página ------------------------------------------------------------------
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/jugar")
+async fn jugar_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    // Paint SSR: instancia placeholder "ssr" (el socket abre su cid propio con
+    // un seed nuevo). Un pestañeo hasta que el socket toma el control.
+    let inicial = component_with("quiz", "ssr", quiz {
+        seed: 1,
+        grade: ctx.grade,
+        locale: locale,
+    })
+    let embed = live_embed("/live/quiz", "quiz-app", inicial)
+    let titulo = t(locale, "juego.contrarreloj") + " — MatHelp"
+    return responder_html(page(locale, titulo, embed, html("")))
+}
+
+// --- socket ------------------------------------------------------------------
+
+// Las guardas (auth, DB, primer frame) propagan con `?`: un fallo temprano
+// cierra el socket limpio (el @get /jugar ya hizo el redirect real; esto es el
+// borde raro de "la sesión venció entre cargar la página y abrir el socket").
+// El loop de eventos sale por `break` al cerrarse el socket, así el `flv_evict`
+// de limpieza es alcanzable — el codegen cierra el handler con `Ok(())` (fitz
+// v0.58, FITZ-19: un `@ws` con `?` ya no tiene que terminar en un loop divergente).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@ws("/live/quiz")
+async fn quiz_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
+    let locale = locale_from_cookie(lang)
+    let ctx = resolver_contexto(session).await?
+    let cid = Uuid.v4().to_str()
+    let seed = rand.int(1, 2000000000)
+    let sess_id = crear_sesion(ctx.profile_id, seed, ctx.grade).await?
+    // Sembrar el componente con el estado de ESTA partida y mandar el primer
+    // frame (el ejercicio idx 0 del seed).
+    let _ = component_with("quiz", cid, quiz {
+        seed: seed,
+        grade: ctx.grade,
+        locale: locale,
+        time_left: duracion_default(),
+    }).raw
+    ws.send(flv_frame("quiz", cid))?
+    // Cronómetro server-pushed: 1 tick/seg. Cierra la partida al llegar a 0.
+    spawn(timer(ws, cid, sess_id))
+    // Loop de eventos + persistencia. `next_idx` descarta taps repetidos o viejos
+    // (solo persiste el ejercicio esperado). Sale por `break` cuando el socket se
+    // cierra (recv o send fallan).
+    let next_idx = 0
+    loop {
+        let frame = match ws.recv() {
+            Ok(f) => f,
+            Err(_) => { break },
+        }
+        let ev = frame.event
+        let _ = dispatch_component_events(frame)
+        if (ev == "answer") {
+            let ei = pget_int(frame.payload, "ei", -1)
+            if (ei == next_idx) {
+                let given = pget_int(frame.payload, "v", -1)
+                let _ = persistir_respuesta(sess_id, ctx.profile_id, seed, ei, ctx.grade, given).await
+                next_idx = next_idx + 1
+            }
+        }
+        match ws.send(flv_frame("quiz", cid)) {
+            Ok(_) => 0,
+            Err(_) => { break },
+        }
+    }
+    // El socket se cerró: liberamos el estado del store (la partida ya está en la
+    // base). Reconnect-replay es F6 ("reanudar partida").
+    let _ = flv_evict("quiz", cid)
+}
+
+// Reloj de la partida. Cada segundo dispara `tick` sobre el componente y empuja
+// el re-render. `ws.send(...)?` es también la limpieza: si la pestaña se cierra,
+// el send falla y el `?` termina la task (no hay leak). Al terminar el tiempo,
+// cierra la partida con el resumen y corta.
+@background
+async fn timer(ws: WsConn<LiveFrame>, cid: Str, sess_id: Int) -> Result<Null> {
+    loop {
+        let _ = sleep(1000).await
+        let _ = dispatch_to("quiz", cid, "tick", { })
+        ws.send(flv_frame("quiz", cid))?
+        let st: quiz = component_state("quiz", cid)
+        if (st.phase == "done") {
+            let _ = finalizar_sesion(sess_id, st.total, st.correct, st.score).await
+            break
+        }
+    }
+    return Ok(null)
+}

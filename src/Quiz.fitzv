@@ -1,0 +1,80 @@
+// Quiz.fitzv — el contrarreloj, como LiveComponent SSR.
+//
+// El estado es todo primitivo y vive en el component store (keyed por el
+// instance_id del socket): el reloj lo empuja el server, así que un tick tiene
+// que poder re-renderizar el componente por su cuenta (patrón del clock de
+// liveviews). El ejercicio NO se guarda: se DERIVA de (seed, idx, grade) en cada
+// render — con eso la partida entera se reconstruye desde el seed (F5).
+//
+// Dos eventos:
+//   - answer(): el chico tocó una opción. El payload trae el valor elegido `v`
+//     y el índice del ejercicio `ei` (para descartar taps viejos). Deriva el
+//     ejercicio, corrige, actualiza puntaje y avanza al siguiente.
+//   - tick(): un segundo menos. Al llegar a cero, la partida termina.
+//
+// La PERSISTENCIA (cada respuesta a `attempts`, el resumen a `sessions`) NO
+// vive acá: la hace el loop del `@ws` en live_game.fitz, que lee el estado con
+// `component_state(...)` y el contexto del payload. Los `event` de un `.fitzv`
+// son mutaciones puras en memoria — sin `.await`, sin DB (patrón Admin ABM).
+
+from gen_arith import gen_mix
+from engine import puntos, a_int
+from quiz_view import quiz_screen
+
+component quiz {
+  state {
+    seed: Int = 0
+    idx: Int = 0
+    grade: Int = 4
+    locale: Str = "es-AR"
+    score: Int = 0
+    correct: Int = 0
+    total: Int = 0
+    time_left: Int = 60
+    phase: Str = "playing"      // "playing" | "done"
+    feedback: Str = ""          // "" | "ok" | "bad"
+    last_answer: Int = 0        // la respuesta correcta del ejercicio recién fallado
+  }
+
+  event answer() {
+    if (phase == "playing") {
+      if (payload.has("v")) {
+        if (payload.has("ei")) {
+          let ei = a_int(payload["ei"])
+          if (ei == idx) {
+            let chosen = a_int(payload["v"])
+            let ex = gen_mix(seed, idx, grade)
+            let acierto = chosen == ex.answer
+            total = total + 1
+            if (acierto) {
+              correct = correct + 1
+              score = score + puntos(true, ex.difficulty)
+              feedback = "ok"
+            }
+            if (not acierto) {
+              feedback = "bad"
+              last_answer = ex.answer
+            }
+            idx = idx + 1
+          }
+        }
+      }
+    }
+  }
+
+  event tick() {
+    if (phase == "playing") {
+      time_left = time_left - 1
+      if (time_left <= 0) {
+        time_left = 0
+        phase = "done"
+      }
+    }
+  }
+
+  <template>
+    <div id="quiz-app" class="mh-quiz">
+      {quiz_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, last_answer).raw}
+    </div>
+  </template>
+}

@@ -1,0 +1,249 @@
+// gen_arith.fitz — generadores deterministas de las cuatro operaciones.
+//
+// El corazón de F2. Cada ejercicio es reproducible desde (seed, idx): un
+// generador propio `rand.seeded(sub_seed(seed, idx))` produce SIEMPRE el mismo
+// ejercicio para el mismo par, en `fitz run` y en `fitz build`. Guardando el
+// seed de la partida + el índice de la respuesta, el panel del padre (F5) puede
+// "rejugar" exactamente lo que vio el chico — no hace falta guardar cada
+// enunciado, alcanzan dos enteros (docs/PLAN.md §1.2 ①).
+//
+// **Números crudos, formateo aparte.** El Exercise lleva los operandos y las
+// opciones como `Int`; el formateo por locale (num.format) lo hace la capa de
+// render. Por eso acá no hay una sola llamada a `num.*`.
+//
+// **El RandGen no cruza límites de función.** El módulo nativo `rand` (FITZ-01)
+// tipa `rand.seeded()` como `Any`: `RandGen` no es un tipo nombrable, así que
+// no se puede anotar un parámetro `g: RandGen` (el checker no lo conoce) ni
+// dejarlo sin anotar (el codegen no lo infiere → `fitz build` falla). Por eso
+// TODAS las tiradas (`g.int` / `g.shuffle`) viven dentro de `gen` / `gen_mix`,
+// con `g` como var local; los helpers son puros (operan sobre enteros ya
+// tirados). Ver la ficha FITZ-01 en el backlog del core (extensión de la
+// limitación "el receptor de un RandGen debe ser una var local").
+
+// Un ejercicio de opción múltiple: `a op b = answer`, con 4 opciones (la
+// correcta + 3 distractores), barajadas de forma determinista.
+type Exercise {
+    a: Int = 0
+    b: Int = 0
+    op: Str = ""              // "add" | "sub" | "mul" | "div"
+    answer: Int = 0
+    options: List<Int> = []   // 4 valores distintos, uno es `answer`
+    skill_code: Str = ""      // "add" | "sub" | "mul.tabla" | "div.exacta"
+    difficulty: Int = 1       // 1..5, para el motor adaptativo (F3)
+}
+
+// --- Semilla por ejercicio ---------------------------------------------------
+
+// Deriva un seed propio para el ejercicio `idx` de la partida `seed`. Como
+// `rand.seeded` pasa el número por SplitMix64 (buena avalancha), aun sub-seeds
+// vecinos decorrelacionan bien. 7919 es primo; con idx acotado (una partida son
+// decenas de respuestas) no hay overflow de i64.
+fn sub_seed(seed: Int, idx: Int) -> Int {
+    return seed + idx * 7919
+}
+
+// --- Rangos y metadatos por grado (puros) ------------------------------------
+
+// Operando máximo para suma/resta según el grado (1º..7º primaria).
+fn add_max(grade: Int) -> Int {
+    if (grade <= 1) {
+        return 10
+    }
+    if (grade == 2) {
+        return 20
+    }
+    if (grade == 3) {
+        return 100
+    }
+    if (grade <= 5) {
+        return 500
+    }
+    return 1000
+}
+
+// Factor máximo para multiplicación/división (tablas). Grado 3 cierra las tablas
+// hasta 10; de 4º en adelante llega a 12.
+fn mul_max(grade: Int) -> Int {
+    if (grade <= 2) {
+        return 5
+    }
+    if (grade == 3) {
+        return 10
+    }
+    return 12
+}
+
+// Dificultad 1..5 a partir de la operación + el grado. Aproximada; el motor
+// adaptativo de F3 la afina.
+fn difficulty_for(op: Str, grade: Int) -> Int {
+    let base = match op {
+        "add" => 1,
+        "sub" => 2,
+        "mul" => 3,
+        "div" => 4,
+        _ => 1,
+    }
+    let d = base + grade / 3
+    if (d < 1) {
+        return 1
+    }
+    if (d > 5) {
+        return 5
+    }
+    return d
+}
+
+// Operaciones disponibles por grado. 1º solo suma/resta; 2º suma la
+// multiplicación fácil; 3º en adelante, las cuatro.
+fn ops_for_grade(grade: Int) -> List<Str> {
+    if (grade <= 1) {
+        return ["add", "sub"]
+    }
+    if (grade == 2) {
+        return ["add", "sub", "mul"]
+    }
+    return ["add", "sub", "mul", "div"]
+}
+
+// Símbolo visible de la operación. Universal en ambos locales (÷ y × se usan
+// igual en es-AR y en); el "−" es el menos tipográfico (U+2212).
+fn op_symbol(op: Str) -> Str {
+    return match op {
+        "add" => "+",
+        "sub" => "−",
+        "mul" => "×",
+        "div" => "÷",
+        _ => "?",
+    }
+}
+
+fn imax(x: Int, y: Int) -> Int {
+    if (x >= y) {
+        return x
+    }
+    return y
+}
+
+fn imin(x: Int, y: Int) -> Int {
+    if (x >= y) {
+        return y
+    }
+    return x
+}
+
+// El skill code lleva la operación adentro; `op` es el corto para el símbolo.
+fn skill_a_op(skill: Str) -> Str {
+    return match skill {
+        "add" => "add",
+        "sub" => "sub",
+        "mul.tabla" => "mul",
+        "div.exacta" => "div",
+        _ => "add",
+    }
+}
+
+// --- Distractores (puros, sin RandGen) ---------------------------------------
+
+// Pool de candidatos a opción incorrecta. Los offsets son un conjunto fijo de
+// valores distintos: como `answer` es fijo, `answer + o` con offsets distintos
+// da valores distintos, así que el pool filtrado (>= 0, != answer) es
+// automáticamente sin repetidos. Los 5 offsets positivos garantizan >= 3
+// candidatos aun si todos los negativos se filtran (answer chico). El barajado y
+// el recorte a 3 los hace el generador (con su `g` local).
+fn candidatos(answer: Int) -> List<Int> {
+    let offsets = [1, 2, 3, 5, 10, -1, -2, -3, -5, -10]
+    let out: List<Int> = []
+    for o in offsets {
+        let v = answer + o
+        if (v >= 0 and v != answer) {
+            out.push(v)
+        }
+    }
+    return out
+}
+
+// Primeros 3 elementos de una lista (ya barajada).
+fn take3(xs: List<Int>) -> List<Int> {
+    let out: List<Int> = []
+    for x in xs {
+        if (out.len() < 3) {
+            out.push(x)
+        }
+    }
+    return out
+}
+
+// --- API pública -------------------------------------------------------------
+
+// Genera un ejercicio de una operación fija. Reproducible desde (seed, idx).
+// Todo el uso del RandGen `g` vive acá (local): operandos con `g.int`, opciones
+// con `g.shuffle` — nunca se pasa `g` a otra función.
+fn gen(op: Str, seed: Int, idx: Int, grade: Int) -> Exercise {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let a = 0
+    let b = 0
+    let answer = 0
+    let skill = "add"
+    if (op == "sub") {
+        let hi = add_max(grade)
+        let x = g.int(1, hi)
+        let y = g.int(1, hi)
+        a = imax(x, y)
+        b = imin(x, y)
+        answer = a - b
+        skill = "sub"
+    }
+    if (op == "mul") {
+        let hi = mul_max(grade)
+        a = g.int(2, hi)
+        b = g.int(2, hi)
+        answer = a * b
+        skill = "mul.tabla"
+    }
+    if (op == "div") {
+        let hi = mul_max(grade)
+        let d = g.int(2, hi)      // divisor
+        let q = g.int(2, hi)      // cociente (la respuesta)
+        a = d * q                 // dividendo
+        b = d
+        answer = q
+        skill = "div.exacta"
+    }
+    // "add" es el caso por defecto (op == "add" o cualquier valor no reconocido:
+    // el juego solo pasa las cuatro operaciones válidas).
+    if (skill == "add") {
+        let hi = add_max(grade)
+        a = g.int(1, hi)
+        b = g.int(1, hi)
+        answer = a + b
+    }
+    // Opciones: correcta + 3 distractores, barajadas con el mismo g.
+    let cands = candidatos(answer)
+    let distractors = take3(g.shuffle(cands))
+    let raw = [answer]
+    for dd in distractors {
+        raw.push(dd)
+    }
+    let options = g.shuffle(raw)
+    let opc = skill_a_op(skill)
+    return Exercise {
+        a: a,
+        b: b,
+        op: opc,
+        answer: answer,
+        options: options,
+        skill_code: skill,
+        difficulty: difficulty_for(opc, grade),
+    }
+}
+
+// Genera un ejercicio mezclando las operaciones apropiadas al grado. Elige la
+// operación con un generador propio (determinista desde el seed) y delega en
+// `gen`. (seed, idx, grade) devuelve siempre el mismo ejercicio.
+fn gen_mix(seed: Int, idx: Int, grade: Int) -> Exercise {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let ops = ops_for_grade(grade)
+    let oi = g.int(0, ops.len() - 1)
+    let op = ops[oi]
+    return gen(op, seed, idx, grade)
+}

@@ -49,3 +49,44 @@ type Profile {
     daily_goal: Int = 10          // ejercicios/día
     @db_default created_at: Str = ""
 }
+
+// --- F2: partida y respuestas -----------------------------------------------
+//
+// Una partida (`GameSession`) se abre al conectar el socket y se cierra cuando
+// se agota el reloj: guardamos el `seed`, así con seed + índice se reconstruye
+// la partida entera (el panel del padre podrá "rejugarla" en F5). Cada respuesta
+// (`Attempt`) se persiste APENAS ocurre — la memoria del componente es caché
+// descartable, la base es la fuente de verdad (docs/PLAN.md §1.2 ⑦). Columnas
+// espejadas 1:1 con migrations/0001_init.sql (sessions / attempts).
+
+@table("sessions")
+type GameSession {
+    @primary id: Int = 0
+    profile_id: Int = 0
+    mode: Str = ""                // "quiz" para el contrarreloj (CHECK en el SQL)
+    topic_code: Str = ""
+    level: Int = 1
+    seed: Int = 0                 // reconstruye la partida entera
+    @db_default started_at: Str = ""
+    ended_at: Str? = null         // nullable; F2 no lo setea (deuda menor)
+    total: Int = 0
+    correct: Int = 0
+    score: Int = 0
+    duration_ms: Int = 0
+}
+
+@table("attempts")
+type Attempt {
+    @primary id: Int = 0
+    session_id: Int = 0
+    profile_id: Int = 0
+    skill_code: Str = ""          // "add" | "sub" | "mul.tabla" | "div.exacta"
+    idx: Int = 0                  // índice dentro del seed (reproduce el ejercicio)
+    prompt: Str = ""              // texto canónico "7 × 8", para el reporte del padre
+    expected: Str = ""
+    given: Str = ""
+    correct: Bool = false
+    ms: Int = 0
+    difficulty: Int = 1
+    @db_default created_at: Str = ""
+}

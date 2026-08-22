@@ -6,9 +6,9 @@
 
 ---
 
-## 📍 Estado — actualizado 21/08/2026
+## 📍 Estado — actualizado 22/08/2026
 
-**Fase actual: F1 — Identidad. Cerrada y verificada end-to-end. F0 cerrada.**
+**Fase actual: F2 — Primer juego. Cerrada y verificada end-to-end. F0/F1 cerradas.**
 
 > **Migración a nativo (fitz v0.55 + liveviews v0.50):** los módulos-workaround de
 > F0 (`rng`, `fmt`, `cookies`) se borraron y ahora se usan `rand`/`num`/`@cookie`
@@ -29,6 +29,23 @@
 > nativo** (`fitz build` v0.56). Dos hallazgos nuevos de la clase check✓/build✗
 > (`FITZ-15`/`FITZ-16`, coerción/inferencia en `match`) anotados en el core con
 > repro y workaround aislado en la app.
+
+> **F2 — Primer juego (cerrada 22/08/2026):** el contrarreloj de las cuatro
+> operaciones, jugable de punta a punta. Generadores deterministas (`rand.seeded`
+> nativo) reproducibles desde `(seed, idx)` — una partida se reconstruye desde
+> dos enteros; `Quiz.fitzv` como LiveComponent SSR; cronómetro **server-pushed
+> por WebSocket** (`@background` + `spawn(timer(ws))` + `sleep`); persistencia de
+> cada respuesta a Postgres apenas ocurre (`@table GameSession` + `Attempt`).
+> Todo número por `num.format` (locale), todo texto por `t(locale, k)`.
+> Verificado con **tests** (19 `@test`: reproducibilidad, correctitud, división
+> exacta, distribución del PRNG sobre 6.000 tiradas) y con un **E2E completo**
+> (registro → perfil → `/jugar` → WS con reloj bajando 60→57 → responder →
+> feedback → sesión + attempt persistidos), en **paridad bit-a-bit `fitz run` ↔
+> binario nativo** contra `fitz 0.58`. Este dogfooding cerró **5 hallazgos del
+> core**: FITZ-01(a) `rand`/`num` cross-módulo en codegen (bloqueaba el binario
+> nativo del juego), FITZ-18 `getrandom` no inyectado con auth+rand global,
+> FITZ-17 (checker no cazaba bloque `{}` sin `return`), FITZ-19 (`@ws` con `?` +
+> fall-through) y FITZ-20 (tests de `tests/` importando módulos de `src/`).
 
 ### ✅ Hecho
 
@@ -52,17 +69,24 @@
 | **F1** · Alta y selección de perfiles (con PIN server-side) | `src/perfiles.fitz` | `curl` E2E (alta, elegir, PIN malo/bueno) |
 | **F1** · Rutas de juego protegidas + home según sesión | `src/main.fitz` | `curl` E2E (redirect a `/login` sin sesión) |
 | **F1** · 24 claves i18n nuevas (registro/perfiles/PIN) es-AR/en | `locales/*.json`, `src/cat_*.fitz` | `gen_i18n.py` sin faltantes + `lang=en` E2E |
+| **F2** · Generadores deterministas + − × ÷ (reproducibles desde seed+idx) | `src/gen_arith.fitz` | 14 `@test` (reproducibilidad, correctitud, división exacta, rangos, distribución) |
+| **F2** · Tests del PRNG sembrado (distribución) | `tests/rng.fitz`, `tests/generators.fitz` | `fitz test` 19/19 verde |
+| **F2** · Motor de ronda + scoring | `src/engine.fitz` | Puntos por acierto + dificultad |
+| **F2** · Render del quiz (prompt, opciones, resumen — i18n + `num.format`) | `src/quiz_view.fitz`, `src/fmt.fitz` | E2E: opciones formateadas por locale |
+| **F2** · `Quiz.fitzv` (LiveComponent: `answer` + `tick`) | `src/Quiz.fitzv`, CSS en `src/brand.fitz` | Estado en el component store |
+| **F2** · `/jugar` live + `@ws /live/quiz` + cronómetro por WS + persistencia | `src/live_game.fitz` | E2E WS (reloj 60→57, answer, sesión + attempt en Postgres) |
+| **F2** · `@table GameSession` + `Attempt` | `src/models.fitz` | Match exacto con `0001_init.sql` + writes reales |
+| **F2** · 3 claves i18n nuevas (jugar de nuevo, de, segundos) | `locales/*.json`, `src/cat_*.fitz` | 89 claves × 2 locales, sin faltantes |
 
-**F0: 33 tests en verde** contra `fitz 0.47.0`. **F1: verificado E2E con `curl`**
-(login, cookie `HttpOnly`, redirect sin sesión, PIN, logout, i18n) y **paridad
-bit-a-bit `fitz run` ↔ binario nativo** contra `fitz 0.56.0`.
+**F0: 33 tests** contra `fitz 0.47.0`. **F1: E2E `curl` + paridad `run`↔binario**
+contra `fitz 0.56.0`. **F2: 19 `@test` + E2E completo (HTTP + WS + persistencia) +
+paridad bit-a-bit `fitz run` ↔ binario nativo** contra `fitz 0.58.0`.
 
 ### 🔜 Lo que sigue
 
 | Fase | Qué falta | Bloqueado por |
 |---|---|---|
-| **F2** ← acá vamos | Generadores de las 4 operaciones, motor de ronda, `Quiz.fitzv`, cronómetro por WS, persistencia de la partida. Sumar `@table GameSession` + `Attempt` a `models.fitz` | — |
-| **F3** | `mastery` + Elo-lite, repaso espaciado, racha diaria, mate-progreso, práctica libre, desafío del día | F2 |
+| **F3** ← acá vamos | `mastery` + Elo-lite, repaso espaciado, racha diaria, mate-progreso, práctica libre, desafío del día | — |
 | **F4** | V/F, completá el hueco, teclado numérico propio, escalera de tablas, el kiosco, fracciones visuales | F2 |
 | **F5** | Panel del padre con reportes | F3 |
 | **F6** | Reanudar partida, accesibilidad, sonido opcional, instalable | F2 |

@@ -1,0 +1,257 @@
+// tests/generators.fitz — los generadores de gen_arith.fitz.
+//
+// Cubre lo que un juego de matemática no puede permitirse equivocar:
+//   - REPRODUCIBILIDAD: el mismo (seed, idx, grade) da SIEMPRE el mismo
+//     ejercicio (es lo que deja "rejugar" una partida desde dos enteros).
+//   - CORRECTITUD: answer == a op b para las cuatro operaciones; la división
+//     es exacta; la resta nunca da negativo.
+//   - OPCIONES: 4 valores, distintos, uno es la respuesta, todos >= 0.
+//   - RANGOS por grado.
+//   - DISTRIBUCIÓN: sobre muchas partidas aparecen las cuatro operaciones y los
+//     operandos varían (no degenera en el mismo ejercicio).
+//
+// Corré con:  fitz test
+
+from gen_arith import gen, gen_mix, op_symbol, ops_for_grade, add_max, mul_max, Exercise
+
+// --- helpers ----------------------------------------------------------------
+
+fn contains(xs: List<Int>, target: Int) -> Bool {
+    for x in xs {
+        if (x == target) {
+            return true
+        }
+    }
+    return false
+}
+
+fn distinct(xs: List<Int>) -> Bool {
+    let n = xs.len()
+    let i = 0
+    while (i < n) {
+        let j = i + 1
+        while (j < n) {
+            if (xs[i] == xs[j]) {
+                return false
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return true
+}
+
+// answer == a op b, según la operación. Para división chequea exactitud.
+fn respuesta_correcta(ex: Exercise) -> Bool {
+    if (ex.op == "add") {
+        return ex.answer == ex.a + ex.b
+    }
+    if (ex.op == "sub") {
+        return ex.answer == ex.a - ex.b
+    }
+    if (ex.op == "mul") {
+        return ex.answer == ex.a * ex.b
+    }
+    if (ex.op == "div") {
+        return ex.b != 0 and ex.a % ex.b == 0 and ex.answer == ex.a / ex.b
+    }
+    return false
+}
+
+// Corre un chequeo de invariantes sobre un ejercicio: correcto, 4 opciones
+// distintas, la respuesta está entre ellas, todas >= 0.
+fn ejercicio_valido(ex: Exercise) -> Bool {
+    if (not respuesta_correcta(ex)) {
+        return false
+    }
+    if (ex.options.len() != 4) {
+        return false
+    }
+    if (not distinct(ex.options)) {
+        return false
+    }
+    if (not contains(ex.options, ex.answer)) {
+        return false
+    }
+    for o in ex.options {
+        if (o < 0) {
+            return false
+        }
+    }
+    return true
+}
+
+// --- reproducibilidad --------------------------------------------------------
+
+@test fn mismo_seed_e_idx_da_el_mismo_ejercicio() {
+    let a = gen_mix(777, 0, 4)
+    let b = gen_mix(777, 0, 4)
+    assert_eq(a.a, b.a)
+    assert_eq(a.b, b.b)
+    assert_eq(a.op, b.op)
+    assert_eq(a.answer, b.answer)
+    assert_eq(a.options, b.options)   // igualdad estructural de la lista
+}
+
+@test fn idx_distinto_da_ejercicio_distinto() {
+    // No es garantía absoluta (podrían coincidir por azar), pero sobre estos
+    // dos índices concretos el generador difiere.
+    let a = gen_mix(777, 0, 4)
+    let b = gen_mix(777, 1, 4)
+    let iguales = a.a == b.a and a.b == b.b and a.op == b.op
+    assert_eq(iguales, false)
+}
+
+@test fn seed_distinto_da_ejercicio_distinto() {
+    let a = gen_mix(100, 0, 4)
+    let b = gen_mix(200, 0, 4)
+    let iguales = a.a == b.a and a.b == b.b and a.op == b.op and a.answer == b.answer
+    assert_eq(iguales, false)
+}
+
+// --- correctitud sobre un lote ----------------------------------------------
+
+@test fn ejercicios_mixtos_siempre_validos() {
+    // 300 ejercicios sobre grado 4: todos deben ser válidos.
+    let idx = 0
+    while (idx < 300) {
+        let ex = gen_mix(12345, idx, 4)
+        assert_eq(ejercicio_valido(ex), true)
+        idx = idx + 1
+    }
+}
+
+@test fn cada_operacion_es_valida() {
+    // Cada operación por separado, sobre varios seeds.
+    let ops = ["add", "sub", "mul", "div"]
+    for op in ops {
+        let idx = 0
+        while (idx < 60) {
+            let ex = gen(op, 999, idx, 5)
+            assert_eq(ex.op, op)
+            assert_eq(ejercicio_valido(ex), true)
+            idx = idx + 1
+        }
+    }
+}
+
+@test fn resta_nunca_negativa() {
+    let idx = 0
+    while (idx < 200) {
+        let ex = gen("sub", 42, idx, 4)
+        assert_eq(ex.a >= ex.b, true)
+        assert_eq(ex.answer >= 0, true)
+        idx = idx + 1
+    }
+}
+
+@test fn division_siempre_exacta() {
+    let idx = 0
+    while (idx < 200) {
+        let ex = gen("div", 7, idx, 6)
+        assert_ne(ex.b, 0)
+        assert_eq(ex.a % ex.b, 0)
+        assert_eq(ex.a / ex.b, ex.answer)
+        idx = idx + 1
+    }
+}
+
+// --- rangos por grado --------------------------------------------------------
+
+@test fn suma_respeta_el_rango_del_grado() {
+    let hi = add_max(3)          // 100
+    let idx = 0
+    while (idx < 200) {
+        let ex = gen("add", 555, idx, 3)
+        assert_eq(ex.a >= 1 and ex.a <= hi, true)
+        assert_eq(ex.b >= 1 and ex.b <= hi, true)
+        idx = idx + 1
+    }
+}
+
+@test fn multiplicacion_respeta_las_tablas_del_grado() {
+    let hi = mul_max(4)          // 12
+    let idx = 0
+    while (idx < 200) {
+        let ex = gen("mul", 321, idx, 4)
+        assert_eq(ex.a >= 2 and ex.a <= hi, true)
+        assert_eq(ex.b >= 2 and ex.b <= hi, true)
+        idx = idx + 1
+    }
+}
+
+// --- gating de operaciones por grado ----------------------------------------
+
+@test fn primer_grado_solo_suma_y_resta() {
+    assert_eq(ops_for_grade(1).len(), 2)
+    let idx = 0
+    while (idx < 100) {
+        let ex = gen_mix(88, idx, 1)
+        let es_suma_o_resta = ex.op == "add" or ex.op == "sub"
+        assert_eq(es_suma_o_resta, true)
+        idx = idx + 1
+    }
+}
+
+@test fn tercer_grado_habilita_las_cuatro() {
+    assert_eq(ops_for_grade(3).len(), 4)
+}
+
+// --- distribución ------------------------------------------------------------
+
+// Sobre 400 ejercicios mixtos de grado 4 deben aparecer las CUATRO operaciones.
+// Si el generador degenerara (siempre la misma op), esto lo cazaría.
+@test fn las_cuatro_operaciones_aparecen() {
+    let n_add = 0
+    let n_sub = 0
+    let n_mul = 0
+    let n_div = 0
+    let idx = 0
+    while (idx < 400) {
+        let ex = gen_mix(2026, idx, 4)
+        if (ex.op == "add") {
+            n_add = n_add + 1
+        }
+        if (ex.op == "sub") {
+            n_sub = n_sub + 1
+        }
+        if (ex.op == "mul") {
+            n_mul = n_mul + 1
+        }
+        if (ex.op == "div") {
+            n_div = n_div + 1
+        }
+        idx = idx + 1
+    }
+    assert_eq(n_add > 0, true)
+    assert_eq(n_sub > 0, true)
+    assert_eq(n_mul > 0, true)
+    assert_eq(n_div > 0, true)
+    // Y ninguna acapara TODO (reparto razonable de 4 ops en 400 tiradas).
+    assert_eq(n_add < 250, true)
+    assert_eq(n_div < 250, true)
+}
+
+// Los operandos varían: sobre 100 ejercicios de suma hay al menos 10 valores
+// distintos de `a` (no se queda pegado en un número).
+@test fn los_operandos_varian() {
+    let vistos: List<Int> = []
+    let idx = 0
+    while (idx < 100) {
+        let ex = gen("add", 4321, idx, 5)
+        if (not contains(vistos, ex.a)) {
+            vistos.push(ex.a)
+        }
+        idx = idx + 1
+    }
+    assert_eq(vistos.len() >= 10, true)
+}
+
+// --- símbolos ----------------------------------------------------------------
+
+@test fn simbolos_de_operacion() {
+    assert_eq(op_symbol("add"), "+")
+    assert_eq(op_symbol("sub"), "−")
+    assert_eq(op_symbol("mul"), "×")
+    assert_eq(op_symbol("div"), "÷")
+}
