@@ -117,5 +117,10 @@
   "progreso.sin_datos": "You haven't played yet. Tap “Play now” to start.",
   "award.primer_mate": "First mate",
   "award.racha7": "7-day streak",
-  "award.generico": "Achievement"
+  "award.generico": "Achievement",
+  "vf.verdadero": "True",
+  "vf.falso": "False",
+  "vf.era": "Almost. It was {0}.",
+  "kp.borrar": "Delete",
+  "kp.listo": "Done"
 }

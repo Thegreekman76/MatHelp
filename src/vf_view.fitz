@@ -1,0 +1,111 @@
+// vf_view.fitz — el render de Verdadero o Falso.
+//
+// Mismo motor que el contrarreloj (gen_for "adaptive" + snapshot de mastery),
+// pero la presentación es una AFIRMACIÓN a juzgar: "a op b = shown", con dos
+// botones gigantes (Verdadero / Falso). El ejercicio y el valor mostrado se
+// DERIVAN de (seed, idx) — no se guardan; con eso el server re-deriva la misma
+// afirmación (gen_for + vf_shown) y no confía en el cliente.
+//
+// Todo texto por t(); todo número por fmt_int (reglas del proyecto). Los botones
+// llevan el juicio como valor crudo (1 = verdadero, 0 = falso) en
+// data-flv-value-v, más el índice del ejercicio (ei) para descartar taps viejos.
+
+from fitz_liveviews import Html, html, flv
+from gen_arith import gen_for, vf_shown, op_symbol
+from i18n import t, t1
+from fmt import fmt_int
+
+// Punto de entrada. `mode` == "adaptive" (contrarreloj V/F) | "desafio" (N fijo).
+// `correct_last` es la verdad del ejercicio recién fallado (para el feedback).
+fn vf_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, correct_last: Bool, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, limit: Int) -> Html {
+    if (phase == "done") {
+        return vf_resumen(locale, score, correct, total, mode)
+    }
+    if (mode == "desafio") {
+        return vf_jugando(mode, seed, idx, grade, locale, correct, total, limit, feedback, correct_last, r_add, r_sub, r_mul, r_div, true)
+    }
+    return vf_jugando(mode, seed, idx, grade, locale, score, time_left, 0, feedback, correct_last, r_add, r_sub, r_mul, r_div, false)
+}
+
+// Pantalla de juego. `es_desafio` decide el HUD (progreso X/N vs reloj+puntaje).
+// En desafío, `hud_a` = correctas y `hud_b` = límite; en contrarreloj, `hud_a` =
+// tiempo restante y `hud_b` = puntaje.
+fn vf_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, hud_a: Int, hud_b: Int, hud_c: Int, feedback: Str, correct_last: Bool, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, es_desafio: Bool) -> Html {
+    let ex = gen_for(mode, "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
+    let shown = vf_shown(ex, seed, idx)
+    let a = flv(fmt_int(locale, ex.a))
+    let b = flv(fmt_int(locale, ex.b))
+    let sym = flv(op_symbol(ex.op))
+    let res = flv(fmt_int(locale, shown))
+    let banner = vf_feedback(locale, feedback, correct_last)
+    let hud = vf_hud(locale, es_desafio, hud_a, hud_b, hud_c)
+    let btn_v = flv(t(locale, "vf.verdadero"))
+    let btn_f = flv(t(locale, "vf.falso"))
+    return html("""{hud}
+<div class="q-prompt">{a} {sym} {b} = {res}</div>
+<div class="vf-options">
+<button class="vf-opt yes" type="button" data-flv-click="answer" data-flv-value-v="1" data-flv-value-ei="{idx}"><span aria-hidden="true">✓</span>{btn_v}</button>
+<button class="vf-opt no" type="button" data-flv-click="answer" data-flv-value-v="0" data-flv-value-ei="{idx}"><span aria-hidden="true">✕</span>{btn_f}</button>
+</div>
+<div class="q-fbwrap">{banner}</div>""")
+}
+
+// HUD del contrarreloj (reloj + puntaje) o del desafío (progreso X/N + aciertos).
+fn vf_hud(locale: Str, es_desafio: Bool, a: Int, b: Int, c: Int) -> Str {
+    if (es_desafio) {
+        let hecho = flv(fmt_int(locale, b))            // total hecho
+        let de_lbl = flv(t(locale, "juego.de"))
+        let de_total = flv(fmt_int(locale, c))         // límite
+        let vas_lbl = flv(t(locale, "juego.aciertos"))
+        let co = flv(fmt_int(locale, a))               // correctas
+        return html("""<div class="q-hud">
+<div class="q-mode">🎯 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+</div>""").raw
+    }
+    let t_lbl = flv(t(locale, "juego.tiempo"))
+    let seg = flv(t(locale, "juego.unidad_seg"))
+    let tiempo = flv(fmt_int(locale, a))               // time_left
+    let pts_lbl = flv(t(locale, "juego.puntaje"))
+    let pts = flv(fmt_int(locale, b))                  // score
+    return html("""<div class="q-hud">
+<div class="q-timer" aria-label="{t_lbl}"><span class="q-tnum">{tiempo}</span><span class="q-unit">{seg}</span></div>
+<div class="q-score">{pts_lbl}<span class="q-snum">{pts}</span></div>
+</div>""").raw
+}
+
+// Feedback: verde si acertó el juicio; ámbar con la verdad si no.
+fn vf_feedback(locale: Str, feedback: Str, correct_last: Bool) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let era = match correct_last {
+            true => t(locale, "vf.verdadero"),
+            false => t(locale, "vf.falso"),
+        }
+        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "vf.era", era))}</div>""").raw
+    }
+    return ""
+}
+
+fn vf_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str) -> Html {
+    let sc = flv(fmt_int(locale, score))
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    let de_nuevo_href = match mode == "desafio" {
+        true => "/desafio",
+        false => "/vf",
+    }
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{sc}</span><span class="q-lbl">{flv(t(locale, "juego.puntaje"))}</span></div>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+<div class="q-actions">
+<a class="mh-btn" href="{de_nuevo_href}">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

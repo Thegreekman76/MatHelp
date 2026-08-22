@@ -1,0 +1,146 @@
+// live_completa.fitz — "Completá el hueco" en vivo: página, socket y persistencia.
+//
+// Ronda fija de N ejercicios, SIN reloj (modelo del Desafío del día): el socket
+// no spawnea timer; termina cuando el componente marca phase="done" (total >=
+// limit). Reusa el motor adaptativo + la persistencia por respuesta (Attempt +
+// mastery + racha), así "Completá el hueco" alimenta el progreso igual que el
+// contrarreloj. El operando oculto es `ex.b`; el server re-deriva el ejercicio y
+// compara given == ex.b (no confía en el cliente).
+
+from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, flv_frame, component_state, flv_evict, live_embed
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from models import GameSession, Attempt
+from engine import desafio_n
+from mastery import actualizar_mastery, leer_snapshot, MasterySnapshot
+from streaks import registrar_y_premiar
+from gen_arith import gen_for, op_symbol
+from live_game import resolver_contexto, pget_int
+from Completa import completa
+
+async fn crear_sesion_completa(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let sess = GameSession.insert(conn, GameSession {
+        profile_id: profile_id,
+        mode: "fillgap",           // CHECK sessions_mode_valido (0001_init.sql)
+        topic_code: "mix",
+        level: grade,
+        seed: seed,
+    }).await?
+    return Ok(sess.id)
+}
+
+// Persiste una respuesta. Re-deriva el ejercicio con el mismo motor adaptativo y
+// corrige el operando oculto (given == ex.b).
+async fn persistir_completa(sess_id: Int, profile_id: Int, seed: Int, idx: Int, grade: Int, given: Int, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Result<Int> {
+    let ex = gen_for("adaptive", "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
+    let acierto = given == ex.b
+    let prompt = "{ex.a} {op_symbol(ex.op)} __ = {ex.answer}"
+    let conn = db.connect(db_url()).await?
+    let row = Attempt.insert(conn, Attempt {
+        session_id: sess_id,
+        profile_id: profile_id,
+        skill_code: ex.skill_code,
+        idx: idx,
+        prompt: prompt,
+        expected: "{ex.b}",
+        given: "{given}",
+        correct: acierto,
+        ms: 0,
+        difficulty: ex.difficulty,
+    }).await?
+    let _ = actualizar_mastery(profile_id, ex.skill_code, ex.difficulty, acierto, 0).await
+    return Ok(row.id)
+}
+
+async fn cerrar_completa(sess_id: Int, total: Int, correct: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = GameSession.where(fn(s) => s.id == sess_id).update(conn, {
+        "total": total,
+        "correct": correct,
+    }).await?
+    return Ok(1)
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/completa")
+async fn completa_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let inicial = component_with("completa", "ssr", completa {
+        seed: 1,
+        grade: ctx.grade,
+        locale: locale,
+        mode: "adaptive",
+        limit: desafio_n(),
+    })
+    let embed = live_embed("/live/completa", "completa-app", inicial)
+    let titulo = t(locale, "juego.completa") + " — MatHelp"
+    return responder_html(page(locale, titulo, embed, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@ws("/live/completa")
+async fn completa_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
+    let locale = locale_from_cookie(lang)
+    let ctx = resolver_contexto(session).await?
+    let cid = Uuid.v4().to_str()
+    let seed = rand.int(1, 2000000000)
+    let sess_id = crear_sesion_completa(ctx.profile_id, seed, ctx.grade).await?
+    let snap = match leer_snapshot(ctx.profile_id).await {
+        Ok(s) => s,
+        Err(_) => MasterySnapshot { },
+    }
+    let _ = component_with("completa", cid, completa {
+        seed: seed,
+        grade: ctx.grade,
+        locale: locale,
+        mode: "adaptive",
+        limit: desafio_n(),
+        r_add: snap.r_add,
+        r_sub: snap.r_sub,
+        r_mul: snap.r_mul,
+        r_div: snap.r_div,
+    }).raw
+    ws.send(flv_frame("completa", cid))?
+    // Sin reloj: la ronda termina cuando el componente marca phase="done".
+    let next_idx = 0
+    let finalizado = false
+    loop {
+        let frame = match ws.recv() {
+            Ok(f) => f,
+            Err(_) => { break },
+        }
+        let ev = frame.event
+        let _ = dispatch_component_events(frame)
+        if (ev == "answer") {
+            let ei = pget_int(frame.payload, "ei", -1)
+            let given = pget_int(frame.payload, "v", -1)
+            // Sólo persiste el ejercicio esperado con entrada no vacía (given > 0),
+            // consistente con la guarda del componente.
+            if (ei == next_idx and given > 0) {
+                let _ = persistir_completa(sess_id, ctx.profile_id, seed, ei, ctx.grade, given, snap.r_add, snap.r_sub, snap.r_mul, snap.r_div).await
+                let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
+                next_idx = next_idx + 1
+            }
+        }
+        match ws.send(flv_frame("completa", cid)) {
+            Ok(_) => 0,
+            Err(_) => { break },
+        }
+        let st: completa = component_state("completa", cid)
+        if (st.phase == "done") {
+            if (not finalizado) {
+                let _ = cerrar_completa(sess_id, st.total, st.correct).await
+                finalizado = true
+            }
+        }
+    }
+    let _ = flv_evict("completa", cid)
+}

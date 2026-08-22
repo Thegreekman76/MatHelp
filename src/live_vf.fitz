@@ -1,0 +1,180 @@
+// live_vf.fitz — Verdadero o Falso en vivo: la página, el socket, el reloj y la
+// persistencia.
+//
+// Espejo de live_game.fitz (el contrarreloj) pero para el componente
+// `verdadero_falso`: mismo motor adaptativo (gen_for "adaptive" + snapshot de
+// mastery), mismo reloj server-pushed, misma persistencia por respuesta (Attempt
+// + mastery + racha). Reusa los helpers compartidos de live_game (resolver_contexto,
+// pget_int) — así "sumar un juego" es un componente + un socket, no reescribir el
+// stack (docs/PLAN.md §6.5).
+//
+// Diferencia con el quiz: la respuesta es un juicio (1 = verdadero, 0 = falso).
+// El server re-deriva el MISMO ejercicio y valor mostrado (gen_for + vf_shown) y
+// corrige — no confía en el cliente para la afirmación ni la verdad.
+
+from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, dispatch_to, flv_frame, component_state, flv_evict, live_embed
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from models import GameSession, Attempt
+from engine import duracion_default, a_int
+from mastery import actualizar_mastery, leer_snapshot, MasterySnapshot
+from streaks import registrar_y_premiar
+from gen_arith import gen_for, vf_shown, op_symbol
+from live_game import resolver_contexto, pget_int
+from VerdaderoFalso import verdadero_falso
+
+// --- persistencia ------------------------------------------------------------
+
+// Abre la partida al conectar el socket. mode="vf" (CHECK del SQL).
+async fn crear_sesion_vf(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let sess = GameSession.insert(conn, GameSession {
+        profile_id: profile_id,
+        mode: "truefalse",         // CHECK sessions_mode_valido (0001_init.sql)
+        topic_code: "mix",
+        level: grade,
+        seed: seed,
+    }).await?
+    return Ok(sess.id)
+}
+
+// Persiste una respuesta de V/F. Re-deriva el ejercicio + valor mostrado con la
+// MISMA selección adaptativa (gen_for "adaptive" + snapshot congelado) y corrige
+// el juicio del chico. `dijo` es 1 (verdadero) / 0 (falso) tal como llegó del tap.
+async fn persistir_vf(sess_id: Int, profile_id: Int, seed: Int, idx: Int, grade: Int, dijo: Int, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Result<Int> {
+    let ex = gen_for("adaptive", "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
+    let shown = vf_shown(ex, seed, idx)
+    let es_verdad = shown == ex.answer
+    let acierto = (dijo == 1) == es_verdad
+    let prompt = "{ex.a} {op_symbol(ex.op)} {ex.b} = {shown}"
+    let dado = match dijo == 1 {
+        true => "V",
+        false => "F",
+    }
+    let esperado = match es_verdad {
+        true => "V",
+        false => "F",
+    }
+    let conn = db.connect(db_url()).await?
+    let row = Attempt.insert(conn, Attempt {
+        session_id: sess_id,
+        profile_id: profile_id,
+        skill_code: ex.skill_code,
+        idx: idx,
+        prompt: prompt,
+        expected: esperado,
+        given: dado,
+        correct: acierto,
+        ms: 0,
+        difficulty: ex.difficulty,
+    }).await?
+    // Motor adaptativo: el juicio correcto/incorrecto entrena el rating de la
+    // destreza igual que en el contrarreloj (best-effort).
+    let _ = actualizar_mastery(profile_id, ex.skill_code, ex.difficulty, acierto, 0).await
+    return Ok(row.id)
+}
+
+// Cierra la partida con el resumen (una vez, desde el reloj, al agotarse el tiempo).
+async fn finalizar_vf(sess_id: Int, total: Int, correct: Int, score: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = GameSession.where(fn(s) => s.id == sess_id).update(conn, {
+        "total": total,
+        "correct": correct,
+        "score": score,
+        "duration_ms": duracion_default() * 1000,
+    }).await?
+    return Ok(1)
+}
+
+// --- página ------------------------------------------------------------------
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/vf")
+async fn vf_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let inicial = component_with("verdadero_falso", "ssr", verdadero_falso {
+        seed: 1,
+        grade: ctx.grade,
+        locale: locale,
+        mode: "adaptive",
+    })
+    let embed = live_embed("/live/vf", "vf-app", inicial)
+    let titulo = t(locale, "juego.verdadero_falso") + " — MatHelp"
+    return responder_html(page(locale, titulo, embed, html("")))
+}
+
+// --- socket ------------------------------------------------------------------
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@ws("/live/vf")
+async fn vf_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
+    let locale = locale_from_cookie(lang)
+    let ctx = resolver_contexto(session).await?
+    let cid = Uuid.v4().to_str()
+    let seed = rand.int(1, 2000000000)
+    let sess_id = crear_sesion_vf(ctx.profile_id, seed, ctx.grade).await?
+    let snap = match leer_snapshot(ctx.profile_id).await {
+        Ok(s) => s,
+        Err(_) => MasterySnapshot { },
+    }
+    let _ = component_with("verdadero_falso", cid, verdadero_falso {
+        seed: seed,
+        grade: ctx.grade,
+        locale: locale,
+        time_left: duracion_default(),
+        mode: "adaptive",
+        r_add: snap.r_add,
+        r_sub: snap.r_sub,
+        r_mul: snap.r_mul,
+        r_div: snap.r_div,
+    }).raw
+    ws.send(flv_frame("verdadero_falso", cid))?
+    spawn(vf_timer(ws, cid, sess_id))
+    let next_idx = 0
+    loop {
+        let frame = match ws.recv() {
+            Ok(f) => f,
+            Err(_) => { break },
+        }
+        let ev = frame.event
+        let _ = dispatch_component_events(frame)
+        if (ev == "answer") {
+            let ei = pget_int(frame.payload, "ei", -1)
+            if (ei == next_idx) {
+                let dijo = pget_int(frame.payload, "v", -1)
+                let _ = persistir_vf(sess_id, ctx.profile_id, seed, ei, ctx.grade, dijo, snap.r_add, snap.r_sub, snap.r_mul, snap.r_div).await
+                let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
+                next_idx = next_idx + 1
+            }
+        }
+        match ws.send(flv_frame("verdadero_falso", cid)) {
+            Ok(_) => 0,
+            Err(_) => { break },
+        }
+    }
+    let _ = flv_evict("verdadero_falso", cid)
+}
+
+// Reloj de la partida (1 tick/seg). Al terminar el tiempo cierra la partida con
+// el resumen. El `?` sobre ws.send es también la limpieza al cerrarse la pestaña.
+@background
+async fn vf_timer(ws: WsConn<LiveFrame>, cid: Str, sess_id: Int) -> Result<Null> {
+    loop {
+        let _ = sleep(1000).await
+        let _ = dispatch_to("verdadero_falso", cid, "tick", { })
+        ws.send(flv_frame("verdadero_falso", cid))?
+        let st: verdadero_falso = component_state("verdadero_falso", cid)
+        if (st.phase == "done") {
+            let _ = finalizar_vf(sess_id, st.total, st.correct, st.score).await
+            break
+        }
+    }
+    return Ok(null)
+}

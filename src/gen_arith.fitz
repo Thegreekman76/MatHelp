@@ -373,6 +373,39 @@ fn gen_adaptive(seed: Int, idx: Int, grade: Int, r_add: Float, r_sub: Float, r_m
     return gen(op, seed, idx, eff)
 }
 
+// --- Verdadero o Falso (F4) --------------------------------------------------
+//
+// El juego V/F reusa el MISMO ejercicio adaptativo (gen_for "adaptive") pero lo
+// presenta como una afirmación a juzgar: "a op b = shown", con dos botones
+// (Verdadero / Falso). La mitad de las veces `shown` es la respuesta correcta
+// (afirmación verdadera), la otra mitad un distractor de `ex.options`
+// (afirmación falsa). Determinista desde (seed, idx) con un sub-seed propio
+// (offset primo distinto) para no correlacionar con el generador del ejercicio:
+// el server re-deriva el MISMO `shown` que vio el chico. El RandGen `g` es local
+// (FITZ-01).
+
+// Valor mostrado en la afirmación V/F. `es_verdad` (shown == ex.answer) se
+// deriva de esto en la capa que lo use — no hace falta devolver dos valores.
+fn vf_shown(ex: Exercise, seed: Int, idx: Int) -> Int {
+    let g = rand.seeded(sub_seed(seed, idx) + 104729)
+    let es_verdad = g.int(0, 1) == 1
+    if (es_verdad) {
+        return ex.answer
+    }
+    // Un distractor: cualquier opción que no sea la respuesta.
+    let distractores: List<Int> = []
+    for o in ex.options {
+        if (o != ex.answer) {
+            distractores.push(o)
+        }
+    }
+    if (distractores.len() == 0) {
+        return ex.answer + 1        // borde: sin distractores (no debería pasar)
+    }
+    let di = g.int(0, distractores.len() - 1)
+    return distractores[di]
+}
+
 // Temas de práctica disponibles según el grado: las operaciones del grado más
 // "mix" (mezcla). `ops_for_grade` devuelve un literal fresco, así que el push no
 // alias-ea la lista de nadie.

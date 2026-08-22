@@ -1,0 +1,88 @@
+// completa_view.fitz — el render de "Completá el hueco".
+//
+// Muestra "a op __ = answer" con el operando `b` OCULTO; el chico lo tipea en un
+// teclado numérico propio (números grandes, pulgar-friendly, sin teclado del SO).
+// El ejercicio se DERIVA de (seed, idx) con el motor adaptativo (gen_for) — no se
+// guarda; el server re-deriva el mismo y compara given == ex.b.
+//
+// La entrada tipeada (`entrada`, Int) se muestra en el hueco a medida que se
+// arma. El teclado manda eventos: dígito (data-flv-value-d), borrar, y enter
+// (data-flv-click="answer" con data-flv-value-v="{entrada}") — mismo shape de
+// payload que el resto de los juegos, así el server y el E2E no distinguen.
+
+from fitz_liveviews import Html, html, flv
+from gen_arith import gen_for, op_symbol
+from i18n import t, t1
+from fmt import fmt_int
+
+fn completa_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Html {
+    if (phase == "done") {
+        return completa_resumen(locale, correct, total)
+    }
+    let ex = gen_for(mode, "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
+    let a = flv(fmt_int(locale, ex.a))
+    let sym = flv(op_symbol(ex.op))
+    let ans = flv(fmt_int(locale, ex.answer))
+    // El hueco muestra lo tipeado, o "?" si está vacío (entrada == 0).
+    let hueco = match entrada > 0 {
+        true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = completa_feedback(locale, feedback, last_answer)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let teclado = keypad_html(locale, entrada, idx)
+    return html("""<div class="q-hud">
+<div class="q-mode">🔢 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+</div>
+<div class="q-prompt cg-eq">{a} {sym} {hueco} = {ans}</div>
+<div class="q-fbwrap">{banner}</div>
+{teclado}""")
+}
+
+// El teclado numérico: 1..9, después borrar / 0 / enter. Cada dígito manda su
+// valor en data-flv-value-d; enter manda la entrada actual como data-flv-value-v.
+fn keypad_html(locale: Str, entrada: Int, idx: Int) -> Str {
+    let filas = ""
+    for d in ["1", "2", "3", "4", "5", "6", "7", "8", "9"] {
+        filas = filas + html("""<button class="kp-key" type="button" data-flv-click="digito" data-flv-value-d="{d}">{flv(d)}</button>""").raw
+    }
+    let borrar = flv(t(locale, "kp.borrar"))
+    let listo = flv(t(locale, "kp.listo"))
+    return html("""<div class="kp">
+{filas}
+<button class="kp-key aux" type="button" data-flv-click="borrar" aria-label="{borrar}">⌫</button>
+<button class="kp-key" type="button" data-flv-click="digito" data-flv-value-d="0">0</button>
+<button class="kp-key ok" type="button" data-flv-click="answer" data-flv-value-v="{entrada}" data-flv-value-ei="{idx}">{listo}</button>
+</div>""").raw
+}
+
+fn completa_feedback(locale: Str, feedback: Str, last_answer: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_int(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn completa_resumen(locale: Str, correct: Int, total: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+<div class="q-actions">
+<a class="mh-btn" href="/completa">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

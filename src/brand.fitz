@@ -273,6 +273,38 @@ main \{ flex:1; width:100%; max-width:560px; margin:0 auto; padding:16px 16px 0;
 .mh-juego.lock, .mh-juego.soon \{ opacity:.55; cursor:default; \}
 .mh-juego.lock:active, .mh-juego.soon:active \{ transform:none; \}
 
+/* --- Verdadero o Falso (F4): dos botones gigantes --- */
+.vf-options \{ display:grid; grid-template-columns:1fr 1fr; gap:12px; \}
+.vf-opt \{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+  min-height:104px; font-size:1.5rem; font-weight:900;
+  border:2px solid var(--mh-borde); border-radius:var(--mh-radio);
+  color:var(--mh-tinta); cursor:pointer;
+  transition:transform .06s ease, border-color .06s ease;
+\}
+.vf-opt span \{ font-size:2.2rem; line-height:1; \}
+.vf-opt:active \{ transform:scale(.96); \}
+.vf-opt.yes \{ background:var(--mh-verde-suave); border-color:var(--mh-verde); color:var(--mh-verde); \}
+.vf-opt.no \{ background:rgba(232,85,47,.12); border-color:var(--mh-naranja); color:var(--mh-naranja); \}
+
+/* --- Completá el hueco (F4): teclado numérico propio --- */
+.cg-eq \{ display:flex; align-items:center; justify-content:center; gap:.25em; flex-wrap:wrap; \}
+.cg-slot \{
+  display:inline-flex; align-items:center; justify-content:center; min-width:1.6em;
+  padding:0 .15em; border-bottom:4px solid var(--mh-borde); color:var(--mh-suave);
+\}
+.cg-slot.filled \{ color:var(--mh-verde); border-bottom-color:var(--mh-verde); \}
+.kp \{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; \}
+.kp-key \{
+  min-height:64px; font-size:1.5rem; font-weight:900; font-variant-numeric:tabular-nums;
+  background:var(--mh-panel); border:2px solid var(--mh-borde);
+  border-radius:var(--mh-radio); color:var(--mh-tinta); cursor:pointer;
+  transition:transform .06s ease, border-color .06s ease;
+\}
+.kp-key:active \{ transform:scale(.95); border-color:var(--mh-verde); \}
+.kp-key.aux \{ color:var(--mh-naranja); \}
+.kp-key.ok \{ background:var(--mh-verde); color:#fff; border-color:var(--mh-verde); font-size:1.1rem; \}
+
 @media (min-width:560px) \{ .mh-quiz \{ max-width:520px; margin:0 auto; \} \}
 
 @media (prefers-reduced-motion:reduce) \{ * \{ transition:none !important; \} \}

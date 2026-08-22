@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     score       INT         NOT NULL DEFAULT 0,
     duration_ms INT         NOT NULL DEFAULT 0,
     CONSTRAINT sessions_mode_valido CHECK (
-        mode IN ('quiz','truefalse','fillgap','numpad','story','kiosco','fracciones','practica','desafio')
+        mode IN ('quiz','truefalse','fillgap','numpad','story','escalera','kiosco','fracciones','practica','desafio')
     )
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_profile ON sessions(profile_id, started_at DESC);

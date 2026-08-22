@@ -66,6 +66,8 @@ fn cat_en(key: Str) -> Str {
         "juegos.proximamente" => "Coming soon",
         "juegos.se_abre" => "Unlocks in \{0\}",
         "juegos.titulo" => "Choose a game",
+        "kp.borrar" => "Delete",
+        "kp.listo" => "Done",
         "login.crear_cuenta" => "Create an account",
         "login.email" => "Email",
         "login.error" => "Wrong email or password.",
@@ -124,6 +126,9 @@ fn cat_en(key: Str) -> Str {
         "tema.porcentaje" => "Percentage",
         "tema.resta" => "Subtraction",
         "tema.suma" => "Addition",
+        "vf.era" => "Almost. It was \{0\}.",
+        "vf.falso" => "False",
+        "vf.verdadero" => "True",
         _ => key,
     }
 }

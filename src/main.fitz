@@ -14,13 +14,17 @@ from auth import read_session, pid_from_token
 import perfiles
 import assets
 import live_game
+import live_vf
+import live_completa
 import menu
 import progreso
-// El juego vive en live_game.fitz (@get /jugar + @ws /live/quiz). Importar los
-// símbolos del componente acá es lo que dispara el auto-registro del LiveComponent
-// (el compilador pre-escanea los imports directos del entry y emite el
-// flv_register("quiz", ...) al arrancar — §9.bb del core).
+// Los juegos viven en sus live_*.fitz (@get + @ws). Importar los símbolos de cada
+// componente acá es lo que dispara el auto-registro del LiveComponent (el
+// compilador pre-escanea los imports directos del entry y emite el
+// flv_register("quiz"/"verdadero_falso", ...) al arrancar — §9.bb del core).
 from Quiz import quiz, quiz_render, quiz_answer, quiz_tick
+from VerdaderoFalso import verdadero_falso, verdadero_falso_render, verdadero_falso_answer, verdadero_falso_tick
+from Completa import completa, completa_render, completa_answer, completa_digito, completa_borrar
 
 // --- Home ----------------------------------------------------------------
 

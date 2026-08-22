@@ -1,0 +1,28 @@
+// keypad.fitz — lógica pura del teclado numérico propio (F4).
+//
+// Los juegos con entrada tipeada (Completá el hueco, El kiosco) muestran un
+// teclado en pantalla y acumulan lo tipeado como un ENTERO en el estado del
+// componente — no como Str: así "borrar" es una división por 10 y no hace falta
+// manipular substrings (Fitz no tiene slicing de strings). Un 0 a la izquierda
+// se descarta solo (0*10 + 5 = 5). Las respuestas de estos juegos son siempre
+// >= 1, así que entrada == 0 representa "vacío" (nada tipeado).
+//
+// Puro y testeable (tests/keypad.fitz): el componente sólo llama a estas dos.
+
+// Agrega un dígito (0..9) al número tipeado. Respeta un máximo: si pasarse, no
+// agrega (evita desbordes y números absurdos). max = mayor valor aceptable.
+fn kp_append(entrada: Int, d: Int, max: Int) -> Int {
+    if (d < 0 or d > 9) {
+        return entrada            // sólo dígitos
+    }
+    let nuevo = entrada * 10 + d
+    if (nuevo > max) {
+        return entrada            // no pasar del máximo
+    }
+    return nuevo
+}
+
+// Borra el último dígito (división entera por 10). Vacío (0) queda en 0.
+fn kp_borrar(entrada: Int) -> Int {
+    return entrada / 10
+}

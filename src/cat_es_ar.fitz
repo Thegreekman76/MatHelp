@@ -66,6 +66,8 @@ fn cat_es_ar(key: Str) -> Str {
         "juegos.proximamente" => "Próximamente",
         "juegos.se_abre" => "Se abre en \{0\}",
         "juegos.titulo" => "Elegí un juego",
+        "kp.borrar" => "Borrar",
+        "kp.listo" => "Listo",
         "login.crear_cuenta" => "Crear una cuenta",
         "login.email" => "Correo electrónico",
         "login.error" => "Correo o contraseña incorrectos.",
@@ -124,6 +126,9 @@ fn cat_es_ar(key: Str) -> Str {
         "tema.porcentaje" => "Porcentaje",
         "tema.resta" => "Resta",
         "tema.suma" => "Suma",
+        "vf.era" => "Casi. Era \{0\}.",
+        "vf.falso" => "Falso",
+        "vf.verdadero" => "Verdadero",
         _ => key,
     }
 }

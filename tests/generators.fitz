@@ -12,7 +12,7 @@
 //
 // Corré con:  fitz test
 
-from gen_arith import gen, gen_mix, gen_for, gen_adaptive, grado_efectivo, op_mas_floja, grade_for_band, temas_practica, tema_valido, op_symbol, ops_for_grade, add_max, mul_max, Exercise
+from gen_arith import gen, gen_mix, gen_for, gen_adaptive, grado_efectivo, op_mas_floja, grade_for_band, temas_practica, tema_valido, op_symbol, ops_for_grade, add_max, mul_max, vf_shown, Exercise
 
 // --- helpers ----------------------------------------------------------------
 
@@ -416,6 +416,56 @@ fn contains_str(xs: List<Str>, target: Str) -> Bool {
         idx = idx + 1
     }
     assert_eq(max_alto > max_bajo, true)
+}
+
+// --- Verdadero o Falso (F4) --------------------------------------------------
+
+// El valor mostrado es reproducible: mismo (ex, seed, idx) ⇒ mismo shown (lo que
+// deja al server re-derivar exactamente la afirmación que vio el chico).
+@test fn vf_shown_es_reproducible() {
+    let idx = 0
+    while (idx < 100) {
+        let ex = gen_adaptive(4747, idx, 4, 800.0, 800.0, 800.0, 800.0)
+        let s1 = vf_shown(ex, 4747, idx)
+        let s2 = vf_shown(ex, 4747, idx)
+        assert_eq(s1, s2)
+        idx = idx + 1
+    }
+}
+
+// El valor mostrado es SIEMPRE la respuesta o uno de sus distractores (nunca un
+// número inventado fuera del conjunto de opciones del ejercicio).
+@test fn vf_shown_es_answer_o_opcion() {
+    let idx = 0
+    while (idx < 200) {
+        let ex = gen_adaptive(313, idx, 5, 900.0, 800.0, 1000.0, 700.0)
+        let shown = vf_shown(ex, 313, idx)
+        assert_eq(contains(ex.options, shown), true)
+        idx = idx + 1
+    }
+}
+
+// Sobre un lote aparecen AMBAS: afirmaciones verdaderas (shown == answer) y
+// falsas (shown != answer). Si degenerara a "siempre verdad" o "siempre falso"
+// el juego sería trivial — esto lo caza.
+@test fn vf_mezcla_verdaderas_y_falsas() {
+    let verdaderas = 0
+    let falsas = 0
+    let idx = 0
+    while (idx < 300) {
+        let ex = gen_adaptive(2026, idx, 4, 800.0, 800.0, 800.0, 800.0)
+        let shown = vf_shown(ex, 2026, idx)
+        if (shown == ex.answer) {
+            verdaderas = verdaderas + 1
+        }
+        if (shown != ex.answer) {
+            falsas = falsas + 1
+        }
+        idx = idx + 1
+    }
+    // Reparto razonable de un 50/50 sobre 300 tiradas (ni degenera ni se sesga).
+    assert_eq(verdaderas > 80, true)
+    assert_eq(falsas > 80, true)
 }
 
 // --- símbolos ----------------------------------------------------------------
