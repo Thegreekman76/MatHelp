@@ -98,5 +98,13 @@ async fn actualizar_mastery(profile_id: Int, skill_code: Str, difficulty: Int, a
     // arma con NOW() + N días (N es Int → CAST a text para el `||`).
     let up = "INSERT INTO mastery (profile_id, skill_code, rating, seen, hits, streak, avg_ms, last_seen_at, due_at) VALUES ($1, $2, $3, 1, $4, $5, $6, NOW(), NOW() + (CAST($7 AS text) || ' days')::interval) ON CONFLICT (profile_id, skill_code) DO UPDATE SET rating = $3, seen = mastery.seen + 1, hits = mastery.hits + $4, streak = $5, avg_ms = $6, last_seen_at = NOW(), due_at = NOW() + (CAST($7 AS text) || ' days')::interval"
     let _ = conn.exec(up, [profile_id, skill_code, new_rating, hit, new_streak, new_avg, dias]).await?
+
+    // F5 — foto diaria del rating para la "evolución" del panel del padre. Una
+    // fila por (perfil, destreza, día); el ON CONFLICT pisa el rating con el
+    // último del día, así al cerrar la jornada queda el rating final. Params
+    // literales inline (regla del proyecto: heterogéneos en variable rompen
+    // `fitz build`).
+    let snap = "INSERT INTO mastery_snapshots (profile_id, skill_code, day, rating) VALUES ($1, $2, CURRENT_DATE, $3) ON CONFLICT (profile_id, skill_code, day) DO UPDATE SET rating = $3"
+    let _ = conn.exec(snap, [profile_id, skill_code, new_rating]).await?
     return Ok(new_rating)
 }

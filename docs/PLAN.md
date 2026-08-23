@@ -8,8 +8,24 @@
 
 ## 📍 Estado — actualizado 22/08/2026
 
-**Fase actual: F4 — Más juegos. CERRADA ENTERA (cinco juegos nuevos).
-F0/F1/F2/F3 cerradas. Próximo: F5 (panel del padre).**
+**Fase actual: F5 — Panel del padre. CERRADA ENTERA (reportes por hijo +
+metas configurables). F0/F1/F2/F3/F4 cerradas. Próximo: F6.**
+
+> **F5 (2026-08-23)** — `src/parent.fitz`: `@get /panel` (family-level,
+> selector de hijo por `/panel/{pid}`, validando `family_id`) con stat_cards
+> (ejercicios / racha / medallas / minutos), aciertos + progreso por tema
+> (`progress_bar` por destreza, % = `progreso_pct`), errores frecuentes
+> (`bar_chart` de prompts fallados + lista con correcta/respondió), tiempo por
+> día (`bar_chart`), evolución del rating (`bar_chart`, AVG diario) y meta
+> diaria editable (`@post /panel/meta` → `profiles.daily_goal`, clamp 1..200 +
+> defensa cross-familia). Componentes `stat_card`/`bar_chart`/`progress_bar` de
+> `fitz_liveviews.ui.*`. Histórico de rating: tabla nueva `mastery_snapshots`
+> (`migrations/0002_f5_mastery_snapshots.sql`) + upsert diario en
+> `actualizar_mastery`. i18n es-AR/en (26 claves `panel.*`). Verificado:
+> `fitz check` + `fitz test` 67/0 + `fitz run` (todas las secciones con datos)
+> + `fitz build` nativo + **paridad `fitz run` ↔ binario** (HTML idéntico
+> módulo line-endings del layout). Reportes por SQL crudo (consistente con
+> mastery/progreso; el ORM de relaciones queda para cuando se pida).
 
 > **Migración a nativo (fitz v0.55 + liveviews v0.50):** los módulos-workaround de
 > F0 (`rng`, `fmt`, `cookies`) se borraron y ahora se usan `rand`/`num`/`@cookie`
@@ -196,7 +212,7 @@ mecánicas validadas end-to-end** contra `fitz 0.58.0`.
 | **F3-nav** ✅ | menú §6.5 + elegir juego (grilla por grado) + práctica libre (tema+dificultad) | — |
 | **F3-motor** ✅ | `mastery` + Elo-lite, selección 70/20/10, repaso espaciado, racha diaria, medallas, desafío del día, mate-progreso | — |
 | **F4** ✅ | V/F, completá el hueco (teclado propio), escalera de tablas, el kiosco, fracciones a la vista | — |
-| **F5** ← acá vamos | Panel del padre con reportes | F3 |
+| **F5** ✅ | Panel del padre: reportes por hijo (progreso, errores, tiempo, evolución) + metas configurables | F3 |
 | **F6** | Reanudar partida, accesibilidad, sonido opcional, instalable | F2 |
 | **F7** | Secundaria (13–17) | F4 |
 
@@ -775,7 +791,7 @@ mathelp/
 | **F2 — Primer juego** | `rng.fitz` + generadores de las 4 operaciones + `Quiz.fitzv` contrarreloj + cronómetro por WS + persistencia de sesión | **Tu hija juega.** Tests del PRNG (distribución) y de los generadores |
 | **F3 — Que aprenda** ✅ | navegación (menú §6.5 + elegir juego + práctica) + motor adaptativo (`mastery` Elo-lite, selección 70/20/10, repaso espaciado, racha diaria, medallas, desafío del día, mate-progreso) | Simulación §11 (rating converge ±80, dificultad sigue) ✅ + E2E completo + paridad bit-a-bit `run`↔binario ✅ |
 | **F4 — Más juegos** ✅ | V/F, completá el hueco (teclado propio), escalera de tablas, el kiosco, fracciones a la vista | 5 modos jugables en celu + paridad `run`↔binario ✅ |
-| **F5 — Panel del padre** | Reportes por hijo: progreso por tema, errores frecuentes, tiempo, evolución; metas configurables | Gráficos con `bar_chart` / `progress_bar` / `stat_card` |
+| **F5 — Panel del padre** ✅ | Reportes por hijo: progreso por tema, errores frecuentes, tiempo, evolución; metas configurables | Gráficos con `bar_chart` / `progress_bar` / `stat_card` — `src/parent.fitz` |
 | **F6 — Pulido** | Dark mode, accesibilidad (contraste, `lang`, foco visible), reanudar partida, sonido opcional, instalable en el celu | Lighthouse mobile + prueba real en un Android |
 | **F7 — Secundaria** | Currículum 13–17: enteros, ecuaciones, funciones, geometría analítica, trigonometría | Nuevos generadores, cero cambios de arquitectura |
 

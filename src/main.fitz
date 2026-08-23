@@ -21,6 +21,7 @@ import live_kiosco
 import live_fracciones
 import menu
 import progreso
+import parent
 // Los juegos viven en sus live_*.fitz (@get + @ws). Importar los símbolos de cada
 // componente acá es lo que dispara el auto-registro del LiveComponent (el
 // compilador pre-escanea los imports directos del entry y emite el
@@ -31,6 +32,12 @@ from Completa import completa, completa_render, completa_answer, completa_digito
 from Escalera import escalera, escalera_render, escalera_answer
 from Kiosco import kiosco, kiosco_render, kiosco_answer, kiosco_digito, kiosco_borrar
 from Fracciones import fracciones, fracciones_render, fracciones_answer
+// F5 — componentes presentacionales del panel del padre. Se importan en el
+// entry (además de en parent.fitz) para el auto-registro + la resolución de la
+// firma cross-módulo a Html (igual que el dashboard del admin de liveviews).
+from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
+from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
+from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
 
 // --- Home ----------------------------------------------------------------
 
@@ -103,6 +110,7 @@ fn home_jugar(locale: Str) -> Response {
 </div>
 
 <div class="mh-card">
+<a class="mh-btn sec" href="/panel"><span aria-hidden="true">📊</span>{flv(t(locale, "nav.panel"))}</a>
 <a class="mh-btn sec" href="/perfiles">{flv(t(locale, "perfiles.titulo"))}</a>
 <form method="POST" action="/logout">
 <button class="mh-btn sec" type="submit">{flv(t(locale, "nav.salir"))}</button>

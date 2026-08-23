@@ -1,0 +1,390 @@
+// parent.fitz — Panel del padre (F5).
+//
+// Zona family-level: a diferencia de /progreso (que es del HIJO activo), el
+// panel lo mira el adulto y es por-hijo. La primera línea resuelve la sesión
+// con read_session() → fam.id; el hijo se elige por path (/panel/{pid}),
+// validando SIEMPRE que el perfil sea de ESTA familia (perfil_de_familia).
+// /panel sin pid redirige al primer hijo (o estado vacío si no hay perfiles).
+//
+// Reportes (todos por SQL crudo, consistente con mastery/progreso — el ORM se
+// reserva para navigation; acá alcanza con lecturas agregadas):
+//   - stat_cards: ejercicios, racha, medallas, tiempo jugado
+//   - aciertos global (progress_bar)
+//   - progreso por tema (progress_bar por destreza, % = progreso_pct(rating))
+//   - errores frecuentes (bar_chart de prompts fallados + lista con detalle)
+//   - tiempo por día (bar_chart, minutos)
+//   - evolución del rating (bar_chart, AVG diario de mastery_snapshots)
+//   - meta diaria configurable (@post /panel/meta → profiles.daily_goal)
+//
+// Reglas del proyecto respetadas: params de conn.query/exec literales inline,
+// listas vacías anotadas (`let bars: List<Bar> = []`), todo texto por t(),
+// todo número por fmt_int, componentes de la lib renderizados inline con .raw.
+
+from fitz_liveviews import Html, html, flv, h_join
+from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
+from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
+from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
+from fitz_liveviews.ui.chart_helpers import Bar, bar_scale, pct_of
+from config import db_url
+from i18n import t, t1, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from fmt import fmt_int
+from engine import progreso_pct
+from streaks import racha_actual
+from auth import read_session
+from perfiles import perfiles_de, perfil_de_familia
+from models import Profile
+
+// --- etiquetas ---------------------------------------------------------------
+
+// skill_code → clave i18n del nombre (reusa las de "tema.*").
+fn skill_label_key(sc: Str) -> Str {
+    return match sc {
+        "add" => "tema.suma",
+        "sub" => "tema.resta",
+        "mul.tabla" => "tema.multiplicacion",
+        "div.exacta" => "tema.division",
+        _ => "tema.mezcla",
+    }
+}
+
+fn skill_icon(sc: Str) -> Str {
+    return match sc {
+        "add" => "➕",
+        "sub" => "➖",
+        "mul.tabla" => "✖️",
+        "div.exacta" => "➗",
+        _ => "🎲",
+    }
+}
+
+// Acento del progress_bar por destreza (paleta de la lib).
+fn skill_accent(sc: Str) -> Str {
+    return match sc {
+        "add" => "blue",
+        "sub" => "green",
+        "mul.tabla" => "violet",
+        "div.exacta" => "amber",
+        _ => "primary",
+    }
+}
+
+// --- selector de hijo --------------------------------------------------------
+
+// Barra de pestañas: un link por hijo de la familia; el activo resaltado.
+fn selector_hijos(locale: Str, perfiles: List<Profile>, active_pid: Int) -> Html {
+    let tabs = h_join(perfiles.map(fn(p) => tab_hijo(p, active_pid)))
+    return html("""<div class="mh-card">
+<div style="font-size:.85rem;color:var(--mh-suave);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.05em">{flv(t(locale, "panel.hijo"))}</div>
+<div style="display:flex;gap:.5rem;flex-wrap:wrap">
+{tabs}
+</div>
+</div>""")
+}
+
+fn tab_hijo(p: Profile, active_pid: Int) -> Html {
+    let nombre = flv(p.name)
+    let pid = "{p.id}"
+    let activo = match p.id == active_pid {
+        true => "background:var(--mh-acento,#0E7A63);color:#fff;border-color:var(--mh-acento,#0E7A63)",
+        false => "background:var(--mh-fondo,#fff);color:var(--mh-texto,#0f172a)",
+    }
+    return html("""<a href="/panel/{pid}" style="text-decoration:none;padding:.5rem .9rem;border-radius:99px;border:1px solid var(--mh-borde,#e2e8f0);font-weight:700;{activo}">🧉 {nombre}</a>""")
+}
+
+// --- render de secciones -----------------------------------------------------
+
+// Fila de 4 tarjetas headline (ejercicios, racha, medallas, tiempo).
+fn fila_stats(locale: Str, ejercicios: Int, racha: Int, medallas: Int, minutos: Int) -> Html {
+    let c1 = stat_card_render(stat_card { label: t(locale, "panel.stat.ejercicios"), value: ejercicios, hint: t(locale, "panel.stat.ejercicios_hint"), accent: "blue" }).raw
+    let c2 = stat_card_render(stat_card { label: t(locale, "panel.stat.racha"), value: racha, hint: t(locale, "panel.stat.racha_hint"), accent: "green" }).raw
+    let c3 = stat_card_render(stat_card { label: t(locale, "panel.stat.medallas"), value: medallas, hint: t(locale, "panel.stat.medallas_hint"), accent: "violet" }).raw
+    let c4 = stat_card_render(stat_card { label: t(locale, "panel.stat.tiempo"), value: minutos, hint: t(locale, "panel.stat.tiempo_hint"), accent: "amber" }).raw
+    return html("""<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:1rem">
+{c1}{c2}{c3}{c4}
+</div>""")
+}
+
+// Aciertos global como progress_bar (correctas / total).
+fn barra_aciertos(locale: Str, correct: Int, total: Int) -> Html {
+    let pb = progress_bar_render(progress_bar { label: t(locale, "panel.aciertos"), value: correct, max: total, pct: pct_of(correct, total), accent: "green" }).raw
+    return html("""{pb}""")
+}
+
+// Una barra de dominio por destreza (% = progreso_pct(rating)).
+fn barra_tema(locale: Str, sc: Str, rating: Float) -> Html {
+    let pct = progreso_pct(rating)
+    let etiqueta = skill_icon(sc) + " " + t(locale, skill_label_key(sc))
+    let pb = progress_bar_render(progress_bar { label: etiqueta, value: pct, max: 100, pct: pct, accent: skill_accent(sc) }).raw
+    return html("""{pb}""")
+}
+
+// Una fila de la lista de errores: prompt, la correcta y lo que respondió.
+fn fila_error(locale: Str, prompt: Str, expected: Str, given: Str, veces: Int) -> Html {
+    let p = flv(prompt)
+    let exp = flv(expected)
+    let giv = flv(given)
+    let n = flv(fmt_int(locale, veces))
+    let lbl_corr = flv(t(locale, "panel.errores_correcta"))
+    let lbl_resp = flv(t(locale, "panel.errores_respondio"))
+    return html("""<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem .2rem;border-bottom:1px solid var(--mh-borde,#e2e8f0)">
+<div>
+<div style="font-weight:800;font-size:1.05rem">{p}</div>
+<div style="font-size:.85rem;color:var(--mh-suave)">{lbl_corr}: <b style="color:var(--mh-acento,#0E7A63)">{exp}</b> · {lbl_resp}: <span style="color:#dc2626">{giv}</span></div>
+</div>
+<div style="font-size:.9rem;color:var(--mh-suave);white-space:nowrap">✗ {n}</div>
+</div>""")
+}
+
+// Form de la meta diaria (edita profiles.daily_goal del hijo activo). El valor
+// actual precargado en el input es la confirmación tras guardar (POST-redirect).
+fn form_meta(locale: Str, pid: Int, actual: Int) -> Html {
+    let pid_s = "{pid}"
+    let val = flv(fmt_int(locale, actual))
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "panel.meta_titulo"))}</h2>
+<form method="POST" action="/panel/meta" style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap">
+<input type="hidden" name="pid" value="{pid_s}" />
+<div class="mh-field" style="margin:0">
+<label class="mh-label" for="meta">{flv(t(locale, "panel.meta_hint"))}</label>
+<input class="mh-input" id="meta" name="meta" type="number" inputmode="numeric" min="1" max="200" value="{val}" style="max-width:120px" required />
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "panel.meta_guardar"))}</button>
+</form>
+</div>""")
+}
+
+// --- lectura + composición ---------------------------------------------------
+
+// Arma el panel de UN hijo. Todas las lecturas sobre una sola conexión.
+async fn render_panel(fam_id: Int, pid: Int, locale: Str, perfiles: List<Profile>) -> Result<Html> {
+    let perfil = perfil_de_familia(fam_id, pid).await?
+    let conn = db.connect(db_url()).await?
+
+    // Headline: ejercicios, aciertos, tiempo, medallas.
+    let tot_rows = conn.query("SELECT COUNT(*)::int AS n, COALESCE(SUM(CASE WHEN correct THEN 1 ELSE 0 END),0)::int AS ok FROM attempts WHERE profile_id = $1", [pid]).await?
+    let ejercicios = 0
+    let aciertos = 0
+    if (tot_rows.len() > 0) {
+        ejercicios = tot_rows[0].get_int("n")?
+        aciertos = tot_rows[0].get_int("ok")?
+    }
+    let medallas_rows = conn.query("SELECT COUNT(*)::int AS n FROM awards WHERE profile_id = $1", [pid]).await?
+    let medallas = match medallas_rows.len() > 0 {
+        true => medallas_rows[0].get_int("n")?,
+        false => 0,
+    }
+    let tiempo_rows = conn.query("SELECT COALESCE(ROUND(SUM(duration_ms) / 60000.0), 0)::int AS mins FROM sessions WHERE profile_id = $1", [pid]).await?
+    let minutos = match tiempo_rows.len() > 0 {
+        true => tiempo_rows[0].get_int("mins")?,
+        false => 0,
+    }
+    let racha = racha_actual(pid).await?
+
+    // Sin ningún ejercicio jugado → estado vacío amable (pero mantené el
+    // selector y la meta, que sirven aunque no haya datos todavía).
+    if (ejercicios == 0) {
+        let vacio = html("""<div class="mh-card" style="text-align:center">
+<div style="font-size:2.6rem;line-height:1">🌱</div>
+<p style="color:var(--mh-suave);margin:.4rem 0 0">{flv(t1(locale, "panel.sin_datos", perfil.name))}</p>
+</div>
+{form_meta(locale, pid, perfil.daily_goal).raw}""")
+        return Ok(vacio)
+    }
+
+    let stats_html = fila_stats(locale, ejercicios, racha, medallas, minutos).raw
+    let aciertos_html = barra_aciertos(locale, aciertos, ejercicios).raw
+
+    // Progreso por tema (mastery).
+    let mrows = conn.query("SELECT skill_code, rating FROM mastery WHERE profile_id = $1 ORDER BY skill_code", [pid]).await?
+    let temas: List<Html> = []
+    for r in mrows {
+        temas.push(barra_tema(locale, r.get_str("skill_code")?, r.get_float("rating")?))
+    }
+    let temas_html = match temas.len() > 0 {
+        true => h_join(temas),
+        false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "panel.sin_temas"))}</p>""").raw,
+    }
+
+    // Errores frecuentes: bar_chart (por prompt) + lista (con detalle).
+    let ebars_rows = conn.query("SELECT prompt AS label, COUNT(*)::int AS n FROM attempts WHERE profile_id = $1 AND correct = false GROUP BY prompt ORDER BY n DESC LIMIT 8", [pid]).await?
+    let err_bars: List<Bar> = []
+    for r in ebars_rows {
+        err_bars.push(Bar { label: r.get_str("label")?, value: r.get_int("n")? })
+    }
+    let elist_rows = conn.query("SELECT prompt, expected, given, COUNT(*)::int AS n FROM attempts WHERE profile_id = $1 AND correct = false GROUP BY prompt, expected, given ORDER BY n DESC LIMIT 10", [pid]).await?
+    let err_lista: List<Html> = []
+    for r in elist_rows {
+        err_lista.push(fila_error(locale, r.get_str("prompt")?, r.get_str("expected")?, r.get_str("given")?, r.get_int("n")?))
+    }
+    let errores_html = match err_bars.len() > 0 {
+        true => bar_chart_render(bar_chart { bars: bar_scale(err_bars) }).raw + h_join(err_lista),
+        false => html("""<div style="text-align:center;padding:.6rem"><div style="font-size:2rem">🎉</div><p style="color:var(--mh-suave);margin:.3rem 0 0">{flv(t(locale, "panel.errores_vacio"))}</p></div>""").raw,
+    }
+
+    // Tiempo por día (últimos 7).
+    let dbars_rows = conn.query("SELECT to_char(started_at::date, 'DD/MM') AS label, ROUND(SUM(duration_ms) / 60000.0)::int AS mins FROM sessions WHERE profile_id = $1 GROUP BY started_at::date ORDER BY started_at::date DESC LIMIT 7", [pid]).await?
+    let dia_bars: List<Bar> = []
+    for r in dbars_rows {
+        dia_bars.push(Bar { label: r.get_str("label")?, value: r.get_int("mins")? })
+    }
+    let tiempo_html = match dia_bars.len() > 0 {
+        true => bar_chart_render(bar_chart { bars: bar_scale(dia_bars) }).raw,
+        false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "panel.tiempo_vacio"))}</p>""").raw,
+    }
+
+    // Evolución del rating (AVG diario, últimos 14).
+    let evo_rows = conn.query("SELECT to_char(day, 'DD/MM') AS label, ROUND(AVG(rating))::int AS r FROM mastery_snapshots WHERE profile_id = $1 GROUP BY day ORDER BY day ASC LIMIT 14", [pid]).await?
+    let evo_bars: List<Bar> = []
+    for r in evo_rows {
+        evo_bars.push(Bar { label: r.get_str("label")?, value: r.get_int("r")? })
+    }
+    let evo_html = match evo_bars.len() > 0 {
+        true => bar_chart_render(bar_chart { bars: bar_scale(evo_bars) }).raw,
+        false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "panel.evolucion_vacio"))}</p>""").raw,
+    }
+
+    let meta_html = form_meta(locale, pid, perfil.daily_goal).raw
+
+    let body = html("""{stats_html}
+<div class="mh-card">
+<h2>{flv(t(locale, "panel.aciertos_titulo"))}</h2>
+{aciertos_html}
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "panel.progreso_titulo"))}</h2>
+{temas_html}
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "panel.errores_titulo"))}</h2>
+{errores_html}
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "panel.tiempo_titulo"))}</h2>
+{tiempo_html}
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "panel.evolucion_titulo"))}</h2>
+{evo_html}
+</div>
+{meta_html}""")
+    return Ok(body)
+}
+
+// Pantalla de error de DB amable (reusa el patrón de progreso.fitz).
+fn pantalla_error(locale: Str) -> Html {
+    return html("""<div class="mh-card" style="text-align:center">
+<p style="color:var(--mh-suave)">{flv(t(locale, "estado.db_error"))}</p>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>""")
+}
+
+// Estado vacío cuando la familia no tiene ningún perfil todavía.
+fn pantalla_sin_hijos(locale: Str) -> Html {
+    return html("""<div class="mh-card" style="text-align:center">
+<div style="font-size:2.6rem;line-height:1">🧉</div>
+<p style="color:var(--mh-suave);margin:.4rem 0 1rem">{flv(t(locale, "panel.sin_hijos"))}</p>
+<a class="mh-btn" href="/perfiles/nuevo">{flv(t(locale, "perfiles.nuevo"))}</a>
+</div>""")
+}
+
+// --- handlers ----------------------------------------------------------------
+
+// /panel → redirige al primer hijo, o estado vacío si no hay perfiles.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/panel")
+async fn panel_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let perfiles: List<Profile> = match perfiles_de(fam.id).await {
+        Ok(ps) => ps,
+        Err(_) => [],
+    }
+    if (perfiles.len() == 0) {
+        let titulo = t(locale, "nav.panel") + " — MatHelp"
+        return responder_html(page(locale, titulo, pantalla_sin_hijos(locale), html("")))
+    }
+    return redirect_a("/panel/{perfiles[0].id}")
+}
+
+// /panel/{pid} → panel del hijo elegido (validado contra la familia).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/panel/{pid}")
+async fn panel_hijo_get(session: Str?, lang: Str?, pid: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let perfiles: List<Profile> = match perfiles_de(fam.id).await {
+        Ok(ps) => ps,
+        Err(_) => [],
+    }
+    if (perfiles.len() == 0) {
+        let titulo = t(locale, "nav.panel") + " — MatHelp"
+        return responder_html(page(locale, titulo, pantalla_sin_hijos(locale), html("")))
+    }
+    let titulo = t(locale, "nav.panel") + " — MatHelp"
+    let selector = selector_hijos(locale, perfiles, pid).raw
+    match render_panel(fam.id, pid, locale, perfiles).await {
+        Ok(cuerpo) => {
+            let full = html("""{selector}
+{cuerpo.raw}
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+            return responder_html(page(locale, titulo, full, html("")))
+        }
+        Err(_) => {
+            let full = html("""{selector}
+{pantalla_error(locale).raw}""")
+            return responder_html(page(locale, titulo, full, html("")))
+        }
+    }
+}
+
+type MetaForm {
+    pid: Str = ""
+    meta: Str = ""
+}
+
+// /panel/meta → actualiza la meta diaria del hijo (validado) y vuelve al panel.
+@cookie(name="mathelp_session", into="session")
+@post("/panel/meta")
+async fn panel_meta_post(session: Str?, form: MetaForm) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let pid: Int = match form.pid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/panel"),
+    }
+    let meta: Int = match form.meta.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/panel/{pid}"),
+    }
+    // Clamp defensivo (1..200) + validar que el hijo sea de la familia.
+    let goal = match meta < 1 {
+        true => 1,
+        false => match meta > 200 {
+            true => 200,
+            false => meta,
+        },
+    }
+    match perfil_de_familia(fam.id, pid).await {
+        Ok(_) => {
+            match db.connect(db_url()).await {
+                Ok(conn) => {
+                    let _ = conn.exec("UPDATE profiles SET daily_goal = $1 WHERE id = $2 AND family_id = $3", [goal, pid, fam.id]).await
+                    return redirect_a("/panel/{pid}")
+                }
+                Err(_) => return redirect_a("/panel/{pid}"),
+            }
+        }
+        Err(_) => return redirect_a("/panel"),
+    }
+}
