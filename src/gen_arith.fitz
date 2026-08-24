@@ -542,6 +542,103 @@ fn ecuacion_correcta(given: Int, answer: Int, op: Str) -> Bool {
     return given == answer
 }
 
+// Finanzas (F7.3, juego "Finanzas" — diferencial de la modalidad comercial).
+// Respuesta ÚNICA en pesos enteros (por teclado, sin ±: la plata es positiva).
+// Los rangos se eligen para que la respuesta SIEMPRE sea entera:
+//   - interés simple (op "finsimple"): I = C·i·t/100, C múltiplo de 1000.
+//     a=C, b=i(%), a2=t(años), answer=I.
+//   - interés compuesto (op "fincomp"): M = C·(1+i/100)^t, C múltiplo de 1000,
+//     i ∈ {10,20,50}, t ∈ {2,3} → M entero. a=C, b=i, a2=t, answer=M.
+//   - porcentaje (op "finpct"): answer = N·P/100, N múltiplo de 100. a=N, b=P.
+//   - descuento (op "findesc"): precio final = N − N·P/100, N múltiplo de 100,
+//     P múltiplo de 5. a=N, b=P, answer=precio final.
+fn gen_finanzas(seed: Int, idx: Int, grade: Int) -> Exercise {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let tipo = g.int(0, 4)
+    let a = 0
+    let b = 0
+    let a2 = 0
+    let answer = 0
+    let op = "finsimple"
+    let skill = "fin.interes_simple"
+    let dificultad = 4
+    if (tipo == 0) {
+        let cap = 1000 * g.int(1, 15)
+        let tasas = [5, 10, 15, 20]
+        let i = tasas[g.int(0, 3)]
+        let t = g.int(1, 4)
+        a = cap
+        b = i
+        a2 = t
+        answer = cap * i * t / 100
+        op = "finsimple"
+        skill = "fin.interes_simple"
+        dificultad = 4
+    }
+    if (tipo == 1) {
+        let cap = 1000 * g.int(1, 10)
+        let tasas = [10, 20, 50]
+        let i = tasas[g.int(0, 2)]
+        let t = g.int(2, 3)
+        a = cap
+        b = i
+        a2 = t
+        answer = cap * ipow(100 + i, t) / ipow(100, t)
+        op = "fincomp"
+        skill = "fin.interes_compuesto"
+        dificultad = 5
+    }
+    if (tipo == 2) {
+        let base = 100 * g.int(1, 90)
+        let pcts = [5, 10, 15, 20, 25, 50, 75]
+        let p = pcts[g.int(0, 6)]
+        a = base
+        b = p
+        answer = base * p / 100
+        op = "finpct"
+        skill = "pct.basico"
+        dificultad = 3
+    }
+    if (tipo == 3) {
+        let base = 100 * g.int(1, 90)
+        let p = 5 * g.int(1, 10)
+        a = base
+        b = p
+        answer = base - (base * p / 100)
+        op = "findesc"
+        skill = "fin.descuento"
+        dificultad = 4
+    }
+    if (tipo == 4) {
+        // Punto de equilibrio: Q = CostosFijos / (Precio − CostoUnitario). Elegimos
+        // margen unitario `m` y cantidad `q`, y derivamos CF = m·q → Q = CF/m = q
+        // exacto y positivo. a=CF, b=Precio, a2=CostoUnitario (los tres en pesos).
+        let m = 10 * g.int(2, 10)          // margen unitario: 20..100 (múltiplo de 10)
+        let q = g.int(5, 40)               // unidades del punto de equilibrio
+        let costo = 10 * g.int(3, 15)      // costo variable unitario: 30..150
+        let precio = costo + m             // precio de venta
+        let cf = m * q                     // costos fijos = margen · unidades
+        a = cf
+        b = precio
+        a2 = costo
+        answer = q                         // = cf / (precio − costo)
+        op = "finbreak"
+        skill = "fin.punto_equilibrio"
+        dificultad = 5
+    }
+    let vacio: List<Int> = []
+    return Exercise {
+        a: a,
+        b: b,
+        op: op,
+        answer: answer,
+        options: vacio,
+        skill_code: skill,
+        difficulty: dificultad,
+        a2: a2,
+    }
+}
+
 // Genera un ejercicio mezclando las operaciones apropiadas al grado. Elige la
 // operación con un generador propio (determinista desde el seed) y delega en
 // `gen`. (seed, idx, grade) devuelve siempre el mismo ejercicio.

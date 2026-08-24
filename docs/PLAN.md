@@ -8,11 +8,12 @@
 
 ## 📍 Estado — actualizado 23/08/2026
 
-**Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo) + F7.1 COMPLETA (Ciclo
-Básico aritmética) + teclado con ± + F7.2 COMPLETA (juego Ecuaciones: 1er grado +
-cuadrática + sistemas 2×2, teclado) CERRADAS. F0…F6 cerradas. Próximo: F7.3
-(juego Finanzas — diferencial de la modalidad comercial: interés simple/compuesto,
-%, descuento).**
+**Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo + filtro por modalidad) +
+F7.1 COMPLETA (Ciclo Básico aritmética) + teclado con ± + F7.2 COMPLETA (Ecuaciones:
+1er grado + cuadrática + sistemas 2×2) + F7.3 COMPLETA (Finanzas: interés
+simple/compuesto, %, descuento — diferencial comercial) CERRADAS. F0…F6 cerradas.
+Próximo: F7.4 (Trigonometría — triángulo rectángulo con figura SVG, común +
+industrial) y F7.5 (Funciones, opcional/SVG).**
 
 > **F6 (2026-08-23)** — cuatro piezas de pulido:
 > - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo
@@ -946,8 +947,9 @@ nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E
   Verificado: `fitz test` 75/0 + `fitz build` nativo + smoke (crear perfil sec 4°
   comercial → persiste `grade=11, modalidad='comercial'`; modalidad inválida →
   `comun`; grilla con 6 juegos). **Único cambio de schema de toda F7.**
-  *Pendiente F7.1+: el filtro de la grilla por modalidad (cuando existan juegos de
-  modalidad, ej. Finanzas para comercial) — hoy no hay juego de modalidad que filtrar.*
+  *Filtro de la grilla por modalidad: CERRADO en F7.3 (`Juego.modalidad` +
+  `grilla_juegos` filtra por la modalidad del perfil; Finanzas sólo aparece para
+  comercial).*
 - **F7.1 — Ciclo Básico, aritmética: enteros con signo. ✅ (2026-08-24)** Un perfil
   de secundaria (grade ≥ 8) juega las cuatro operaciones con **enteros con signo**
   (resta sin forzar a≥b, mult/div con signo, división exacta) en **todos los juegos
@@ -1022,11 +1024,29 @@ nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E
   ejercicios de los 3 tipos, resolví cada sistema por eliminación, **10/10 correctas**).
   **Con esto F7.2 (Ecuaciones) queda COMPLETA**: 1er grado + cuadrática + sistemas 2×2.
   *Refinamiento futuro: pedir x E y (input de dos valores, two-step) en vez de solo x.*
-- **F7.3 — Finanzas (#14) — diferencial COMERCIAL.** Generador `gen_finanzas`
-  (interés simple/compuesto, %, descuento, punto de equilibrio), teclado numérico
-  + contexto localizado (plazo fijo, plata). Aparece solo para `modalidad="comercial"`
-  (+ práctica libre). `topic_code`: `fin.*`. **El juego que justifica la modalidad
-  comercial.**
+- **F7.3 — Finanzas (#14) — diferencial COMERCIAL. ✅ (2026-08-24)** Juego nuevo
+  "Finanzas" (`/finanzas`, `Finanzas.fitzv` + `finanzas_view.fitz` + `live_finanzas.fitz`,
+  `min_grade` 11). Generador `gen_finanzas(seed, idx, grade)` con 5 tipos:
+  **interés simple** (I = C·i·t/100), **interés compuesto** (M = C·(1+i)^t, con
+  `ipow`), **porcentaje** (P% de base), **descuento** (base − P%) y **punto de
+  equilibrio** (Q = CostosFijos/(Precio−Costo), el tema-firma comercial). Los capitales
+  son múltiplos de 1000/100 y las tasas dividen exacto → la respuesta es SIEMPRE un
+  entero POSITIVO de pesos (teclado SIN ±). Enunciados con historia LOCALIZADOS
+  (`fin.p_simple/p_comp/p_pct/p_desc` con `t2`/`t3` — helpers de interpolación
+  posicional `{0}/{1}/{2}` nuevos en `i18n.fitz`) + `fmt_money`. La sesión persiste
+  con `mode="story"` (ya en el CHECK, sin migración), `topic_code`: `fin`,
+  skills `fin.interes_simple/_compuesto`, `pct.basico`, `fin.descuento`,
+  `fin.punto_equilibrio`.
+  **Filtro por modalidad (§11.b F7.0 pendiente, cerrado acá):** `Juego` gana
+  `modalidad: Str = "comun"`; `GameCtx`/`resolver_contexto` cargan la modalidad del
+  perfil; `grilla_juegos` filtra `j.modalidad == "comun" or j.modalidad == modalidad`
+  → Finanzas (modalidad `"comercial"`) sólo aparece para perfiles comerciales del
+  Ciclo Orientado. 6 tests nuevos (determinismo, los 5 tipos, respuestas enteras
+  positivas, fórmulas exactas de simple, % y punto de equilibrio). Smoke E2E
+  `tools/e2e_finanzas.py`
+  RESUELVE los 10 problemas y verifica en Postgres (mode=story, 10/10 correctos,
+  ended_at) — paridad bit-a-bit `fitz run` ↔ binario. **El juego que justifica la
+  modalidad comercial: CONSTRUIDO.**
 - **F7.4 — Trigonometría (#15).** Triángulo rectángulo con **figura SVG** (patrón
   reloj/geometría de F5): dado cateto/ángulo → hipotenusa/razón, respuesta numérica.
   Común + industrial. `topic_code`: `trig.rectangulo`.

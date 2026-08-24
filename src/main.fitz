@@ -21,6 +21,7 @@ import live_kiosco
 import live_fracciones
 import live_potencias
 import live_ecuaciones
+import live_finanzas
 import menu
 import progreso
 import parent
@@ -32,6 +33,7 @@ from Quiz import quiz, quiz_render, quiz_answer, quiz_tick
 from VerdaderoFalso import verdadero_falso, verdadero_falso_render, verdadero_falso_answer, verdadero_falso_tick
 from Completa import completa, completa_render, completa_answer, completa_digito, completa_borrar, completa_signo
 from Ecuaciones import ecuaciones, ecuaciones_render, ecuaciones_answer, ecuaciones_digito, ecuaciones_borrar, ecuaciones_signo
+from Finanzas import finanzas, finanzas_render, finanzas_answer, finanzas_digito, finanzas_borrar
 from Escalera import escalera, escalera_render, escalera_answer
 from Kiosco import kiosco, kiosco_render, kiosco_answer, kiosco_digito, kiosco_borrar
 from Fracciones import fracciones, fracciones_render, fracciones_answer

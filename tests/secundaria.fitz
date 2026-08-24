@@ -7,7 +7,7 @@
 // Corré con:  fitz test
 
 from engine import es_secundaria, anio_secundaria, es_ciclo_orientado, modalidad_valida
-from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta
+from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta, gen_finanzas
 from fmt import fmt_operando
 
 // --- es_secundaria (grade >= 8) ---------------------------------------------
@@ -237,4 +237,82 @@ from fmt import fmt_operando
     assert_eq(ecuacion_correcta(7, 7, "eccuad"), true)
     assert_eq(ecuacion_correcta(0 - 7, 7, "eccuad"), true)   // ±7 valen
     assert_eq(ecuacion_correcta(6, 7, "eccuad"), false)
+}
+
+// --- F7.3: finanzas (diferencial comercial) ---------------------------------
+
+@test fn gen_finanzas_es_determinista() {
+    let e1 = gen_finanzas(999, 3, 11)
+    let e2 = gen_finanzas(999, 3, 11)
+    assert_eq(e1.a, e2.a)
+    assert_eq(e1.b, e2.b)
+    assert_eq(e1.a2, e2.a2)
+    assert_eq(e1.answer, e2.answer)
+    assert_eq(e1.op, e2.op)
+}
+
+@test fn gen_finanzas_aparecen_los_cinco_tipos() {
+    let vio_simple = false
+    let vio_comp = false
+    let vio_pct = false
+    let vio_desc = false
+    let vio_break = false
+    for i in 0..80 {
+        let e = gen_finanzas(4242, i, 11)
+        if (e.op == "finsimple") { vio_simple = true }
+        if (e.op == "fincomp") { vio_comp = true }
+        if (e.op == "finpct") { vio_pct = true }
+        if (e.op == "findesc") { vio_desc = true }
+        if (e.op == "finbreak") { vio_break = true }
+    }
+    assert_eq(vio_simple, true)
+    assert_eq(vio_comp, true)
+    assert_eq(vio_pct, true)
+    assert_eq(vio_desc, true)
+    assert_eq(vio_break, true)
+}
+
+// Punto de equilibrio: Q = CF / (Precio − Costo). a=CF, b=Precio, a2=Costo. Q>0
+// y divide exacto (por construcción CF = margen · Q).
+@test fn gen_finanzas_punto_equilibrio_exacto() {
+    for i in 0..80 {
+        let e = gen_finanzas(4848, i, 11)
+        if (e.op == "finbreak") {
+            let margen = e.b - e.a2
+            assert_eq(margen > 0, true)
+            assert_eq(e.answer, e.a / margen)
+            assert_eq(e.answer * margen, e.a)   // sin resto
+        }
+    }
+}
+
+// La plata siempre es un entero POSITIVO (elegimos capitales y tasas que dividen
+// exacto), y el descuento nunca deja negativo. Cubre 60 idx deterministas.
+@test fn gen_finanzas_respuestas_enteras_positivas() {
+    for i in 0..60 {
+        let e = gen_finanzas(1717, i, 11)
+        assert_eq(e.answer > 0, true)
+    }
+}
+
+// Chequeo exacto del interés simple: I = C·i·t/100 sin resto. Re-derivamos con
+// los mismos operandos que muestra el prompt (a=capital, b=tasa, a2=años).
+@test fn gen_finanzas_simple_formula_exacta() {
+    for i in 0..60 {
+        let e = gen_finanzas(2626, i, 11)
+        if (e.op == "finsimple") {
+            assert_eq(e.answer, e.a * e.b * e.a2 / 100)
+            assert_eq(e.a * e.b * e.a2 - e.answer * 100 >= 0, true)  // sin resto: divide exacto
+        }
+    }
+}
+
+// El porcentaje: P% de base = base·P/100, exacto.
+@test fn gen_finanzas_porcentaje_formula_exacta() {
+    for i in 0..60 {
+        let e = gen_finanzas(3737, i, 11)
+        if (e.op == "finpct") {
+            assert_eq(e.answer, e.a * e.b / 100)
+        }
+    }
 }

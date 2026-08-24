@@ -1,0 +1,87 @@
+// finanzas_view.fitz — el render del juego "Finanzas" (F7.3, diferencial de la
+// modalidad comercial). Mismo esqueleto de teclado que Ecuaciones/Completá, pero
+// muestra un PROBLEMA con historia (localizado) y la respuesta es en pesos
+// (siempre positiva → teclado sin ±). Cuatro tipos: interés simple/compuesto,
+// porcentaje, descuento. El ejercicio se deriva de (seed, idx) con gen_finanzas.
+
+from fitz_liveviews import Html, html, flv
+from gen_arith import gen_finanzas
+from i18n import t, t1, t2, t3
+from fmt import fmt_int, fmt_money
+from keypad_view import keypad_html
+
+// Arma el enunciado localizado según el tipo. Los montos van con fmt_money
+// (símbolo + agrupamiento por locale); tasas/plazos/porcentajes con fmt_int.
+fn prompt_finanzas(locale: Str, a: Int, b: Int, a2: Int, op: Str) -> Str {
+    if (op == "finsimple") {
+        return t3(locale, "fin.p_simple", fmt_money(locale, a), fmt_int(locale, b), fmt_int(locale, a2))
+    }
+    if (op == "fincomp") {
+        return t3(locale, "fin.p_comp", fmt_money(locale, a), fmt_int(locale, b), fmt_int(locale, a2))
+    }
+    if (op == "finpct") {
+        return t2(locale, "fin.p_pct", fmt_int(locale, b), fmt_money(locale, a))
+    }
+    if (op == "finbreak") {
+        // {0}=costos fijos, {1}=precio de venta, {2}=costo unitario (los tres $).
+        return t3(locale, "fin.p_break", fmt_money(locale, a), fmt_money(locale, b), fmt_money(locale, a2))
+    }
+    // findesc
+    return t2(locale, "fin.p_desc", fmt_money(locale, a), fmt_int(locale, b))
+}
+
+fn finanzas_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool) -> Html {
+    if (phase == "done") {
+        return finanzas_resumen(locale, correct, total)
+    }
+    let ex = gen_finanzas(seed, idx, grade)
+    let problema = flv(prompt_finanzas(locale, ex.a, ex.b, ex.a2, ex.op))
+    // El valor tipeado, en pesos; "?" si nada.
+    let valor = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_money(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = finanzas_feedback(locale, feedback, last_answer)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    // Plata: siempre positiva → teclado sin ±.
+    let teclado = keypad_html(locale, entrada, idx, touched, false)
+    return html("""<div class="q-hud">
+<div class="q-mode">💰 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+</div>
+<div class="fin-problema">{problema}</div>
+<div class="q-prompt cg-eq">{valor}</div>
+<div class="q-fbwrap">{banner}</div>
+{teclado}""")
+}
+
+// Feedback: verde si acertó; ámbar con la respuesta (en pesos) si no.
+fn finanzas_feedback(locale: Str, feedback: Str, last_answer: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_money(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn finanzas_resumen(locale: Str, correct: Int, total: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+<div class="q-actions">
+<a class="mh-btn" href="/finanzas">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/juegos">{flv(t(locale, "juegos.titulo"))}</a>
+</div>
+</div>""")
+}

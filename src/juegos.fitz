@@ -18,6 +18,7 @@ type Juego {
     icon: Str = ""
     route: Str = ""
     built: Bool = false
+    modalidad: Str = "comun"     // "comun" = todos; si no, sólo esa orientación (F7.3)
 }
 
 // El catálogo, en orden de aparición. Hoy solo el contrarreloj es jugable (F2);
@@ -40,5 +41,6 @@ fn juegos() -> List<Juego> {
         Juego { code: "enteros", min_grade: 7, icon: "±", built: false },
         Juego { code: "potencias", min_grade: 8, icon: "🔷", route: "/potencias", built: true },
         Juego { code: "ecuaciones", min_grade: 8, icon: "🟰", route: "/ecuaciones", built: true },
+        Juego { code: "finanzas", min_grade: 11, icon: "💰", route: "/finanzas", built: true, modalidad: "comercial" },
     ]
 }

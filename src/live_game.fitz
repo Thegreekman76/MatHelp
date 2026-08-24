@@ -38,6 +38,7 @@ from Quiz import quiz
 type GameCtx {
     profile_id: Int = 0
     grade: Int = 4
+    modalidad: Str = "comun"      // orientación (F7): filtra los juegos de modalidad
     daily_goal: Int = 10          // meta de ejercicios/día (racha diaria, F3)
 }
 
@@ -56,7 +57,7 @@ async fn resolver_contexto(session: Str?) -> Result<GameCtx> {
         Ok(p) => p,
         Err(_) => return Err("/perfiles"),
     }
-    return Ok(GameCtx { profile_id: perfil.id, grade: perfil.grade, daily_goal: perfil.daily_goal })
+    return Ok(GameCtx { profile_id: perfil.id, grade: perfil.grade, modalidad: perfil.modalidad, daily_goal: perfil.daily_goal })
 }
 
 // Estado para reanudar un desafío sin terminar (F6). Se reconstruye desde la

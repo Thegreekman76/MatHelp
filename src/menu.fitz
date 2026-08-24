@@ -74,8 +74,11 @@ fn carta_juego(locale: Str, j: Juego, grade: Int) -> Html {
 </a>""")
 }
 
-fn grilla_juegos(locale: Str, grade: Int) -> Html {
-    let cartas = h_join(juegos().map(fn(j) => carta_juego(locale, j, grade)))
+fn grilla_juegos(locale: Str, grade: Int, modalidad: Str) -> Html {
+    // Filtra por orientación (F7.3): los juegos "comun" son para todos; los de
+    // una modalidad (ej. Finanzas → comercial) sólo aparecen en esa orientación.
+    let visibles = juegos().filter(fn(j) => j.modalidad == "comun" or j.modalidad == modalidad)
+    let cartas = h_join(visibles.map(fn(j) => carta_juego(locale, j, grade)))
     return html("""<div class="mh-card">
 <h2>{flv(t(locale, "juegos.titulo"))}</h2>
 <div class="mh-juegos">
@@ -94,7 +97,7 @@ async fn juegos_get(session: Str?, lang: Str?) -> Response {
         Ok(c) => c,
         Err(destino) => return redirect_a(destino),
     }
-    let body = grilla_juegos(locale, ctx.grade)
+    let body = grilla_juegos(locale, ctx.grade, ctx.modalidad)
     let titulo = t(locale, "juegos.titulo") + " — MatHelp"
     return responder_html(page(locale, titulo, body, html("")))
 }
