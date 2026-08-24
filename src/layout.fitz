@@ -27,6 +27,7 @@ fn page(locale: Str, titulo: Str, body: Html, live_js: Html) -> Html {
     let top = topbar(locale).raw
     let pie = footer(locale).raw
     let js = live_js.raw
+    let skip = flv(t(locale, "a11y.saltar"))
     return html("""<!doctype html>
 <html lang="{lang}">
 <head>
@@ -47,12 +48,14 @@ fn page(locale: Str, titulo: Str, body: Html, live_js: Html) -> Html {
 <style>{css}</style>
 </head>
 <body>
+<a class="mh-skip" href="#main">{skip}</a>
 {top}
-<main>
+<main id="main" tabindex="-1">
 {body.raw}
 </main>
 {pie}
 {js}
+<script src="/sound.js" defer></script>
 </body>
 </html>""")
 }
@@ -68,12 +71,16 @@ fn topbar(locale: Str) -> Html {
         true => "true",
         false => "false",
     }
+    let son_lbl = flv(t(locale, "a11y.sonido"))
     return html("""<header class="mh-topbar">
 {marca}
+<div class="mh-controls">
+<button id="mh-sound-btn" type="button" class="mh-sound-btn" aria-pressed="true" aria-label="{son_lbl}" title="{son_lbl}"><span class="mh-sound-ico" aria-hidden="true">🔊</span></button>
 <nav class="mh-langs" aria-label="{flv(t(locale, "idioma.cambiar"))}">
 <a class="mh-lang" href="/lang/es-AR" aria-current="{es_actual}" hreflang="es">ES</a>
 <a class="mh-lang" href="/lang/en" aria-current="{en_actual}" hreflang="en">EN</a>
 </nav>
+</div>
 </header>""")
 }
 

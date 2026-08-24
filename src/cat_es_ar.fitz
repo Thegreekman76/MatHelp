@@ -5,6 +5,8 @@
 
 fn cat_es_ar(key: Str) -> Str {
     return match key {
+        "a11y.saltar" => "Saltar al contenido",
+        "a11y.sonido" => "Activar o desactivar sonido",
         "app.description" => "Juego de matemática para practicar las operaciones, de primaria a secundaria.",
         "app.name" => "MatHelp",
         "app.tagline" => "Matemática que se comparte",
@@ -47,6 +49,7 @@ fn cat_es_ar(key: Str) -> Str {
         "juego.de" => "de",
         "juego.de_nuevo" => "Jugar de nuevo",
         "juego.ecuaciones" => "Ecuaciones",
+        "juego.empezar_nuevo" => "Empezar de nuevo",
         "juego.enteros" => "Enteros",
         "juego.escalera" => "Escalera de tablas",
         "juego.fracciones" => "Fracciones",
@@ -61,6 +64,7 @@ fn cat_es_ar(key: Str) -> Str {
         "juego.reanudar" => "Reanudar partida",
         "juego.resumen" => "Resumen de la partida",
         "juego.seguir" => "Seguir",
+        "juego.sin_terminar" => "Tenés un desafío sin terminar",
         "juego.tablas" => "Tablas",
         "juego.terminar" => "Terminar",
         "juego.tiempo" => "Tiempo",

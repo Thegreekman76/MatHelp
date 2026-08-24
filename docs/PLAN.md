@@ -6,10 +6,50 @@
 
 ---
 
-## 📍 Estado — actualizado 22/08/2026
+## 📍 Estado — actualizado 23/08/2026
 
-**Fase actual: F5 — Panel del padre. CERRADA ENTERA (reportes por hijo +
-metas configurables). F0/F1/F2/F3/F4 cerradas. Próximo: F6.**
+**Fase actual: F6 — Pulido. CERRADA ENTERA (reanudar partida + accesibilidad +
+sonido opcional + instalable/PWA). F0/F1/F2/F3/F4/F5 cerradas. Próximo: F7
+(secundaria) o afinado según prueba real en Android.**
+
+> **F6 (2026-08-23)** — cuatro piezas de pulido:
+> - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo
+>   reanudable. `GET /desafio` detecta la sesión sin terminar del perfil
+>   (`ended_at IS NULL`, con `0 < idx < N`) y ofrece **Continuar** (reconstruye
+>   `idx/total/correct/score` desde los `attempts` del mismo seed) o **Empezar de
+>   nuevo** (`POST /desafio/nuevo` → abandona la vieja). El `@ws` reusa la sesión
+>   abierta en vez de crear una nueva. Ciclo de vida `ended_at` cerrado en los 3
+>   modos (contrarreloj hace housekeeping de sprints abandonados; práctica y
+>   desafío lo setean al cerrar). E2E dedicado `tools/e2e_reanudar.py` con
+>   **paridad `fitz run` ↔ binario** (una sola sesión reusada, 10 attempts,
+>   `ended_at` seteado, empezar-de-nuevo abandona). Reanudar de práctica queda
+>   como follow-up (su banda de dificultad no se persiste).
+> - **Accesibilidad** (`src/layout.fitz` + `src/brand.fitz`): skip-link "Saltar
+>   al contenido" (`<main id="main" tabindex="-1">`), foco visible universal
+>   (`:focus-visible` con `--mh-tinta`, que se invierte por tema → contrasta con
+>   cualquier fondo), inputs incluidos. Ya había `role="status"` en feedback,
+>   `aria-label` en topbar/timer, `<html lang>`, `prefers-reduced-motion`, dark
+>   mode. Las opciones de respuesta ya eran `<button type="button">`.
+> - **Sonido opcional** (`public/sound.js` + toggle 🔊/🔇 en el topbar): beeps
+>   de acierto/error sintetizados con Web Audio (cero assets, offline), preferencia
+>   en `localStorage`, disparados por `data-fb-seq` (índice único por respuesta,
+>   nuevo en `feedback_banner`) para no repetir. Audio desbloqueado con el primer
+>   gesto (política de autoplay).
+> - **Instalable / PWA**: `public/manifest.webmanifest` ampliado (id/lang/dir/
+>   categories, icon `any` + `maskable`) + `public/sw.js` (service worker
+>   cache-first de estáticos, red para páginas) registrado desde `sound.js`.
+> Verificado: `fitz check` + `fitz test` 67/0 + `fitz build` nativo + smoke HTTP
+> (skip-link, toggle, `/sound.js` + `/sw.js` + manifest servidos) + E2E reanudar
+> `run` ↔ `build`. **Falta la prueba real (Lighthouse mobile + Android físico),
+> que es el criterio de aceptación del autor.**
+>
+> **Dogfooding del core en F6:** re-confirmado **FITZ-22** en vivo (una llamada
+> cross-módulo a `feedback_banner` con aridad vieja pasó `fitz check` pero la cazó
+> `fitz build`) — el CLI instalado es **fitz 0.58.0**, y el fix de check-time de
+> FITZ-22 está en 0.59.0; bumpear el CLI lo caza al chequear. Observación menor
+> (no bug): el pool de DB del intérprete (`fitz run`) tarda ~1-2s tras responder
+> `/` en estar write-ready — una ráfaga de writes en ese arranque puede fallar
+> en silencio; solo dev (prod usa el binario). Ningún bug nuevo del core.
 
 > **F5 (2026-08-23)** — `src/parent.fitz`: `@get /panel` (family-level,
 > selector de hijo por `/panel/{pid}`, validando `family_id`) con stat_cards
@@ -213,7 +253,7 @@ mecánicas validadas end-to-end** contra `fitz 0.58.0`.
 | **F3-motor** ✅ | `mastery` + Elo-lite, selección 70/20/10, repaso espaciado, racha diaria, medallas, desafío del día, mate-progreso | — |
 | **F4** ✅ | V/F, completá el hueco (teclado propio), escalera de tablas, el kiosco, fracciones a la vista | — |
 | **F5** ✅ | Panel del padre: reportes por hijo (progreso, errores, tiempo, evolución) + metas configurables | F3 |
-| **F6** | Reanudar partida, accesibilidad, sonido opcional, instalable | F2 |
+| **F6** ✅ | Reanudar partida (desafío), accesibilidad (foco visible + skip-link), sonido opcional, instalable/PWA | F2 |
 | **F7** | Secundaria (13–17) | F4 |
 
 ### 🐛 Hallazgos nuevos al dockerizar
@@ -792,7 +832,7 @@ mathelp/
 | **F3 — Que aprenda** ✅ | navegación (menú §6.5 + elegir juego + práctica) + motor adaptativo (`mastery` Elo-lite, selección 70/20/10, repaso espaciado, racha diaria, medallas, desafío del día, mate-progreso) | Simulación §11 (rating converge ±80, dificultad sigue) ✅ + E2E completo + paridad bit-a-bit `run`↔binario ✅ |
 | **F4 — Más juegos** ✅ | V/F, completá el hueco (teclado propio), escalera de tablas, el kiosco, fracciones a la vista | 5 modos jugables en celu + paridad `run`↔binario ✅ |
 | **F5 — Panel del padre** ✅ | Reportes por hijo: progreso por tema, errores frecuentes, tiempo, evolución; metas configurables | Gráficos con `bar_chart` / `progress_bar` / `stat_card` — `src/parent.fitz` |
-| **F6 — Pulido** | Dark mode, accesibilidad (contraste, `lang`, foco visible), reanudar partida, sonido opcional, instalable en el celu | Lighthouse mobile + prueba real en un Android |
+| **F6 — Pulido** ✅ | Reanudar partida (desafío), accesibilidad (foco visible + skip-link; ya había dark mode/`lang`/reduced-motion), sonido opcional (Web Audio), instalable/PWA (manifest + service worker) — `src/live_game.fitz`, `layout`/`brand`, `public/sound.js`, `public/sw.js`. **Pendiente: Lighthouse mobile + prueba real en un Android.** | Lighthouse mobile + prueba real en un Android |
 | **F7 — Secundaria** | Currículum 13–17: enteros, ecuaciones, funciones, geometría analítica, trigonometría | Nuevos generadores, cero cambios de arquitectura |
 
 **F0 → F2 es el corazón.** Al cerrar F2 ya hay un juego real en el celular; todo lo demás es acumular.

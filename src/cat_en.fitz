@@ -5,6 +5,8 @@
 
 fn cat_en(key: Str) -> Str {
     return match key {
+        "a11y.saltar" => "Skip to content",
+        "a11y.sonido" => "Toggle sound",
         "app.description" => "A math game to practise operations, from primary through secondary school.",
         "app.name" => "MatHelp",
         "app.tagline" => "Math worth sharing",
@@ -47,6 +49,7 @@ fn cat_en(key: Str) -> Str {
         "juego.de" => "of",
         "juego.de_nuevo" => "Play again",
         "juego.ecuaciones" => "Equations",
+        "juego.empezar_nuevo" => "Start over",
         "juego.enteros" => "Integers",
         "juego.escalera" => "Times-table ladder",
         "juego.fracciones" => "Fractions",
@@ -61,6 +64,7 @@ fn cat_en(key: Str) -> Str {
         "juego.reanudar" => "Resume game",
         "juego.resumen" => "Round summary",
         "juego.seguir" => "Continue",
+        "juego.sin_terminar" => "You have an unfinished challenge",
         "juego.tablas" => "Times tables",
         "juego.terminar" => "Finish",
         "juego.tiempo" => "Time",

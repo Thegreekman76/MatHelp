@@ -16,9 +16,10 @@
 //   3. Cada `answer` del loop persiste un `attempt`. El reloj, al llegar a 0,
 //      cierra la partida (UPDATE de totales) y termina.
 
-from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, dispatch_to, flv_frame, component_state, flv_evict, live_embed
+from fitz_liveviews import Html, html, flv, LiveFrame, component_with, dispatch_component_events, dispatch_to, flv_frame, component_state, flv_evict, live_embed
 from config import db_url
 from i18n import t, locale_from_cookie
+from fmt import fmt_int
 from layout import page, responder_html, redirect_a
 from auth import read_session, pid_from_token
 from perfiles import perfil_de_familia
@@ -58,11 +59,28 @@ async fn resolver_contexto(session: Str?) -> Result<GameCtx> {
     return Ok(GameCtx { profile_id: perfil.id, grade: perfil.grade, daily_goal: perfil.daily_goal })
 }
 
+// Estado para reanudar un desafío sin terminar (F6). Se reconstruye desde la
+// sesión abierta (seed + grade) y sus attempts (idx/total/correct/score): con
+// eso el componente arranca donde el chico lo dejó, sin re-mostrar lo respondido.
+type ResumeState {
+    sess_id: Int = 0
+    seed: Int = 0
+    grade: Int = 4
+    next_idx: Int = 0
+    total: Int = 0
+    correct: Int = 0
+    score: Int = 0
+}
+
 // --- persistencia ------------------------------------------------------------
 
 // Abre la partida al conectar el socket. Devuelve el id para colgar los attempts.
 async fn crear_sesion(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
     let conn = db.connect(db_url()).await?
+    // Housekeeping (F6): cerrá cualquier contrarreloj abandonado (socket caído sin
+    // terminar). El sprint no se reanuda; marcarlo `ended` deja la base limpia y
+    // evita que el panel del padre cuente partidas fantasma.
+    let _ = conn.exec("UPDATE sessions SET ended_at = now() WHERE profile_id = $1 AND mode = 'quiz' AND ended_at IS NULL", [profile_id]).await
     let sess = GameSession.insert(conn, GameSession {
         profile_id: profile_id,
         mode: "quiz",
@@ -105,12 +123,10 @@ async fn persistir_respuesta(sess_id: Int, profile_id: Int, seed: Int, idx: Int,
 // el tiempo.
 async fn finalizar_sesion(sess_id: Int, total: Int, correct: Int, score: Int) -> Result<Int> {
     let conn = db.connect(db_url()).await?
-    let _ = GameSession.where(fn(s) => s.id == sess_id).update(conn, {
-        "total": total,
-        "correct": correct,
-        "score": score,
-        "duration_ms": duracion_default() * 1000,
-    }).await?
+    let dur = duracion_default() * 1000
+    // `ended_at = now()` cierra el ciclo de vida de la partida (F6): una sesión
+    // con `ended_at` no nula ya no es reanudable ni cuenta como abierta.
+    let _ = conn.exec("UPDATE sessions SET total = $1, correct = $2, score = $3, duration_ms = $4, ended_at = now() WHERE id = $5", [total, correct, score, dur, sess_id]).await?
     return Ok(1)
 }
 
@@ -342,10 +358,9 @@ async fn persistir_practica(sess_id: Int, profile_id: Int, topic: Str, band: Int
 // panel del padre.
 async fn cerrar_practica(sess_id: Int, total: Int, correct: Int) -> Result<Int> {
     let conn = db.connect(db_url()).await?
-    let _ = GameSession.where(fn(s) => s.id == sess_id).update(conn, {
-        "total": total,
-        "correct": correct,
-    }).await?
+    // Cierra la sesión (F6): la práctica no se reanuda hoy (la banda de dificultad
+    // no se persiste), así que marcarla `ended` al desconectar deja el ciclo limpio.
+    let _ = conn.exec("UPDATE sessions SET total = $1, correct = $2, ended_at = now() WHERE id = $3", [total, correct, sess_id]).await?
     return Ok(1)
 }
 
@@ -437,41 +452,112 @@ async fn practica_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?, pract
 // completar N ejercicios (el componente marca phase="done" cuando total >=
 // limit). Cada respuesta alimenta la racha diaria (§11: "alimenta la racha").
 
-async fn crear_sesion_desafio(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
+// --- reanudar (F6): el desafío es el modo reanudable ------------------------
+//
+// El desafío es N ejercicios sin reloj: la reanudación es limpia (mismo seed,
+// se sigue en el índice donde iba). El contrarreloj es un sprint (no se
+// reanuda) y la práctica no persiste su banda (reanudarla es follow-up).
+
+// Busca el desafío sin terminar del perfil (el más reciente). Err = ninguno
+// abierto. El progreso sale de los `attempts`: next_idx = respuestas dadas;
+// el score se recompone con la MISMA fórmula que `puntos` (10 + dif*2 por
+// acierto), sin re-derivar ejercicios.
+async fn buscar_desafio_abierto(profile_id: Int) -> Result<ResumeState> {
+    let conn = db.connect(db_url()).await?
+    let srows = conn.query("SELECT id, seed, level FROM sessions WHERE profile_id = $1 AND mode = 'desafio' AND ended_at IS NULL ORDER BY id DESC LIMIT 1", [profile_id]).await?
+    if (len(srows) == 0) {
+        return Err("sin desafío abierto")
+    }
+    let sid = srows[0].get_int("id")?
+    let seed = srows[0].get_int("seed")?
+    let grade = srows[0].get_int("level")?
+    let arows = conn.query("SELECT COUNT(*)::int AS n, COALESCE(SUM(CASE WHEN correct THEN 1 ELSE 0 END), 0)::int AS c, COALESCE(SUM(CASE WHEN correct THEN 10 + difficulty * 2 ELSE 0 END), 0)::int AS sc FROM attempts WHERE session_id = $1", [sid]).await?
+    let n = arows[0].get_int("n")?
+    let c = arows[0].get_int("c")?
+    let sc = arows[0].get_int("sc")?
+    return Ok(ResumeState {
+        sess_id: sid,
+        seed: seed,
+        grade: grade,
+        next_idx: n,
+        total: n,
+        correct: c,
+        score: sc,
+    })
+}
+
+// Marca como cerrados todos los desafíos abiertos del perfil (el botón
+// "Empezar de nuevo" y el borde raro de una sesión abierta ya completa).
+async fn abandonar_desafios_abiertos(profile_id: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("UPDATE sessions SET ended_at = now() WHERE profile_id = $1 AND mode = 'desafio' AND ended_at IS NULL", [profile_id]).await?
+    return Ok(1)
+}
+
+// Reusa el desafío abierto si lo hay (reanudar); si no, crea uno nuevo con el
+// seed dado. Una sesión abierta ya completa (idx >= N, borde raro) se abandona
+// y se arranca fresca.
+async fn obtener_o_crear_sesion_desafio(profile_id: Int, seed_nuevo: Int, grade: Int) -> Result<ResumeState> {
+    match buscar_desafio_abierto(profile_id).await {
+        Ok(rs) => {
+            if (rs.next_idx < desafio_n()) {
+                return Ok(rs)
+            }
+            let _ = abandonar_desafios_abiertos(profile_id).await
+        }
+        Err(_) => 0,
+    }
     let conn = db.connect(db_url()).await?
     let sess = GameSession.insert(conn, GameSession {
         profile_id: profile_id,
         mode: "desafio",
         topic_code: "mix",
         level: grade,
-        seed: seed,
+        seed: seed_nuevo,
     }).await?
-    return Ok(sess.id)
+    return Ok(ResumeState {
+        sess_id: sess.id,
+        seed: seed_nuevo,
+        grade: grade,
+        next_idx: 0,
+        total: 0,
+        correct: 0,
+        score: 0,
+    })
 }
 
-// Cierra el desafío con el resumen. Sin duration_ms (no hay reloj).
+// Cierra el desafío con el resumen. Sin duration_ms (no hay reloj). `ended_at`
+// cierra el ciclo de vida (F6): ya no es reanudable.
 async fn finalizar_desafio(sess_id: Int, total: Int, correct: Int, score: Int) -> Result<Int> {
     let conn = db.connect(db_url()).await?
-    let _ = GameSession.where(fn(s) => s.id == sess_id).update(conn, {
-        "total": total,
-        "correct": correct,
-        "score": score,
-    }).await?
+    let _ = conn.exec("UPDATE sessions SET total = $1, correct = $2, score = $3, ended_at = now() WHERE id = $4", [total, correct, score, sess_id]).await?
     return Ok(1)
 }
 
-@cookie(name="mathelp_session", into="session")
-@cookie(name="mathelp_lang", into="lang")
-@get("/desafio")
-async fn desafio_get(session: Str?, lang: Str?) -> Response {
-    let locale = locale_from_cookie(lang)
-    let ctx = match resolver_contexto(session).await {
-        Ok(c) => c,
-        Err(destino) => return redirect_a(destino),
-    }
+// Pantalla de reanudar (F6): el desafío quedó a medias. Dos caminos —
+// continuar donde iba, o empezar uno nuevo (abandona el anterior).
+fn pantalla_reanudar_desafio(locale: Str, rs: ResumeState) -> Response {
+    let hechos = flv(fmt_int(locale, rs.next_idx))
+    let total = flv(fmt_int(locale, desafio_n()))
+    let de = flv(t(locale, "juego.de"))
+    let body = html("""<div class="mh-card mh-reanudar">
+<h2><span aria-hidden="true">🎯</span> {flv(t(locale, "juego.sin_terminar"))}</h2>
+<p class="mh-reanudar-prog" aria-live="polite">{hechos} {de} {total}</p>
+<a class="mh-btn" href="/desafio/seguir">{flv(t(locale, "juego.reanudar"))}</a>
+<form method="POST" action="/desafio/nuevo">
+<button class="mh-btn sec" type="submit">{flv(t(locale, "juego.empezar_nuevo"))}</button>
+</form>
+</div>""")
+    let titulo = t(locale, "home.desafio_dia") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
+
+// El juego de desafío en sí (embed live). Compartido por /desafio (fresco) y
+// /desafio/seguir (reanudar): el @ws reusa o crea la sesión según corresponda.
+fn pantalla_desafio_juego(locale: Str, grade: Int) -> Response {
     let inicial = component_with("quiz", "ssr", quiz {
         seed: 1,
-        grade: ctx.grade,
+        grade: grade,
         locale: locale,
         mode: "desafio",
         limit: desafio_n(),
@@ -483,23 +569,85 @@ async fn desafio_get(session: Str?, lang: Str?) -> Response {
 
 @cookie(name="mathelp_session", into="session")
 @cookie(name="mathelp_lang", into="lang")
+@get("/desafio")
+async fn desafio_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    // ¿Hay un desafío sin terminar? Ofrecé reanudarlo (F6). Solo con progreso
+    // real (0 < idx < N): una sesión vacía o ya completa arranca directo el
+    // juego (el @ws la reusa o crea una nueva).
+    match buscar_desafio_abierto(ctx.profile_id).await {
+        Ok(rs) => {
+            if (rs.next_idx > 0) {
+                if (rs.next_idx < desafio_n()) {
+                    return pantalla_reanudar_desafio(locale, rs)
+                }
+            }
+        }
+        Err(_) => 0,
+    }
+    return pantalla_desafio_juego(locale, ctx.grade)
+}
+
+// Reanudar: entra directo al juego saltando la pantalla de reanudar. El @ws
+// /live/desafio detecta el desafío abierto y lo continúa desde su índice.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/desafio/seguir")
+async fn desafio_seguir_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    return pantalla_desafio_juego(locale, ctx.grade)
+}
+
+// Empezar de nuevo: abandona el desafío abierto y vuelve a /desafio, que ahora
+// (sin sesión abierta) arranca uno fresco. PRG: POST → 303 → GET.
+@cookie(name="mathelp_session", into="session")
+@post("/desafio/nuevo")
+async fn desafio_nuevo_post(session: Str?) -> Response {
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let _ = abandonar_desafios_abiertos(ctx.profile_id).await
+    return redirect_a("/desafio")
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
 @ws("/live/desafio")
 async fn desafio_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     let locale = locale_from_cookie(lang)
     let ctx = resolver_contexto(session).await?
     let cid = Uuid.v4().to_str()
-    let seed = rand.int(1, 2000000000)
-    let sess_id = crear_sesion_desafio(ctx.profile_id, seed, ctx.grade).await?
+    let seed_nuevo = rand.int(1, 2000000000)
+    // Reanudar (F6): si hay un desafío abierto, `rs` trae su seed + el índice y
+    // los contadores reconstruidos de los attempts; si no, es una partida fresca.
+    let rs = obtener_o_crear_sesion_desafio(ctx.profile_id, seed_nuevo, ctx.grade).await?
+    let sess_id = rs.sess_id
+    let seed = rs.seed
     let snap = match leer_snapshot(ctx.profile_id).await {
         Ok(s) => s,
         Err(_) => MasterySnapshot { },
     }
+    // Sembrá el componente en el punto reanudado: idx/total/correct/score salen
+    // de la DB, así el chico ve "vas 4 de 10" y sigue sin re-responder lo hecho.
     let _ = component_with("quiz", cid, quiz {
         seed: seed,
         grade: ctx.grade,
         locale: locale,
         mode: "desafio",
         limit: desafio_n(),
+        idx: rs.next_idx,
+        total: rs.total,
+        correct: rs.correct,
+        score: rs.score,
         r_add: snap.r_add,
         r_sub: snap.r_sub,
         r_mul: snap.r_mul,
@@ -508,7 +656,7 @@ async fn desafio_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     ws.send(flv_frame("quiz", cid))?
     // Sin reloj: termina cuando el componente marca phase="done" (total >=
     // limit). Finalizamos UNA vez y dejamos el socket abierto en el resumen.
-    let next_idx = 0
+    let next_idx = rs.next_idx
     let finalizado = false
     loop {
         let frame = match ws.recv() {

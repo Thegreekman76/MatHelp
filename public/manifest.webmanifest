@@ -1,14 +1,19 @@
 {
+  "id": "/",
   "name": "MatHelp",
   "short_name": "MatHelp",
-  "description": "Matematica que se comparte",
+  "description": "Matemática que se comparte",
+  "lang": "es-AR",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F7F4EE",
   "theme_color": "#0E7A63",
+  "categories": ["education", "games", "kids"],
   "icons": [
-    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
   ]
 }

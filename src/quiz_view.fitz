@@ -42,7 +42,7 @@ fn quiz_desafio(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, tota
     let b = flv(fmt_int(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
     let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
-    let banner = feedback_banner(locale, feedback, last_answer)
+    let banner = feedback_banner(locale, feedback, last_answer, idx)
     let hecho = flv(fmt_int(locale, total))
     let de_lbl = flv(t(locale, "juego.de"))
     let de_total = flv(fmt_int(locale, limit))
@@ -65,13 +65,15 @@ fn opt_button(locale: Str, o: Int, idx: Int) -> Html {
 
 // Banner de feedback tras responder: verde si acertó, ámbar con la respuesta
 // correcta si no. Vacío al empezar cada ejercicio nuevo.
-fn feedback_banner(locale: Str, feedback: Str, last_answer: Int) -> Str {
+// `idx` (respuestas dadas, único por respuesta) va como data-fb-seq: el JS de
+// sonido (public/sound.js) suena solo cuando ese valor cambia, sin repetir.
+fn feedback_banner(locale: Str, feedback: Str, last_answer: Int, idx: Int) -> Str {
     if (feedback == "ok") {
-        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{idx}">{flv(t(locale, "juego.correcto"))}</div>""").raw
     }
     if (feedback == "bad") {
         let resp = fmt_int(locale, last_answer)
-        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{idx}">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
     }
     return ""
 }
@@ -84,7 +86,7 @@ fn quiz_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, score: 
     let b = flv(fmt_int(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
     let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
-    let banner = feedback_banner(locale, feedback, last_answer)
+    let banner = feedback_banner(locale, feedback, last_answer, idx)
     let t_lbl = flv(t(locale, "juego.tiempo"))
     let seg = flv(t(locale, "juego.unidad_seg"))
     let tiempo = flv(fmt_int(locale, time_left))
@@ -112,7 +114,7 @@ fn quiz_practica(seed: Int, idx: Int, grade: Int, locale: Str, topic: Str, band:
     let b = flv(fmt_int(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
     let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
-    let banner = feedback_banner(locale, feedback, last_answer)
+    let banner = feedback_banner(locale, feedback, last_answer, idx)
     let modo = flv(t(locale, "practica.modo"))
     let vas_lbl = flv(t(locale, "juego.aciertos"))
     let co = flv(fmt_int(locale, correct))
