@@ -1,0 +1,128 @@
+// live_funciones.fitz — el juego "Funciones" en vivo (F7.5). Página, socket y
+// persistencia. Teclado con ± (la respuesta puede ser negativa). Ronda fija de N,
+// sin reloj, NO adaptativo (gen_func no usa ratings). La sesión se guarda con mode
+// "numpad" (juego de teclado numérico; ya está en el CHECK del 0001), topic "func".
+
+from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, flv_frame, component_state, flv_evict, live_embed
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from live_game import resolver_contexto, pget_int
+from models import GameSession, Attempt
+from engine import desafio_n
+from mastery import actualizar_mastery
+from streaks import registrar_y_premiar
+from gen_arith import gen_func
+from func_view import func_formula
+from Funciones import funciones
+
+async fn crear_sesion_func(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let sess = GameSession.insert(conn, GameSession {
+        profile_id: profile_id,
+        mode: "numpad",
+        topic_code: "func",
+        level: grade,
+        seed: seed,
+    }).await?
+    return Ok(sess.id)
+}
+
+// Re-deriva el ejercicio (gen_func) y corrige en el server — no confía en el
+// cliente. Guarda la fórmula + el punto como prompt para el panel de historial.
+async fn persistir_func(sess_id: Int, profile_id: Int, seed: Int, idx: Int, grade: Int, given: Int) -> Result<Int> {
+    let ex = gen_func(seed, idx, grade)
+    let acierto = given == ex.answer
+    let prompt = func_formula(ex.op, ex.a, ex.b) + " ; x = {ex.a2}"
+    let conn = db.connect(db_url()).await?
+    let row = Attempt.insert(conn, Attempt {
+        session_id: sess_id,
+        profile_id: profile_id,
+        skill_code: ex.skill_code,
+        idx: idx,
+        prompt: prompt,
+        expected: "{ex.answer}",
+        given: "{given}",
+        correct: acierto,
+        ms: 0,
+        difficulty: ex.difficulty,
+    }).await?
+    let _ = actualizar_mastery(profile_id, ex.skill_code, ex.difficulty, acierto, 0).await
+    return Ok(row.id)
+}
+
+async fn finalizar_func(sess_id: Int, total: Int, correct: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("UPDATE sessions SET total = $1, correct = $2, ended_at = now() WHERE id = $3", [total, correct, sess_id]).await?
+    return Ok(1)
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/funciones")
+async fn func_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let inicial = component_with("funciones", "ssr", funciones {
+        seed: 1,
+        grade: ctx.grade,
+        locale: locale,
+        limit: desafio_n(),
+    })
+    let embed = live_embed("/live/funciones", "funciones-app", inicial)
+    let titulo = t(locale, "juego.funciones") + " — MatHelp"
+    return responder_html(page(locale, titulo, embed, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@ws("/live/funciones")
+async fn func_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
+    let locale = locale_from_cookie(lang)
+    let ctx = resolver_contexto(session).await?
+    let cid = Uuid.v4().to_str()
+    let seed = rand.int(1, 2000000000)
+    let sess_id = crear_sesion_func(ctx.profile_id, seed, ctx.grade).await?
+    let _ = component_with("funciones", cid, funciones {
+        seed: seed,
+        grade: ctx.grade,
+        locale: locale,
+        limit: desafio_n(),
+    }).raw
+    ws.send(flv_frame("funciones", cid))?
+    let next_idx = 0
+    let finalizado = false
+    loop {
+        let frame = match ws.recv() {
+            Ok(f) => f,
+            Err(_) => { break },
+        }
+        let ev = frame.event
+        let _ = dispatch_component_events(frame)
+        if (ev == "answer") {
+            let ei = pget_int(frame.payload, "ei", -1)
+            let given = pget_int(frame.payload, "v", -1)
+            let toco = pget_int(frame.payload, "touched", 0)
+            if (ei == next_idx and toco == 1) {
+                let _ = persistir_func(sess_id, ctx.profile_id, seed, ei, ctx.grade, given).await
+                let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
+                next_idx = next_idx + 1
+            }
+        }
+        match ws.send(flv_frame("funciones", cid)) {
+            Ok(_) => 0,
+            Err(_) => { break },
+        }
+        let st: funciones = component_state("funciones", cid)
+        if (st.phase == "done") {
+            if (not finalizado) {
+                let _ = finalizar_func(sess_id, st.total, st.correct).await
+                finalizado = true
+            }
+        }
+    }
+    let _ = flv_evict("funciones", cid)
+}

@@ -325,6 +325,13 @@ main:focus \{ outline:none; \}
 .tg-arc \{ fill:none; stroke:var(--mh-naranja); stroke-width:2.5; \}
 .tg-ang \{ fill:var(--mh-naranja); font-size:14px; font-weight:800; text-anchor:middle; \}
 .trig-pregunta \{ font-size:1.05rem; font-weight:800; text-align:center; \}
+/* --- Funciones (F7.5): fórmula + gráfico de la familia --- */
+.fx-svg \{ width:min(70vw, 220px); height:auto; \}
+.fx-axis \{ stroke:var(--mh-borde); stroke-width:1.5; \}
+.fx-curve \{ fill:none; stroke:var(--mh-naranja); stroke-width:3; stroke-linecap:round; \}
+.fx-formula \{ font-size:1.3rem; font-weight:800; text-align:center; \}
+.fx-formula sup \{ font-size:.7em; vertical-align:super; \}
+.fx-pregunta \{ font-size:1.05rem; font-weight:700; text-align:center; \}
 .cg-slot \{
   display:inline-flex; align-items:center; justify-content:center; min-width:1.6em;
   padding:0 .15em; border-bottom:4px solid var(--mh-borde); color:var(--mh-suave);

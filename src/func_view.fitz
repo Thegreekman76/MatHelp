@@ -1,0 +1,149 @@
+// func_view.fitz — el render del juego "Funciones" (F7.5). Muestra la FÓRMULA de
+// la función (con `<sup>` para los exponentes) + el GRÁFICO de la familia (SVG
+// inline, mismo patrón que Trigonometría) y pide evaluar f(x0). La respuesta es un
+// entero que puede ser NEGATIVO (lineal/cuadrática con término independiente
+// negativo) → teclado con ±. Tres familias: lineal, cuadrática, exponencial.
+//
+// La fórmula y el gráfico se derivan del `op` + campos del Exercise (ver la
+// convención en gen_arith.gen_func). Fórmula y SVG van crudos (`.raw`): NO pasan
+// por `flv`; sólo inyectan dígitos/signos, sin riesgo de inyección.
+
+from fitz_liveviews import Html, html, flv
+from gen_arith import gen_func, Exercise
+from i18n import t, t1
+from fmt import fmt_int
+from keypad_view import keypad_html
+
+// --- fórmula (raw html con <sup>) --------------------------------------------
+
+// Término independiente con su signo: "" si 0, " + k" o " − k".
+fn signed_offset(b: Int) -> Str {
+    if (b == 0) {
+        return ""
+    }
+    if (b > 0) {
+        return " + {b}"
+    }
+    return " − {0 - b}"
+}
+
+// "a·x" de la lineal, respetando coeficiente 1/−1.
+fn lin_coef(a: Int) -> Str {
+    if (a == 1) {
+        return "x"
+    }
+    if (a == 0 - 1) {
+        return "−x"
+    }
+    if (a > 0) {
+        return "{a}x"
+    }
+    return "−{0 - a}x"
+}
+
+fn func_formula(op: Str, a: Int, b: Int) -> Str {
+    if (op == "funclin") {
+        return html("""f(x) = {lin_coef(a)}{signed_offset(b)}""").raw
+    }
+    if (op == "funccuad") {
+        // a > 0 siempre. coef 1 → "x²".
+        let cuad = match a == 1 {
+            true => "x²",
+            false => "{a}x²",
+        }
+        return html("""f(x) = {cuad}{signed_offset(b)}""").raw
+    }
+    // funcexp: f(x) = a·base^x (b = base). coef 1 → sin "a·".
+    let coef = match a == 1 {
+        true => "",
+        false => "{a}·",
+    }
+    return html("""f(x) = {coef}{b}<sup>x</sup>""").raw
+}
+
+// --- gráfico (SVG) -----------------------------------------------------------
+
+// Curva de la familia (interior del SVG). La lineal sube o baja según la
+// pendiente; la cuadrática es una parábola hacia arriba; la exponencial crece.
+fn func_curva(op: Str, a: Int) -> Str {
+    if (op == "funclin") {
+        if (a > 0) {
+            return html("""<line x1="22" y1="128" x2="178" y2="22" class="fx-curve"/>""").raw
+        }
+        return html("""<line x1="22" y1="22" x2="178" y2="128" class="fx-curve"/>""").raw
+    }
+    if (op == "funccuad") {
+        return html("""<path d="M 36 28 Q 100 150 164 28" class="fx-curve"/>""").raw
+    }
+    // funcexp
+    return html("""<path d="M 20 132 C 92 130 136 104 180 20" class="fx-curve"/>""").raw
+}
+
+fn func_grafico(op: Str, a: Int) -> Str {
+    let curva = func_curva(op, a)
+    return html("""<svg viewBox="0 0 200 150" class="fx-svg" role="img" aria-label="grafico de la funcion">
+<line x1="12" y1="75" x2="188" y2="75" class="fx-axis"/>
+<line x1="100" y1="12" x2="100" y2="138" class="fx-axis"/>
+{curva}
+</svg>""").raw
+}
+
+// --- pantalla ----------------------------------------------------------------
+
+fn func_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool) -> Html {
+    if (phase == "done") {
+        return func_resumen(locale, correct, total)
+    }
+    let ex = gen_func(seed, idx, grade)
+    let grafico = func_grafico(ex.op, ex.a)
+    let formula = func_formula(ex.op, ex.a, ex.b)
+    let pregunta = flv(t1(locale, "func.evaluar", fmt_int(locale, ex.a2)))
+    let valor = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = func_feedback(locale, feedback, last_answer)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    // Respuesta puede ser negativa → teclado con ±.
+    let teclado = keypad_html(locale, entrada, idx, touched, true)
+    return html("""<div class="q-hud">
+<div class="q-mode">📈 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+</div>
+<div class="q-figura">{grafico}</div>
+<div class="q-prompt fx-formula">{formula}</div>
+<div class="q-prompt fx-pregunta">{pregunta}</div>
+<div class="q-prompt cg-eq">{valor}</div>
+<div class="q-fbwrap">{banner}</div>
+{teclado}""")
+}
+
+fn func_feedback(locale: Str, feedback: Str, last_answer: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_int(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn func_resumen(locale: Str, correct: Int, total: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    return html("""<div class="q-done">
+<div class="q-medal">📈</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+<div class="q-actions">
+<a class="mh-btn" href="/funciones">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/juegos">{flv(t(locale, "juegos.titulo"))}</a>
+</div>
+</div>""")
+}

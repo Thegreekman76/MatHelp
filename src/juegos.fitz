@@ -43,5 +43,6 @@ fn juegos() -> List<Juego> {
         Juego { code: "ecuaciones", min_grade: 8, icon: "🟰", route: "/ecuaciones", built: true },
         Juego { code: "finanzas", min_grade: 11, icon: "💰", route: "/finanzas", built: true, modalidad: "comercial" },
         Juego { code: "trigonometria", min_grade: 10, icon: "🔺", route: "/trigonometria", built: true },
+        Juego { code: "funciones", min_grade: 11, icon: "📈", route: "/funciones", built: true },
     ]
 }

@@ -122,6 +122,8 @@
   "trig.hallar_hip": "How long is the hypotenuse?",
   "trig.hallar_cateto": "How long is the missing leg?",
   "trig.hallar_opuesto": "How long is the leg opposite the angle?",
+  "juego.funciones": "Functions",
+  "func.evaluar": "What is f({0})?",
   "fin.p_simple": "You deposit {0} at {1}% simple interest per year. How much interest do you earn in {2} years?",
   "fin.p_comp": "You invest {0} at {1}% compound interest per year. How much do you have after {2} years?",
   "fin.p_pct": "What is {0}% of {1}?",

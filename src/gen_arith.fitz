@@ -719,6 +719,82 @@ fn gen_trig(seed: Int, idx: Int, grade: Int) -> Exercise {
     }
 }
 
+// F7.5 — Funciones: evaluar f(x) de tres familias, con el gráfico de la familia
+// (SVG). La respuesta es un entero que PUEDE ser negativo (lineal/cuadrática con
+// término independiente negativo) → teclado con ±. Tres tipos:
+//   - funclin (lineal): f(x) = a·x + b. Pendiente a con signo (gráfico sube/baja).
+//   - funccuad (cuadrática): f(x) = a·x² + b, a>0 (parábola hacia arriba).
+//   - funcexp (exponencial): f(x) = a·b^x (base 2 o 3), crece.
+//
+// Convención de campos (la re-lee `func_view` para fórmula y gráfico):
+//   a=coeficiente principal (pendiente / a de ax² / coef del exponencial),
+//   b=término independiente (o la BASE en exponencial), a2=x0 (punto a evaluar),
+//   answer=f(x0), op=funclin/funccuad/funcexp.
+fn gen_func(seed: Int, idx: Int, grade: Int) -> Exercise {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let tipo = g.int(0, 2)
+    let a = 0
+    let b = 0
+    let a2 = 0
+    let answer = 0
+    let op = "funclin"
+    let skill = "func.lineal"
+    let dificultad = 4
+    if (tipo == 0) {
+        // Lineal: f(x) = a·x + b, con pendiente de signo aleatorio.
+        let mag = g.int(1, 5)
+        let neg = g.int(0, 1)
+        if (neg == 1) {
+            a = 0 - mag
+        }
+        if (neg == 0) {
+            a = mag
+        }
+        b = g.int(0 - 9, 9)
+        let x0 = g.int(0 - 4, 6)
+        a2 = x0
+        answer = a * x0 + b
+        op = "funclin"
+        skill = "func.lineal"
+        dificultad = 4
+    }
+    if (tipo == 1) {
+        // Cuadrática: f(x) = a·x² + b, a>0 (parábola hacia arriba).
+        a = g.int(1, 3)
+        b = g.int(0 - 6, 6)
+        let x0 = g.int(0 - 4, 4)
+        a2 = x0
+        answer = a * x0 * x0 + b
+        op = "funccuad"
+        skill = "func.cuadratica"
+        dificultad = 5
+    }
+    if (tipo == 2) {
+        // Exponencial: f(x) = a·base^x (base 2 o 3), x0 chico → respuesta acotada.
+        a = g.int(1, 2)
+        let bases = [2, 3]
+        let base = bases[g.int(0, 1)]
+        b = base                 // la base viaja en b
+        let x0 = g.int(0, 3)
+        a2 = x0
+        answer = a * ipow(base, x0)
+        op = "funcexp"
+        skill = "func.exponencial"
+        dificultad = 5
+    }
+    let vacio: List<Int> = []
+    return Exercise {
+        a: a,
+        b: b,
+        op: op,
+        answer: answer,
+        options: vacio,
+        skill_code: skill,
+        difficulty: dificultad,
+        a2: a2,
+    }
+}
+
 // Genera un ejercicio mezclando las operaciones apropiadas al grado. Elige la
 // operación con un generador propio (determinista desde el seed) y delega en
 // `gen`. (seed, idx, grade) devuelve siempre el mismo ejercicio.

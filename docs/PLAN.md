@@ -8,13 +8,15 @@
 
 ## 📍 Estado — actualizado 23/08/2026
 
-**Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo + filtro por modalidad) +
-F7.1 COMPLETA (Ciclo Básico aritmética) + teclado con ± + F7.2 COMPLETA (Ecuaciones:
-1er grado + cuadrática + sistemas 2×2) + F7.3 COMPLETA (Finanzas: interés
-simple/compuesto, %, descuento, punto de equilibrio — diferencial comercial) +
-F7.4 COMPLETA (Trigonometría: triángulo rectángulo con figura SVG — Pitágoras +
-razón 30°) CERRADAS. F0…F6 cerradas. Próximo: F7.5 (Funciones — evaluar f(x) /
-reconocer gráfico, opcional/SVG).**
+**Fase actual: F7 — Secundaria. ✅ COMPLETA (2026-08-24). F7.0 (modelo + filtro por
+modalidad) + F7.1 (Ciclo Básico aritmética + teclado con ±) + F7.2 (Ecuaciones:
+1er grado + cuadrática + sistemas 2×2) + F7.3 (Finanzas: interés simple/compuesto,
+%, descuento, punto de equilibrio — diferencial comercial) + F7.4 (Trigonometría:
+triángulo rectángulo con figura SVG — Pitágoras + razón 30°) + F7.5 (Funciones:
+evaluar f(x) lineal/cuadrática/exponencial con fórmula + gráfico SVG) CERRADAS.
+F0…F6 cerradas. Con esto la secundaria (Ciclo Básico + Ciclo Orientado con los
+diferenciales por modalidad) queda cubierta. Próximo: definir F8 o pulido/nuevas
+modalidades según feedback.**
 
 > **F6 (2026-08-23)** — cuatro piezas de pulido:
 > - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo
@@ -1066,8 +1068,27 @@ nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E
   **sobrevive el diff de LiveView en cada tick** (FLV-02 no aplica a SVG geométrico
   puro: hallazgo del dogfooding). Verificado en Postgres (mode=numpad/trig, 10/10
   correctos, ended_at) con paridad bit-a-bit `fitz run` ↔ binario.
-- **F7.5 — Funciones (#16, opcional/SVG).** Evaluar f(x) / reconocer el gráfico
-  (recta/parábola/exponencial). Reusa SVG inline. `topic_code`: `func.*`.
+- **F7.5 — Funciones (#16). ✅ (2026-08-24)** Juego nuevo "Funciones"
+  (`/funciones`, `Funciones.fitzv` + `func_view.fitz` + `live_funciones.fitz`,
+  `min_grade` 11, modalidad `comun`). **Evaluar f(x)** de tres familias, mostrando
+  la FÓRMULA (con `<sup>` para los exponentes) + el GRÁFICO de la familia (SVG,
+  mismo patrón que Trigonometría). `gen_func(seed, idx, grade)`: **lineal**
+  (`f(x)=a·x+b`, pendiente ± → gráfico sube/baja), **cuadrática** (`f(x)=a·x²+b`,
+  a>0 → parábola hacia arriba), **exponencial** (`f(x)=a·base^x`, base 2/3, crece).
+  La respuesta puede ser NEGATIVA (lineal/cuadrática) → teclado con ± (evento
+  `signo`, como Ecuaciones). El gráfico lo dibuja `func_grafico`/`func_curva`
+  (ejes + curva por familia/dirección), la fórmula `func_formula` (coef 1/−1
+  omitido, término independiente con signo). Sesión `mode="numpad"` (sin
+  migración), `topic_code` `func`, skills `func.lineal`/`func.cuadratica`/
+  `func.exponencial`. 4 tests nuevos (determinismo, las 3 familias, evaluación
+  correcta por familia, pendiente lineal con ambos signos). Smoke E2E
+  `tools/e2e_funciones.py` que **RESUELVE evaluando la fórmula leída del frame
+  vivo** (parseando lineal/cuadrática/exponencial + el punto x0) — y verifica que
+  fórmula (con `<sup>`) y gráfico SVG sobreviven el diff. Postgres (mode=numpad/
+  func, 10/10 correctos, ended_at) con paridad bit-a-bit `fitz run` ↔ binario.
+  *El gráfico muestra la FAMILIA + dirección (no un plot exacto de los coeficientes)
+  — reforzar "reconocer el gráfico" con recognition multiple-choice queda como
+  follow-up opcional.*
 - **Industrial (posterior, según demanda).** Vectores, matrices — más SVG + más
   motor; se evalúa cuando aparezca un usuario real de esa orientación.
 

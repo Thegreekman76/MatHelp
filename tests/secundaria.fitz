@@ -7,7 +7,7 @@
 // Corré con:  fitz test
 
 from engine import es_secundaria, anio_secundaria, es_ciclo_orientado, modalidad_valida
-from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta, gen_finanzas, gen_trig
+from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta, gen_finanzas, gen_trig, gen_func
 from fmt import fmt_operando
 
 // --- es_secundaria (grade >= 8) ---------------------------------------------
@@ -345,6 +345,67 @@ from fmt import fmt_operando
             }
         }
     }
+}
+
+// --- F7.5: funciones (evaluar f(x)) -----------------------------------------
+
+@test fn gen_func_es_determinista() {
+    let e1 = gen_func(606, 6, 12)
+    let e2 = gen_func(606, 6, 12)
+    assert_eq(e1.a, e2.a)
+    assert_eq(e1.b, e2.b)
+    assert_eq(e1.a2, e2.a2)
+    assert_eq(e1.answer, e2.answer)
+    assert_eq(e1.op, e2.op)
+}
+
+@test fn gen_func_aparecen_las_tres_familias() {
+    let vio_lin = false
+    let vio_cuad = false
+    let vio_exp = false
+    for i in 0..60 {
+        let e = gen_func(8181, i, 12)
+        if (e.op == "funclin") { vio_lin = true }
+        if (e.op == "funccuad") { vio_cuad = true }
+        if (e.op == "funcexp") { vio_exp = true }
+    }
+    assert_eq(vio_lin, true)
+    assert_eq(vio_cuad, true)
+    assert_eq(vio_exp, true)
+}
+
+// Cada familia evalúa bien en x0 (a2): lineal a·x0+b, cuadrática a·x0²+b,
+// exponencial a·b^x0. a2 es el punto; answer el valor.
+@test fn gen_func_evalua_correcto() {
+    for i in 0..60 {
+        let e = gen_func(2929, i, 12)
+        if (e.op == "funclin") {
+            assert_eq(e.answer, e.a * e.a2 + e.b)
+        }
+        if (e.op == "funccuad") {
+            assert_eq(e.answer, e.a * e.a2 * e.a2 + e.b)
+            assert_eq(e.a > 0, true)          // parábola hacia arriba
+        }
+        if (e.op == "funcexp") {
+            assert_eq(e.answer, e.a * ipow(e.b, e.a2))
+            assert_eq(e.answer > 0, true)     // exponencial siempre positiva
+        }
+    }
+}
+
+// La pendiente lineal aparece con los dos signos (gráfico sube/baja).
+@test fn gen_func_lineal_pendiente_con_signo() {
+    let vio_pos = false
+    let vio_neg = false
+    for i in 0..80 {
+        let e = gen_func(5151, i, 12)
+        if (e.op == "funclin") {
+            if (e.a > 0) { vio_pos = true }
+            if (e.a < 0) { vio_neg = true }
+        }
+    }
+    assert_eq(vio_pos, true)
+    assert_eq(vio_neg, true)
 }
 
 // La plata siempre es un entero POSITIVO (elegimos capitales y tasas que dividen
