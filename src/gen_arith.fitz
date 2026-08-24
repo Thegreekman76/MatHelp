@@ -452,6 +452,62 @@ fn gen_potencia(seed: Int, idx: Int, grade: Int) -> Exercise {
     }
 }
 
+// Ecuaciones (F7.2, juego "Ecuaciones"). Respuesta ÚNICA tipeada (teclado con ±).
+//   - 1er grado (op "eclin"): ax + b = c, resolvé x. x ∈ [-12,12] (con signo),
+//     coeficiente a ∈ [2,9], término b ∈ [-15,15]. c = a·x + b se muestra ya
+//     calculado. La respuesta (x) puede ser negativa o 0.
+//   - cuadrática (op "eccuad"): x² = n con n = x² (x ∈ [2,12]); valen ±x.
+// Sin `options` (no es opción múltiple). El render lo arma prompt_ecuacion.
+fn gen_ecuacion(seed: Int, idx: Int, grade: Int) -> Exercise {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let tipo = g.int(0, 1)
+    let a = 0
+    let b = 0
+    let answer = 0
+    let op = "eclin"
+    let skill = "ec.lineal"
+    let dificultad = 3
+    if (tipo == 0) {
+        let x = g.int(0 - 12, 12)
+        let coef = g.int(2, 9)
+        let cte = g.int(0 - 15, 15)
+        a = coef
+        b = cte
+        answer = x
+        op = "eclin"
+        skill = "ec.lineal"
+        dificultad = 3
+    }
+    if (tipo == 1) {
+        let x = g.int(2, 12)
+        a = 0
+        b = 0
+        answer = x
+        op = "eccuad"
+        skill = "ec.cuadratica"
+        dificultad = 4
+    }
+    let vacio: List<Int> = []
+    return Exercise {
+        a: a,
+        b: b,
+        op: op,
+        answer: answer,
+        options: vacio,
+        skill_code: skill,
+        difficulty: dificultad,
+    }
+}
+
+// ¿La respuesta tipeada resuelve la ecuación? Para la cuadrática valen las DOS
+// raíces (±x); para el 1er grado, sólo x.
+fn ecuacion_correcta(given: Int, answer: Int, op: Str) -> Bool {
+    if (op == "eccuad") {
+        return given == answer or given == 0 - answer
+    }
+    return given == answer
+}
+
 // Genera un ejercicio mezclando las operaciones apropiadas al grado. Elige la
 // operación con un generador propio (determinista desde el seed) y delega en
 // `gen`. (seed, idx, grade) devuelve siempre el mismo ejercicio.

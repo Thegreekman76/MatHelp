@@ -1,0 +1,87 @@
+// ecuacion_view.fitz — el render del juego "Ecuaciones" (F7.2).
+//
+// Mismo esqueleto de teclado que "Completá el hueco" (el chico TIPEA la solución),
+// pero muestra una ECUACIÓN y pide `x`:
+//   - 1er grado:  ax + b = c   → x (puede ser negativo o 0; teclado con ±).
+//   - cuadrática: x² = n        → x (valen ±x).
+// El ejercicio se deriva de (seed, idx) con gen_ecuacion (no adaptativo). La
+// corrección (given resuelve la ecuación) la hace ecuacion_correcta.
+
+from fitz_liveviews import Html, html, flv
+from gen_arith import gen_ecuacion
+from i18n import t, t1
+from fmt import fmt_int, fmt_operando
+from keypad_view import keypad_html
+
+// Arma la ecuación como texto. 1er grado: "ax + b = c" (b<0 → "− |b|", b=0 se
+// omite; c = a·x + b calculado). Cuadrática: "x² = n" (n = x²).
+fn prompt_ecuacion(locale: Str, a: Int, b: Int, answer: Int, op: Str) -> Str {
+    if (op == "eccuad") {
+        let n = answer * answer
+        return "x² = " + fmt_int(locale, n)
+    }
+    let c = a * answer + b
+    let s = fmt_int(locale, a) + "x"
+    if (b > 0) {
+        s = s + " + " + fmt_int(locale, b)
+    }
+    if (b < 0) {
+        s = s + " − " + fmt_int(locale, 0 - b)
+    }
+    return s + " = " + fmt_int(locale, c)
+}
+
+fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, con_signo: Bool) -> Html {
+    if (phase == "done") {
+        return ecuacion_resumen(locale, correct, total)
+    }
+    let ex = gen_ecuacion(seed, idx, grade)
+    let ecua = flv(prompt_ecuacion(locale, ex.a, ex.b, ex.answer, ex.op))
+    // El valor tipeado (con signo/paréntesis si es negativo), o "?" si nada.
+    let valor = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_operando(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = ecuacion_feedback(locale, feedback, last_answer)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let teclado = keypad_html(locale, entrada, idx, touched, con_signo)
+    return html("""<div class="q-hud">
+<div class="q-mode">🟰 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+</div>
+<div class="q-prompt cg-eq">{ecua}</div>
+<div class="q-prompt cg-eq ec-x">x = {valor}</div>
+<div class="q-fbwrap">{banner}</div>
+{teclado}""")
+}
+
+// Feedback: verde si acertó, ámbar con la solución (x = last_answer) si no.
+fn ecuacion_feedback(locale: Str, feedback: Str, last_answer: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = "x = " + fmt_int(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn ecuacion_resumen(locale: Str, correct: Int, total: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+<div class="q-actions">
+<a class="mh-btn" href="/ecuaciones">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/juegos">{flv(t(locale, "juegos.titulo"))}</a>
+</div>
+</div>""")
+}

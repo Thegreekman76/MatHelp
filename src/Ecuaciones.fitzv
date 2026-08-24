@@ -1,0 +1,92 @@
+// Ecuaciones.fitzv — el juego "Ecuaciones" (F7.2), como LiveComponent SSR.
+//
+// Teclado numérico con ± (el chico TIPEA la solución `x`). Ronda fija de N
+// ejercicios, sin reloj. El ejercicio se deriva de (seed, idx) con gen_ecuacion
+// (no adaptativo); la corrección la hace ecuacion_correcta (para la cuadrática
+// valen ±x). La persistencia (Attempt + racha) la hace el loop del @ws en
+// live_ecuaciones.fitz, que re-deriva el mismo ejercicio.
+//
+// Cuatro eventos: digito / borrar / signo / answer (mismo shape que Completá).
+
+from gen_arith import gen_ecuacion, ecuacion_correcta
+from keypad import kp_append, kp_borrar, kp_signo
+from engine import a_int
+from ecuacion_view import ecuacion_screen
+
+component ecuaciones {
+  state {
+    seed: Int = 0
+    idx: Int = 0
+    grade: Int = 8
+    locale: Str = "es-AR"
+    correct: Int = 0
+    total: Int = 0
+    phase: Str = "playing"         // "playing" | "done"
+    feedback: Str = ""             // "" | "ok" | "bad"
+    last_answer: Int = 0           // la solución x del ejercicio recién fallado
+    entrada: Int = 0               // lo tipeado
+    touched: Bool = false          // ¿tipeó algo? (la solución puede ser 0 o negativa)
+    con_signo: Bool = true         // ecuaciones: siempre con ± (x puede ser negativa)
+    limit: Int = 10                // ejercicios por ronda
+  }
+
+  event digito() {
+    if (phase == "playing") {
+      if (payload.has("d")) {
+        entrada = kp_append(entrada, a_int(payload["d"]), 99999)
+        touched = true
+      }
+    }
+  }
+
+  event borrar() {
+    if (phase == "playing") {
+      entrada = kp_borrar(entrada)
+    }
+  }
+
+  event signo() {
+    if (phase == "playing") {
+      entrada = kp_signo(entrada)
+    }
+  }
+
+  event answer() {
+    if (phase == "playing") {
+      if (payload.has("v")) {
+        if (payload.has("ei")) {
+          let ei = a_int(payload["ei"])
+          if (ei == idx) {
+            let given = a_int(payload["v"])
+            // `touched` distingue vacío de un 0 tipeado (solución válida).
+            if (touched) {
+              let ex = gen_ecuacion(seed, idx, grade)
+              let acierto = ecuacion_correcta(given, ex.answer, ex.op)
+              total = total + 1
+              if (acierto) {
+                correct = correct + 1
+                feedback = "ok"
+              }
+              if (not acierto) {
+                feedback = "bad"
+                last_answer = ex.answer
+              }
+              entrada = 0
+              touched = false
+              idx = idx + 1
+              if (total >= limit) {
+                phase = "done"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  <template>
+    <div id="ecuaciones-app" class="mh-quiz">
+      {ecuacion_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, con_signo).raw}
+    </div>
+  </template>
+}

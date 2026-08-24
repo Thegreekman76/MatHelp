@@ -9,9 +9,9 @@
 ## 📍 Estado — actualizado 23/08/2026
 
 **Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo) + F7.1 COMPLETA (Ciclo
-Básico aritmética: enteros con signo + potencias + raíces + notación científica)
-CERRADAS. F0…F6 cerradas. Próximo: F7.2 (juego Ecuaciones — 1er grado → sistemas
-2×2 → cuadráticas, teclado numérico).**
+Básico aritmética) + teclado con ± + F7.2 (juego Ecuaciones: 1er grado +
+cuadrática, teclado) CERRADAS. F0…F6 cerradas. Próximo: F7.2.b (sistemas 2×2,
+input doble) o F7.3 (juego Finanzas — diferencial de la modalidad comercial).**
 
 > **F6 (2026-08-23)** — cuatro piezas de pulido:
 > - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo
@@ -998,10 +998,18 @@ nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E
   aparecer con un flash al conectar el WS — el juego en vivo es correcto.*
   *Deuda residual: `grade_teclado` quedó sin uso en la app (lo reemplazó el ±);
   se puede borrar (+ su test) en un cleanup.*
-- **F7.2 — Ecuaciones (#13).** Generador `gen_ecuaciones` (1er grado → sistemas
-  2×2 → cuadráticas), respuesta numérica con el **`keypad` que ya existe**. `.fitzv`
-  nuevo `Ecuaciones` + `live_ecuaciones.fitz` (patrón de `Completa`). `topic_code`:
-  `ec.lineal`, `sist.2x2`, `ec.cuadratica`.
+- **F7.2 — Ecuaciones. ✅ (2026-08-24)** Juego nuevo "Ecuaciones" (`/ecuaciones`,
+  `min_grade` 8) con teclado (aprovecha el `±`): el chico TIPEA la solución `x`.
+  Dos tipos mezclados: **1er grado** `ax + b = c` → x (x ∈ [-12,12] con signo, se
+  muestra c ya calculado) y **cuadrática** `x² = n` → x (valen ±x). Generador
+  `gen_ecuacion` + `ecuacion_correcta` (la cuadrática acepta las dos raíces) en
+  `gen_arith`; `ecuacion_view.fitz` nuevo (`ecuacion_screen` + `prompt_ecuacion`);
+  componente `Ecuaciones.fitzv` (teclado, eventos digito/borrar/signo/answer);
+  `live_ecuaciones.fitz` nuevo (ruta + `@ws` + persist, mode `numpad` — ya en el
+  CHECK). `topic_code`: `ec.lineal`, `ec.cuadratica`. 4 `@test`. Verificado:
+  `fitz test` 94/0 + `fitz build` nativo + smoke (resolví y respondí 6 ecuaciones
+  de ambos tipos, 6/6 correctas persistidas). *Pendiente F7.2.b: sistemas 2×2
+  (necesitan input de DOS valores — el teclado da uno solo).*
 - **F7.3 — Finanzas (#14) — diferencial COMERCIAL.** Generador `gen_finanzas`
   (interés simple/compuesto, %, descuento, punto de equilibrio), teclado numérico
   + contexto localizado (plazo fijo, plata). Aparece solo para `modalidad="comercial"`

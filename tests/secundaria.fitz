@@ -7,7 +7,7 @@
 // Corré con:  fitz test
 
 from engine import es_secundaria, anio_secundaria, es_ciclo_orientado, modalidad_valida
-from gen_arith import gen, grade_teclado, gen_potencia, ipow
+from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta
 from fmt import fmt_operando
 
 // --- es_secundaria (grade >= 8) ---------------------------------------------
@@ -181,4 +181,43 @@ from fmt import fmt_operando
     assert_eq(vio_pot, true)
     assert_eq(vio_raiz, true)
     assert_eq(vio_scinot, true)
+}
+
+// --- F7.2: ecuaciones -------------------------------------------------------
+
+@test fn gen_ecuacion_es_determinista() {
+    let e1 = gen_ecuacion(888, 4, 9)
+    let e2 = gen_ecuacion(888, 4, 9)
+    assert_eq(e1.a, e2.a)
+    assert_eq(e1.b, e2.b)
+    assert_eq(e1.answer, e2.answer)
+    assert_eq(e1.op, e2.op)
+}
+
+@test fn gen_ecuacion_aparecen_los_dos_tipos() {
+    let vio_lin = false
+    let vio_cuad = false
+    for i in 0..40 {
+        let e = gen_ecuacion(12321, i, 9)
+        if (e.op == "eclin") {
+            vio_lin = true
+        }
+        if (e.op == "eccuad") {
+            vio_cuad = true
+        }
+    }
+    assert_eq(vio_lin, true)
+    assert_eq(vio_cuad, true)
+}
+
+@test fn ecuacion_correcta_lineal_exige_x() {
+    assert_eq(ecuacion_correcta(4, 4, "eclin"), true)
+    assert_eq(ecuacion_correcta(0 - 4, 4, "eclin"), false)   // -4 no resuelve
+    assert_eq(ecuacion_correcta(5, 4, "eclin"), false)
+}
+
+@test fn ecuacion_correcta_cuadratica_acepta_ambas_raices() {
+    assert_eq(ecuacion_correcta(7, 7, "eccuad"), true)
+    assert_eq(ecuacion_correcta(0 - 7, 7, "eccuad"), true)   // ±7 valen
+    assert_eq(ecuacion_correcta(6, 7, "eccuad"), false)
 }
