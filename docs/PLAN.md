@@ -9,9 +9,10 @@
 ## 📍 Estado — actualizado 23/08/2026
 
 **Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo) + F7.1 COMPLETA (Ciclo
-Básico aritmética) + teclado con ± + F7.2 (juego Ecuaciones: 1er grado +
-cuadrática, teclado) CERRADAS. F0…F6 cerradas. Próximo: F7.2.b (sistemas 2×2,
-input doble) o F7.3 (juego Finanzas — diferencial de la modalidad comercial).**
+Básico aritmética) + teclado con ± + F7.2 COMPLETA (juego Ecuaciones: 1er grado +
+cuadrática + sistemas 2×2, teclado) CERRADAS. F0…F6 cerradas. Próximo: F7.3
+(juego Finanzas — diferencial de la modalidad comercial: interés simple/compuesto,
+%, descuento).**
 
 > **F6 (2026-08-23)** — cuatro piezas de pulido:
 > - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo
@@ -1008,8 +1009,19 @@ nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E
   `live_ecuaciones.fitz` nuevo (ruta + `@ws` + persist, mode `numpad` — ya en el
   CHECK). `topic_code`: `ec.lineal`, `ec.cuadratica`. 4 `@test`. Verificado:
   `fitz test` 94/0 + `fitz build` nativo + smoke (resolví y respondí 6 ecuaciones
-  de ambos tipos, 6/6 correctas persistidas). *Pendiente F7.2.b: sistemas 2×2
-  (necesitan input de DOS valores — el teclado da uno solo).*
+  de ambos tipos, 6/6 correctas persistidas).
+- **F7.2.b — Sistemas 2×2. ✅ (2026-08-24)** Tercer tipo del juego Ecuaciones
+  (op `ecsist`): se muestran las DOS ecuaciones (`ax + by = c₁`, `a2x + b2y = c₂`,
+  coeficientes 1..4, det ≠ 0 → solución única entera) y el chico **tipea x** (hallar
+  x exige resolver el sistema). `Exercise` gana `a2/b2/answer2` (defaults 0,
+  backward-compatible — los otros generadores no cambian); `gen_ecuacion` suma la
+  rama sistema; `prompt_ecuacion` muestra las dos ecuaciones (una por línea, CSS
+  `.ec-sist` con `pre-line`; coeficiente 1 omitido → `x`/`y` limpio); `ecuacion_correcta`
+  reusa `given == x`. `topic_code`: `sist.2x2`. 2 `@test` (cobertura de los 3 tipos,
+  det ≠ 0). Verificado: `fitz test` 95/0 + `fitz build` nativo + smoke (jugué 10
+  ejercicios de los 3 tipos, resolví cada sistema por eliminación, **10/10 correctas**).
+  **Con esto F7.2 (Ecuaciones) queda COMPLETA**: 1er grado + cuadrática + sistemas 2×2.
+  *Refinamiento futuro: pedir x E y (input de dos valores, two-step) en vez de solo x.*
 - **F7.3 — Finanzas (#14) — diferencial COMERCIAL.** Generador `gen_finanzas`
   (interés simple/compuesto, %, descuento, punto de equilibrio), teclado numérico
   + contexto localizado (plazo fijo, plata). Aparece solo para `modalidad="comercial"`

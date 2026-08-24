@@ -194,9 +194,10 @@ from fmt import fmt_operando
     assert_eq(e1.op, e2.op)
 }
 
-@test fn gen_ecuacion_aparecen_los_dos_tipos() {
+@test fn gen_ecuacion_aparecen_los_tres_tipos() {
     let vio_lin = false
     let vio_cuad = false
+    let vio_sist = false
     for i in 0..40 {
         let e = gen_ecuacion(12321, i, 9)
         if (e.op == "eclin") {
@@ -205,9 +206,25 @@ from fmt import fmt_operando
         if (e.op == "eccuad") {
             vio_cuad = true
         }
+        if (e.op == "ecsist") {
+            vio_sist = true
+        }
     }
     assert_eq(vio_lin, true)
     assert_eq(vio_cuad, true)
+    assert_eq(vio_sist, true)
+}
+
+// El sistema 2×2 tiene solución ÚNICA: el determinante a·b2 − a2·b ≠ 0. Cubre
+// 40 idx deterministas (cada ecsist que aparezca).
+@test fn gen_sistema_es_no_degenerado() {
+    for i in 0..40 {
+        let e = gen_ecuacion(555, i, 9)
+        if (e.op == "ecsist") {
+            let det = e.a * e.b2 - e.a2 * e.b
+            assert_ne(det, 0)
+        }
+    }
 }
 
 @test fn ecuacion_correcta_lineal_exige_x() {

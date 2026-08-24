@@ -13,12 +13,32 @@ from i18n import t, t1
 from fmt import fmt_int, fmt_operando
 from keypad_view import keypad_html
 
-// Arma la ecuación como texto. 1er grado: "ax + b = c" (b<0 → "− |b|", b=0 se
-// omite; c = a·x + b calculado). Cuadrática: "x² = n" (n = x²).
-fn prompt_ecuacion(locale: Str, a: Int, b: Int, answer: Int, op: Str) -> Str {
+// Un término "c·var" con notación limpia: coeficiente 1 se omite (1x → x).
+fn coef_term(locale: Str, c: Int, var: Str) -> Str {
+    if (c == 1) {
+        return var
+    }
+    return fmt_int(locale, c) + var
+}
+
+// Una ecuación de un sistema: "a·x + b·y = c" (a,b positivos; c puede ser < 0).
+fn eq_sistema(locale: Str, a: Int, b: Int, c: Int) -> Str {
+    return coef_term(locale, a, "x") + " + " + coef_term(locale, b, "y") + " = " + fmt_int(locale, c)
+}
+
+// Arma la ecuación (o el sistema) como texto:
+//   - 1er grado: "ax + b = c" (b<0 → "− |b|", b=0 se omite; c = a·x + b).
+//   - cuadrática: "x² = n" (n = x²).
+//   - sistema 2×2: dos ecuaciones separadas por "\n" (c1 = a·x + b·y, etc.).
+fn prompt_ecuacion(locale: Str, a: Int, b: Int, a2: Int, b2: Int, answer: Int, answer2: Int, op: Str) -> Str {
     if (op == "eccuad") {
         let n = answer * answer
         return "x² = " + fmt_int(locale, n)
+    }
+    if (op == "ecsist") {
+        let c1 = a * answer + b * answer2
+        let c2 = a2 * answer + b2 * answer2
+        return eq_sistema(locale, a, b, c1) + "\n" + eq_sistema(locale, a2, b2, c2)
     }
     let c = a * answer + b
     let s = fmt_int(locale, a) + "x"
@@ -36,7 +56,12 @@ fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
         return ecuacion_resumen(locale, correct, total)
     }
     let ex = gen_ecuacion(seed, idx, grade)
-    let ecua = flv(prompt_ecuacion(locale, ex.a, ex.b, ex.answer, ex.op))
+    let ecua = flv(prompt_ecuacion(locale, ex.a, ex.b, ex.a2, ex.b2, ex.answer, ex.answer2, ex.op))
+    // El sistema 2×2 muestra dos ecuaciones (separadas por "\n" → pre-line).
+    let eq_class = match ex.op {
+        "ecsist" => "cg-eq ec-sist",
+        _ => "cg-eq",
+    }
     // El valor tipeado (con signo/paréntesis si es negativo), o "?" si nada.
     let valor = match touched {
         true => html("""<span class="cg-slot filled">{flv(fmt_operando(locale, entrada))}</span>""").raw,
@@ -53,7 +78,7 @@ fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
 <div class="q-mode">🟰 {hecho} {de_lbl} {de_total}</div>
 <div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
 </div>
-<div class="q-prompt cg-eq">{ecua}</div>
+<div class="q-prompt {eq_class}">{ecua}</div>
 <div class="q-prompt cg-eq ec-x">x = {valor}</div>
 <div class="q-fbwrap">{banner}</div>
 {teclado}""")

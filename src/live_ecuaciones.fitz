@@ -33,7 +33,7 @@ async fn crear_sesion_ecuaciones(profile_id: Int, seed: Int, grade: Int) -> Resu
 async fn persistir_ecuacion(sess_id: Int, profile_id: Int, seed: Int, idx: Int, grade: Int, given: Int) -> Result<Int> {
     let ex = gen_ecuacion(seed, idx, grade)
     let acierto = ecuacion_correcta(given, ex.answer, ex.op)
-    let prompt = prompt_ecuacion("es-AR", ex.a, ex.b, ex.answer, ex.op)
+    let prompt = prompt_ecuacion("es-AR", ex.a, ex.b, ex.a2, ex.b2, ex.answer, ex.answer2, ex.op)
     let conn = db.connect(db_url()).await?
     let row = Attempt.insert(conn, Attempt {
         session_id: sess_id,

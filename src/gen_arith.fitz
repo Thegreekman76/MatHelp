@@ -25,11 +25,17 @@
 type Exercise {
     a: Int = 0
     b: Int = 0
-    op: Str = ""              // "add" | "sub" | "mul" | "div"
+    op: Str = ""              // "add" | "sub" | "mul" | "div" | "pot"/"raiz"/"scinot" | "eclin"/"eccuad"/"ecsist"
     answer: Int = 0
-    options: List<Int> = []   // 4 valores distintos, uno es `answer`
-    skill_code: Str = ""      // "add" | "sub" | "mul.tabla" | "div.exacta"
+    options: List<Int> = []   // 4 valores distintos, uno es `answer` (vacío en juegos de teclado)
+    skill_code: Str = ""      // "add" | "sub" | "mul.tabla" | "div.exacta" | ...
     difficulty: Int = 1       // 1..5, para el motor adaptativo (F3)
+    // Sistemas 2×2 (F7.2.b): la 1ª ecuación usa a/b (a·x + b·y = c1); la 2ª usa
+    // a2/b2 (a2·x + b2·y = c2). answer = x, answer2 = y. Las constantes c1/c2 se
+    // derivan (c1 = a·x + b·y). En el resto de los ejercicios quedan en 0.
+    a2: Int = 0
+    b2: Int = 0
+    answer2: Int = 0
 }
 
 // --- Semilla por ejercicio ---------------------------------------------------
@@ -460,10 +466,13 @@ fn gen_potencia(seed: Int, idx: Int, grade: Int) -> Exercise {
 // Sin `options` (no es opción múltiple). El render lo arma prompt_ecuacion.
 fn gen_ecuacion(seed: Int, idx: Int, grade: Int) -> Exercise {
     let g = rand.seeded(sub_seed(seed, idx))
-    let tipo = g.int(0, 1)
+    let tipo = g.int(0, 2)
     let a = 0
     let b = 0
     let answer = 0
+    let a2 = 0
+    let b2 = 0
+    let answer2 = 0
     let op = "eclin"
     let skill = "ec.lineal"
     let dificultad = 3
@@ -487,6 +496,28 @@ fn gen_ecuacion(seed: Int, idx: Int, grade: Int) -> Exercise {
         skill = "ec.cuadratica"
         dificultad = 4
     }
+    if (tipo == 2) {
+        // Sistema 2×2 con solución entera (x, y). Coeficientes 1..4, det != 0
+        // (solución única): si a1·b2 == a2·b1, se sube b2 (det pasa a valer a1 ≥ 1).
+        let x = g.int(0 - 6, 6)
+        let y = g.int(0 - 6, 6)
+        let a1 = g.int(1, 4)
+        let b1 = g.int(1, 4)
+        let a2c = g.int(1, 4)
+        let b2c = g.int(1, 4)
+        if (a1 * b2c == a2c * b1) {
+            b2c = b2c + 1
+        }
+        a = a1
+        b = b1
+        answer = x
+        a2 = a2c
+        b2 = b2c
+        answer2 = y
+        op = "ecsist"
+        skill = "sist.2x2"
+        dificultad = 5
+    }
     let vacio: List<Int> = []
     return Exercise {
         a: a,
@@ -496,6 +527,9 @@ fn gen_ecuacion(seed: Int, idx: Int, grade: Int) -> Exercise {
         options: vacio,
         skill_code: skill,
         difficulty: dificultad,
+        a2: a2,
+        b2: b2,
+        answer2: answer2,
     }
 }
 
