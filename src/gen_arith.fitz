@@ -639,6 +639,86 @@ fn gen_finanzas(seed: Int, idx: Int, grade: Int) -> Exercise {
     }
 }
 
+// F7.4 — Trigonometría: triángulo rectángulo con figura (SVG). Respuestas SIEMPRE
+// enteras y positivas (teclado sin ±). Tres tipos, todos sobre el triángulo con
+// el ángulo recto abajo-izquierda (cateto horizontal + cateto vertical +
+// hipotenusa):
+//   - trighyp (Pitágoras): dados los dos catetos → hallar la hipotenusa.
+//   - trigleg (Pitágoras): dado un cateto + la hipotenusa → hallar el otro cateto.
+//   - trigang (razón, ángulo 30°): el ángulo agudo abajo-derecha mide 30°, así que
+//     sin(30°) = cateto_opuesto / hipotenusa = 1/2. Con la hipotenusa PAR (2k) el
+//     cateto opuesto (el vertical) es k, entero. Dos modos: dada la hipotenusa →
+//     hallar el cateto opuesto (h/2); dado el cateto opuesto → hallar la hipotenusa
+//     (2·cateto). Es la razón trigonométrica llevada a un caso de respuesta entera.
+//
+// Convención de campos por `op` (la re-lee `trig_view` para dibujar la figura):
+//   trighyp → a=cateto horiz, b=cateto vert, answer=hipotenusa (incógnita).
+//   trigleg → a=cateto horiz (dado), a2=hipotenusa (dada), answer=cateto vert (?).
+//   trigang → a=ángulo (30), b=valor dado, a2=modo (0: dada hip → hallar cateto;
+//             1: dado cateto → hallar hip), answer=lo pedido.
+fn gen_trig(seed: Int, idx: Int, grade: Int) -> Exercise {
+    let g = rand.seeded(sub_seed(seed, idx))
+    // Ternas pitagóricas (cateto, cateto, hipotenusa) — primitivas + escaladas.
+    let tri_a = [3, 6, 5, 8, 9, 12, 15, 7]
+    let tri_b = [4, 8, 12, 15, 12, 16, 20, 24]
+    let tri_c = [5, 10, 13, 17, 15, 20, 25, 25]
+    let tipo = g.int(0, 2)
+    let a = 0
+    let b = 0
+    let a2 = 0
+    let answer = 0
+    let op = "trighyp"
+    let skill = "trig.pitagoras"
+    let dificultad = 4
+    if (tipo == 0) {
+        let k = g.int(0, 7)
+        a = tri_a[k]
+        b = tri_b[k]
+        answer = tri_c[k]
+        op = "trighyp"
+        skill = "trig.pitagoras"
+        dificultad = 4
+    }
+    if (tipo == 1) {
+        let k = g.int(0, 7)
+        a = tri_a[k]        // cateto horizontal conocido
+        a2 = tri_c[k]       // hipotenusa conocida
+        answer = tri_b[k]   // cateto vertical (incógnita)
+        op = "trigleg"
+        skill = "trig.pitagoras"
+        dificultad = 4
+    }
+    if (tipo == 2) {
+        let modo = g.int(0, 1)
+        let k = g.int(2, 20)    // semi-lado
+        a = 30                  // ángulo agudo (grados)
+        if (modo == 0) {
+            b = 2 * k           // hipotenusa dada (par)
+            a2 = 0
+            answer = k          // cateto opuesto = h/2
+        }
+        if (modo == 1) {
+            b = k               // cateto opuesto dado
+            a2 = 1
+            answer = 2 * k      // hipotenusa = 2·cateto
+        }
+        op = "trigang"
+        skill = "trig.razon"
+        dificultad = 5
+    }
+    let vacio: List<Int> = []
+    return Exercise {
+        a: a,
+        b: b,
+        op: op,
+        answer: answer,
+        options: vacio,
+        skill_code: skill,
+        difficulty: dificultad,
+        a2: a2,
+    }
+}
+
 // Genera un ejercicio mezclando las operaciones apropiadas al grado. Elige la
 // operación con un generador propio (determinista desde el seed) y delega en
 // `gen`. (seed, idx, grade) devuelve siempre el mismo ejercicio.

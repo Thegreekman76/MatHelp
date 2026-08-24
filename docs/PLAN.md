@@ -11,9 +11,10 @@
 **Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo + filtro por modalidad) +
 F7.1 COMPLETA (Ciclo Básico aritmética) + teclado con ± + F7.2 COMPLETA (Ecuaciones:
 1er grado + cuadrática + sistemas 2×2) + F7.3 COMPLETA (Finanzas: interés
-simple/compuesto, %, descuento — diferencial comercial) CERRADAS. F0…F6 cerradas.
-Próximo: F7.4 (Trigonometría — triángulo rectángulo con figura SVG, común +
-industrial) y F7.5 (Funciones, opcional/SVG).**
+simple/compuesto, %, descuento, punto de equilibrio — diferencial comercial) +
+F7.4 COMPLETA (Trigonometría: triángulo rectángulo con figura SVG — Pitágoras +
+razón 30°) CERRADAS. F0…F6 cerradas. Próximo: F7.5 (Funciones — evaluar f(x) /
+reconocer gráfico, opcional/SVG).**
 
 > **F6 (2026-08-23)** — cuatro piezas de pulido:
 > - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo
@@ -1047,9 +1048,24 @@ nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E
   RESUELVE los 10 problemas y verifica en Postgres (mode=story, 10/10 correctos,
   ended_at) — paridad bit-a-bit `fitz run` ↔ binario. **El juego que justifica la
   modalidad comercial: CONSTRUIDO.**
-- **F7.4 — Trigonometría (#15).** Triángulo rectángulo con **figura SVG** (patrón
-  reloj/geometría de F5): dado cateto/ángulo → hipotenusa/razón, respuesta numérica.
-  Común + industrial. `topic_code`: `trig.rectangulo`.
+- **F7.4 — Trigonometría (#15). ✅ (2026-08-24)** Juego nuevo "Trigonometría"
+  (`/trigonometria`, `Trigonometria.fitzv` + `trig_view.fitz` + `live_trigonometria.fitz`,
+  `min_grade` 10, modalidad `comun`). **Triángulo rectángulo con FIGURA SVG inline**
+  (primer SVG dinámico del proyecto — el patrón "reloj/geometría de F5" era
+  aspiracional, sólo existía el logo). `gen_trig(seed, idx, grade)` con 3 tipos, todos
+  con respuesta entera positiva (teclado sin ±): **Pitágoras hallar hipotenusa** y
+  **hallar cateto** (ternas pitagóricas en listas paralelas → a²+b²=c² exacto), y
+  **razón 30°** (sin 30°=1/2: con hipotenusa par el cateto opuesto es entero; dos
+  modos: dada hip → cateto = h/2, dado cateto → hip = 2·cateto). El SVG lo dibuja
+  `triangulo_svg(horiz, vert, hyp, ang)` (ángulo recto abajo-izq, marca del ángulo
+  agudo cuando aplica), estilado por clases `.tg-*` en `brand.fitz` (sin `<style>`
+  adentro, mitigando FLV-02). Sesión `mode="numpad"` (sin migración), `topic_code`
+  `trig`, skills `trig.pitagoras`/`trig.razon`. 4 tests nuevos (determinismo, los 3
+  tipos, Pitágoras cierra, razón 30°). Smoke E2E `tools/e2e_trig.py` que **RESUELVE
+  cada ejercicio leyendo la figura SVG del frame vivo** — y así verifica que el SVG
+  **sobrevive el diff de LiveView en cada tick** (FLV-02 no aplica a SVG geométrico
+  puro: hallazgo del dogfooding). Verificado en Postgres (mode=numpad/trig, 10/10
+  correctos, ended_at) con paridad bit-a-bit `fitz run` ↔ binario.
 - **F7.5 — Funciones (#16, opcional/SVG).** Evaluar f(x) / reconocer el gráfico
   (recta/parábola/exponencial). Reusa SVG inline. `topic_code`: `func.*`.
 - **Industrial (posterior, según demanda).** Vectores, matrices — más SVG + más

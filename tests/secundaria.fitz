@@ -7,7 +7,7 @@
 // Corré con:  fitz test
 
 from engine import es_secundaria, anio_secundaria, es_ciclo_orientado, modalidad_valida
-from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta, gen_finanzas
+from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta, gen_finanzas, gen_trig
 from fmt import fmt_operando
 
 // --- es_secundaria (grade >= 8) ---------------------------------------------
@@ -282,6 +282,67 @@ from fmt import fmt_operando
             assert_eq(margen > 0, true)
             assert_eq(e.answer, e.a / margen)
             assert_eq(e.answer * margen, e.a)   // sin resto
+        }
+    }
+}
+
+// --- F7.4: trigonometría (triángulo rectángulo) -----------------------------
+
+@test fn gen_trig_es_determinista() {
+    let e1 = gen_trig(707, 5, 12)
+    let e2 = gen_trig(707, 5, 12)
+    assert_eq(e1.a, e2.a)
+    assert_eq(e1.b, e2.b)
+    assert_eq(e1.a2, e2.a2)
+    assert_eq(e1.answer, e2.answer)
+    assert_eq(e1.op, e2.op)
+}
+
+@test fn gen_trig_aparecen_los_tres_tipos() {
+    let vio_hyp = false
+    let vio_leg = false
+    let vio_ang = false
+    for i in 0..60 {
+        let e = gen_trig(9090, i, 12)
+        if (e.op == "trighyp") { vio_hyp = true }
+        if (e.op == "trigleg") { vio_leg = true }
+        if (e.op == "trigang") { vio_ang = true }
+    }
+    assert_eq(vio_hyp, true)
+    assert_eq(vio_leg, true)
+    assert_eq(vio_ang, true)
+}
+
+// Pitágoras cierra: en trighyp los catetos son a/b y la hipotenusa es la
+// respuesta → a²+b²=answer². En trigleg el cateto conocido es a, la hipotenusa
+// a2 y la incógnita answer → a²+answer²=a2².
+@test fn gen_trig_pitagoras_cierra() {
+    for i in 0..60 {
+        let e = gen_trig(1212, i, 12)
+        if (e.op == "trighyp") {
+            assert_eq(e.a * e.a + e.b * e.b, e.answer * e.answer)
+        }
+        if (e.op == "trigleg") {
+            assert_eq(e.a * e.a + e.answer * e.answer, e.a2 * e.a2)
+        }
+    }
+}
+
+// Razón 30°: sin(30°)=1/2. Modo 0 (dada hip par b, hallar cateto): answer=b/2.
+// Modo 1 (dado cateto b, hallar hip): answer=2·b. Siempre entero positivo.
+@test fn gen_trig_razon_treinta_grados() {
+    for i in 0..60 {
+        let e = gen_trig(3434, i, 12)
+        if (e.op == "trigang") {
+            assert_eq(e.a, 30)
+            assert_eq(e.answer > 0, true)
+            if (e.a2 == 0) {
+                assert_eq(e.answer, e.b / 2)
+                assert_eq(e.answer * 2, e.b)     // hipotenusa par
+            }
+            if (e.a2 == 1) {
+                assert_eq(e.answer, e.b * 2)
+            }
         }
     }
 }

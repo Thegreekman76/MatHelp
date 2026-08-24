@@ -1,0 +1,131 @@
+// trig_view.fitz — el render del juego "Trigonometría" (F7.4). Triángulo
+// rectángulo con FIGURA (SVG inline, patrón de las figuras de F5), respuesta
+// numérica por teclado (longitud entera positiva → sin ±). Tres tipos: Pitágoras
+// hallar hipotenusa / hallar cateto, y razón 30° (hallar cateto o hipotenusa).
+//
+// La figura y la pregunta se derivan del `op` + campos del Exercise (ver la
+// convención en gen_arith.gen_trig). El SVG va crudo (`html(...).raw`): NO pasa
+// por `flv` (que escaparía `<`/`>`); los números que se inyectan son dígitos, sin
+// riesgo de inyección.
+
+from fitz_liveviews import Html, html, flv
+from gen_arith import gen_trig, Exercise
+from i18n import t, t1
+from fmt import fmt_int
+from keypad_view import keypad_html
+
+// --- figura (SVG) ------------------------------------------------------------
+
+// Marca del ángulo agudo (abajo-derecha, vértice B). Vacía si ang == 0.
+fn trig_angmark(ang: Int) -> Str {
+    if (ang == 0) {
+        return ""
+    }
+    return html("""<path d="M 166 140 A 24 24 0 0 1 175 122" class="tg-arc"/>
+<text x="146" y="133" class="tg-ang">{ang}°</text>""").raw
+}
+
+// Triángulo rectángulo esquemático. Ángulo recto abajo-izquierda (A), cateto
+// horizontal A→B (abajo), cateto vertical A→C (izquierda), hipotenusa C→B. Las
+// etiquetas ya vienen formateadas ("?" para la incógnita, "" para no rotular).
+fn triangulo_svg(horiz: Str, vert: Str, hyp: Str, ang: Int) -> Str {
+    let angmark = trig_angmark(ang)
+    return html("""<svg viewBox="0 0 220 172" class="tg-svg" role="img" aria-label="triangulo rectangulo">
+<polygon points="30,140 190,140 30,30" class="tg-tri"/>
+<path d="M 30 124 L 46 124 L 46 140" class="tg-right"/>
+<text x="104" y="162" class="tg-lbl">{horiz}</text>
+<text x="10" y="92" class="tg-lbl">{vert}</text>
+<text x="116" y="80" class="tg-lbl">{hyp}</text>
+{angmark}
+</svg>""").raw
+}
+
+// Elige etiquetas + ángulo según el tipo de ejercicio y arma la figura.
+fn trig_figura(locale: Str, ex: Exercise) -> Str {
+    if (ex.op == "trighyp") {
+        return triangulo_svg(fmt_int(locale, ex.a), fmt_int(locale, ex.b), "?", 0)
+    }
+    if (ex.op == "trigleg") {
+        return triangulo_svg(fmt_int(locale, ex.a), "?", fmt_int(locale, ex.a2), 0)
+    }
+    // trigang: el ángulo agudo es ex.a (30°). modo 0 (a2==0): dada la hipotenusa
+    // (b), incógnita el cateto vertical. modo 1 (a2==1): dado el cateto (b),
+    // incógnita la hipotenusa.
+    if (ex.a2 == 0) {
+        return triangulo_svg("", "?", fmt_int(locale, ex.b), ex.a)
+    }
+    return triangulo_svg("", fmt_int(locale, ex.b), "?", ex.a)
+}
+
+// --- pregunta ----------------------------------------------------------------
+
+fn trig_pregunta(locale: Str, op: Str, modo: Int) -> Str {
+    if (op == "trighyp") {
+        return t(locale, "trig.hallar_hip")
+    }
+    if (op == "trigleg") {
+        return t(locale, "trig.hallar_cateto")
+    }
+    // trigang
+    if (modo == 0) {
+        return t(locale, "trig.hallar_opuesto")
+    }
+    return t(locale, "trig.hallar_hip")
+}
+
+// --- pantalla ----------------------------------------------------------------
+
+fn trig_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool) -> Html {
+    if (phase == "done") {
+        return trig_resumen(locale, correct, total)
+    }
+    let ex = gen_trig(seed, idx, grade)
+    let figura = trig_figura(locale, ex)
+    let pregunta = flv(trig_pregunta(locale, ex.op, ex.a2))
+    let valor = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = trig_feedback(locale, feedback, last_answer)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let teclado = keypad_html(locale, entrada, idx, touched, false)
+    return html("""<div class="q-hud">
+<div class="q-mode">📐 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+</div>
+<div class="q-figura">{figura}</div>
+<div class="q-prompt trig-pregunta">{pregunta}</div>
+<div class="q-prompt cg-eq">{valor}</div>
+<div class="q-fbwrap">{banner}</div>
+{teclado}""")
+}
+
+fn trig_feedback(locale: Str, feedback: Str, last_answer: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_int(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn trig_resumen(locale: Str, correct: Int, total: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    return html("""<div class="q-done">
+<div class="q-medal">📐</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+<div class="q-actions">
+<a class="mh-btn" href="/trigonometria">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/juegos">{flv(t(locale, "juegos.titulo"))}</a>
+</div>
+</div>""")
+}

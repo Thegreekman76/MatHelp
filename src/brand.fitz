@@ -316,6 +316,15 @@ main:focus \{ outline:none; \}
 .cg-eq \{ display:flex; align-items:center; justify-content:center; gap:.25em; flex-wrap:wrap; \}
 .ec-sist \{ display:block; white-space:pre-line; text-align:center; line-height:1.5; font-size:1.3rem; \}
 .fin-problema \{ text-align:center; line-height:1.45; font-size:1.15rem; font-weight:700; margin:.4rem auto 1rem; max-width:22em; color:var(--tinta); \}
+/* --- Trigonometría (F7.4): figura del triángulo rectángulo --- */
+.q-figura \{ display:flex; justify-content:center; margin:.3rem 0 .6rem; \}
+.tg-svg \{ width:min(78vw, 250px); height:auto; \}
+.tg-tri \{ fill:var(--mh-verde-suave); stroke:var(--mh-tinta); stroke-width:2.5; stroke-linejoin:round; \}
+.tg-right \{ fill:none; stroke:var(--mh-tinta); stroke-width:2; \}
+.tg-lbl \{ fill:var(--mh-tinta); font-size:16px; font-weight:800; text-anchor:middle; \}
+.tg-arc \{ fill:none; stroke:var(--mh-naranja); stroke-width:2.5; \}
+.tg-ang \{ fill:var(--mh-naranja); font-size:14px; font-weight:800; text-anchor:middle; \}
+.trig-pregunta \{ font-size:1.05rem; font-weight:800; text-align:center; \}
 .cg-slot \{
   display:inline-flex; align-items:center; justify-content:center; min-width:1.6em;
   padding:0 .15em; border-bottom:4px solid var(--mh-borde); color:var(--mh-suave);
