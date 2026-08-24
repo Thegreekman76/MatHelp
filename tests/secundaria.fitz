@@ -7,6 +7,8 @@
 // Corré con:  fitz test
 
 from engine import es_secundaria, anio_secundaria, es_ciclo_orientado, modalidad_valida
+from gen_arith import gen, grade_teclado
+from fmt import fmt_operando
 
 // --- es_secundaria (grade >= 8) ---------------------------------------------
 
@@ -57,4 +59,80 @@ from engine import es_secundaria, anio_secundaria, es_ciclo_orientado, modalidad
     assert_eq(modalidad_valida(""), "comun")
     assert_eq(modalidad_valida("cualquier-cosa"), "comun")
     assert_eq(modalidad_valida("COMERCIAL"), "comun")   // case-sensitive a propósito
+}
+
+// --- F7.1: enteros con signo (gen para grade >= 8) --------------------------
+
+// Determinista: mismo (op, seed, idx, grade) ⇒ mismo ejercicio (paridad
+// seed+idx, la regla de oro del generador).
+@test fn gen_sec_es_determinista() {
+    let e1 = gen("mul", 12345, 3, 8)
+    let e2 = gen("mul", 12345, 3, 8)
+    assert_eq(e1.a, e2.a)
+    assert_eq(e1.b, e2.b)
+    assert_eq(e1.answer, e2.answer)
+}
+
+// El invariante de la operación se cumple con signo: a + b == answer (suma),
+// a - b == answer (resta) — nada de forzar a >= b en secundaria.
+@test fn gen_sec_suma_y_resta_cierran() {
+    let s = gen("add", 777, 5, 9)
+    assert_eq(s.a + s.b, s.answer)
+    let r = gen("sub", 777, 5, 9)
+    assert_eq(r.a - r.b, r.answer)
+}
+
+// La multiplicación con signo cierra, y la división es exacta (a / b == answer).
+@test fn gen_sec_mult_y_div_cierran() {
+    let m = gen("mul", 999, 2, 10)
+    assert_eq(m.a * m.b, m.answer)
+    let d = gen("div", 999, 2, 10)
+    assert_eq(d.a / d.b, d.answer)
+}
+
+// Secundaria SÍ produce negativos: en 40 ejercicios de suma a grade 8, al menos
+// uno tiene un operando o resultado negativo (con rango [-200,200] es casi
+// seguro; el test es determinista sobre el seed fijo).
+@test fn gen_sec_produce_negativos() {
+    let hubo_negativo = false
+    for i in 0..40 {
+        let e = gen("add", 4242, i, 8)
+        if (e.a < 0 or e.b < 0 or e.answer < 0) {
+            hubo_negativo = true
+        }
+    }
+    assert_eq(hubo_negativo, true)
+}
+
+// Primaria NO produce negativos: los operandos de suma/resta son >= 0 (paridad —
+// el camino de primaria quedó intacto).
+@test fn primaria_no_produce_negativos() {
+    for i in 0..40 {
+        let e = gen("sub", 4242, i, 4)
+        assert_eq(e.a >= 0, true)
+        assert_eq(e.b >= 0, true)
+        assert_eq(e.answer >= 0, true)   // la resta de primaria fuerza a >= b
+    }
+}
+
+// --- grade_teclado (clamp a primaria para juegos de teclado) -----------------
+
+@test fn grade_teclado_clampea_secundaria_a_primaria() {
+    assert_eq(grade_teclado(8), 7)
+    assert_eq(grade_teclado(13), 7)
+    assert_eq(grade_teclado(4), 4)   // primaria pasa igual
+    assert_eq(grade_teclado(7), 7)
+}
+
+// --- fmt_operando (paréntesis en negativos, byte-idéntico en >= 0) -----------
+
+@test fn fmt_operando_no_toca_positivos() {
+    assert_eq(fmt_operando("es-AR", 5), "5")
+    assert_eq(fmt_operando("es-AR", 0), "0")
+    assert_eq(fmt_operando("en", 42), "42")
+}
+
+@test fn fmt_operando_parentiza_negativos() {
+    assert_eq(fmt_operando("es-AR", 0 - 5), "(-5)")
+    assert_eq(fmt_operando("en", 0 - 42), "(-42)")
 }

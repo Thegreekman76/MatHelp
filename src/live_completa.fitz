@@ -15,7 +15,7 @@ from models import GameSession, Attempt
 from engine import desafio_n
 from mastery import actualizar_mastery, leer_snapshot, MasterySnapshot
 from streaks import registrar_y_premiar
-from gen_arith import gen_for, op_symbol
+from gen_arith import gen_for, op_symbol, grade_teclado
 from live_game import resolver_contexto, pget_int
 from Completa import completa
 
@@ -74,7 +74,7 @@ async fn completa_get(session: Str?, lang: Str?) -> Response {
     }
     let inicial = component_with("completa", "ssr", completa {
         seed: 1,
-        grade: ctx.grade,
+        grade: grade_teclado(ctx.grade),
         locale: locale,
         mode: "adaptive",
         limit: desafio_n(),
@@ -90,6 +90,10 @@ async fn completa_get(session: Str?, lang: Str?) -> Response {
 async fn completa_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     let locale = locale_from_cookie(lang)
     let ctx = resolver_contexto(session).await?
+    // Teclado numérico: sin negativos. Secundaria juega en versión positiva
+    // (clamp a primaria); el mismo `jgrade` va al seed y a la persistencia para
+    // que el ejercicio re-derivado (scoring) coincida bit-a-bit con el mostrado.
+    let jgrade = grade_teclado(ctx.grade)
     let cid = Uuid.v4().to_str()
     let seed = rand.int(1, 2000000000)
     let sess_id = crear_sesion_completa(ctx.profile_id, seed, ctx.grade).await?
@@ -99,7 +103,7 @@ async fn completa_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     }
     let _ = component_with("completa", cid, completa {
         seed: seed,
-        grade: ctx.grade,
+        grade: jgrade,
         locale: locale,
         mode: "adaptive",
         limit: desafio_n(),
@@ -125,7 +129,7 @@ async fn completa_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
             // Sólo persiste el ejercicio esperado con entrada no vacía (given > 0),
             // consistente con la guarda del componente.
             if (ei == next_idx and given > 0) {
-                let _ = persistir_completa(sess_id, ctx.profile_id, seed, ei, ctx.grade, given, snap.r_add, snap.r_sub, snap.r_mul, snap.r_div).await
+                let _ = persistir_completa(sess_id, ctx.profile_id, seed, ei, jgrade, given, snap.r_add, snap.r_sub, snap.r_mul, snap.r_div).await
                 let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
                 next_idx = next_idx + 1
             }

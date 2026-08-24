@@ -44,7 +44,11 @@ fn sub_seed(seed: Int, idx: Int) -> Int {
 
 // --- Rangos y metadatos por grado (puros) ------------------------------------
 
-// Operando máximo para suma/resta según el grado (1º..7º primaria).
+// Operando máximo (magnitud) para suma/resta según el grado. Primaria 1º..7º
+// (positivos); secundaria 8º..13º (= 1º..6º), donde el generador con signo lo
+// usa como magnitud: el operando cae en [-add_max, add_max]. En secundaria el
+// desafío nuevo es el SIGNO, no la magnitud gigante, así que los rangos crecen
+// moderado.
 fn add_max(grade: Int) -> Int {
     if (grade <= 1) {
         return 10
@@ -58,11 +62,20 @@ fn add_max(grade: Int) -> Int {
     if (grade <= 5) {
         return 500
     }
-    return 1000
+    if (grade <= 7) {
+        return 1000            // 6º-7º primaria
+    }
+    if (grade <= 9) {
+        return 200             // 1º-2º secundaria (enteros con signo)
+    }
+    if (grade <= 11) {
+        return 500             // 3º-4º secundaria
+    }
+    return 999                 // 5º-6º secundaria
 }
 
-// Factor máximo para multiplicación/división (tablas). Grado 3 cierra las tablas
-// hasta 10; de 4º en adelante llega a 12.
+// Factor máximo (magnitud) para multiplicación/división (tablas). Grado 3 cierra
+// las tablas hasta 10; 4º-7º llega a 12; secundaria a 15 (con signo).
 fn mul_max(grade: Int) -> Int {
     if (grade <= 2) {
         return 5
@@ -70,7 +83,10 @@ fn mul_max(grade: Int) -> Int {
     if (grade == 3) {
         return 10
     }
-    return 12
+    if (grade <= 7) {
+        return 12
+    }
+    return 15                  // secundaria (multiplicación/división con signo)
 }
 
 // Dificultad 1..5 a partir de la operación + el grado. Aproximada; el motor
@@ -135,6 +151,14 @@ fn iclamp(x: Int, lo: Int, hi: Int) -> Int {
     return imin(imax(x, lo), hi)
 }
 
+// Grado para juegos de TECLADO ("Completá el hueco"): la respuesta se tipea con
+// dígitos, así que no puede ser negativa. Un perfil de secundaria juega estos
+// juegos en versión positiva (clamp a primaria, ≤7) — los enteros con signo
+// llegan por los juegos de opción múltiple. El teclado con ± queda para F7.1.b.
+fn grade_teclado(grade: Int) -> Int {
+    return imin(grade, 7)
+}
+
 // El skill code lleva la operación adentro; `op` es el corto para el símbolo.
 fn skill_a_op(skill: Str) -> Str {
     return match skill {
@@ -166,6 +190,22 @@ fn candidatos(answer: Int) -> List<Int> {
     return out
 }
 
+// Distractores para enteros con signo (F7): igual que `candidatos` pero SIN el
+// filtro `>= 0` — la respuesta puede ser negativa, y un distractor negativo es
+// legítimo (y didáctico: el error típico del signo). Los 10 offsets distintos
+// dan siempre >= 3 candidatos distintos de la respuesta.
+fn candidatos_signed(answer: Int) -> List<Int> {
+    let offsets = [1, 2, 3, 5, 10, -1, -2, -3, -5, -10]
+    let out: List<Int> = []
+    for o in offsets {
+        let v = answer + o
+        if (v != answer) {
+            out.push(v)
+        }
+    }
+    return out
+}
+
 // Primeros 3 elementos de una lista (ya barajada).
 fn take3(xs: List<Int>) -> List<Int> {
     let out: List<Int> = []
@@ -183,6 +223,11 @@ fn take3(xs: List<Int>) -> List<Int> {
 // Todo el uso del RandGen `g` vive acá (local): operandos con `g.int`, opciones
 // con `g.shuffle` — nunca se pasa `g` a otra función.
 fn gen(op: Str, seed: Int, idx: Int, grade: Int) -> Exercise {
+    // Secundaria (grade >= 8): enteros con signo. Se aparta en gen_sec para que
+    // el camino de primaria quede BIT-A-BIT idéntico (paridad de los generadores).
+    if (grade >= 8) {
+        return gen_sec(op, seed, idx, grade)
+    }
     let g = rand.seeded(sub_seed(seed, idx))
     let a = 0
     let b = 0
@@ -241,6 +286,72 @@ fn gen(op: Str, seed: Int, idx: Int, grade: Int) -> Exercise {
     }
 }
 
+// Enteros con signo (F7, secundaria grade >= 8). Las cuatro operaciones con
+// operandos en [-hi, hi]: la resta NO fuerza a >= b (los resultados negativos
+// son el punto), la multiplicación y la división llevan el signo, y la división
+// es exacta (cociente entero, divisor con signo para variedad). Los distractores
+// permiten negativos (candidatos_signed). El RandGen `g` es local (FITZ-01), y
+// el render parentiza los negativos vía fmt_operando.
+fn gen_sec(op: Str, seed: Int, idx: Int, grade: Int) -> Exercise {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let a = 0
+    let b = 0
+    let answer = 0
+    let skill = "add"
+    if (op == "sub") {
+        let hi = add_max(grade)
+        a = g.int(0 - hi, hi)
+        b = g.int(0 - hi, hi)
+        answer = a - b
+        skill = "sub"
+    }
+    if (op == "mul") {
+        let hi = mul_max(grade)
+        a = g.int(0 - hi, hi)
+        b = g.int(0 - hi, hi)
+        answer = a * b
+        skill = "mul.tabla"
+    }
+    if (op == "div") {
+        let hi = mul_max(grade)
+        let d = g.int(2, hi)          // magnitud del divisor
+        let q = g.int(0 - hi, hi)     // cociente (la respuesta), con signo
+        if (q == 0) {
+            q = 1                     // no trivializar (0 ÷ d = 0)
+        }
+        if (g.int(0, 1) == 1) {
+            d = 0 - d                 // divisor con signo
+        }
+        a = d * q                     // dividendo
+        b = d
+        answer = q
+        skill = "div.exacta"
+    }
+    if (skill == "add") {
+        let hi = add_max(grade)
+        a = g.int(0 - hi, hi)
+        b = g.int(0 - hi, hi)
+        answer = a + b
+    }
+    let cands = candidatos_signed(answer)
+    let distractors = take3(g.shuffle(cands))
+    let raw = [answer]
+    for dd in distractors {
+        raw.push(dd)
+    }
+    let options = g.shuffle(raw)
+    let opc = skill_a_op(skill)
+    return Exercise {
+        a: a,
+        b: b,
+        op: opc,
+        answer: answer,
+        options: options,
+        skill_code: skill,
+        difficulty: difficulty_for(opc, grade),
+    }
+}
+
 // Genera un ejercicio mezclando las operaciones apropiadas al grado. Elige la
 // operación con un generador propio (determinista desde el seed) y delega en
 // `gen`. (seed, idx, grade) devuelve siempre el mismo ejercicio.
@@ -259,13 +370,14 @@ fn gen_mix(seed: Int, idx: Int, grade: Int) -> Exercise {
 // grado abajo/arriba, con clamp 1..7. Banda 2 (medio) = el grado del perfil.
 fn grade_for_band(grade: Int, band: Int) -> Int {
     let g = grade + band - 2
-    if (g < 1) {
-        return 1
+    // La banda no cruza el límite primaria/secundaria (ver grado_efectivo).
+    let piso = 1
+    let techo = 7
+    if (grade >= 8) {
+        piso = 8
+        techo = 13
     }
-    if (g > 7) {
-        return 7
-    }
-    return g
+    return iclamp(g, piso, techo)
 }
 
 // Generador UNIFICADO: lo usan tanto el render (quiz_view) como el scoring
@@ -312,7 +424,16 @@ fn gen_for(mode: Str, topic: Str, band: Int, seed: Int, idx: Int, grade: Int, r_
 fn grado_efectivo(grado_perfil: Int, rating: Float) -> Int {
     let delta = round((rating - 800.0) / 200.0)
     let d = iclamp(delta, -3, 3)
-    return iclamp(grado_perfil + d, 1, 7)
+    // El corrimiento por rating no cruza el límite primaria/secundaria: un perfil
+    // de primaria se queda en 1..7 (positivos) y uno de secundaria en 8..13
+    // (enteros con signo). Así el motor adaptativo nunca "baja" a otro nivel.
+    let piso = 1
+    let techo = 7
+    if (grado_perfil >= 8) {
+        piso = 8
+        techo = 13
+    }
+    return iclamp(grado_perfil + d, piso, techo)
 }
 
 // Rating de una operación en el snapshot (por nombre corto "add"/"sub"/"mul"/"div").
@@ -364,10 +485,15 @@ fn gen_adaptive(seed: Int, idx: Int, grade: Int, r_add: Float, r_sub: Float, r_m
         eff = grado_efectivo(grade, rating_op(op, r_add, r_sub, r_mul, r_div))
     }
     if (roll >= 90) {
-        // 10% desafío: una op al azar, un grado más difícil.
+        // 10% desafío: una op al azar, un grado más difícil (sin cruzar el
+        // límite primaria/secundaria).
         let oi = g.int(0, ops.len() - 1)
         op = ops[oi]
-        eff = iclamp(grado_efectivo(grade, rating_op(op, r_add, r_sub, r_mul, r_div)) + 1, 1, 7)
+        let techo = 7
+        if (grade >= 8) {
+            techo = 13
+        }
+        eff = iclamp(grado_efectivo(grade, rating_op(op, r_add, r_sub, r_mul, r_div)) + 1, 1, techo)
     }
     // gen re-seedea con el MISMO sub_seed → operandos deterministas para `eff`.
     return gen(op, seed, idx, eff)

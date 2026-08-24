@@ -8,10 +8,10 @@
 
 ## 📍 Estado — actualizado 23/08/2026
 
-**Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo + navegación) CERRADA:
-`Profile.modalidad` + `grade` 8..13, helpers de nivel, formulario con optgroups
-Primaria/Secundaria + orientación. F0…F6 cerradas. Próximo: F7.1 (aritmética del
-Ciclo Básico — enteros con signo, potencias, raíces; reusa los juegos actuales).**
+**Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo) + F7.1 (enteros con signo,
+reusa todos los juegos de opción múltiple, sin pantalla nueva) CERRADAS. F0…F6
+cerradas. Próximo: F7.1.b (potencias/raíces/notación científica — display propio
+`^`/`√` + `±` en el teclado) o F7.2 (juego Ecuaciones).**
 
 > **F6 (2026-08-23)** — cuatro piezas de pulido:
 > - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo
@@ -947,10 +947,24 @@ nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E
   `comun`; grilla con 6 juegos). **Único cambio de schema de toda F7.**
   *Pendiente F7.1+: el filtro de la grilla por modalidad (cuando existan juegos de
   modalidad, ej. Finanzas para comercial) — hoy no hay juego de modalidad que filtrar.*
-- **F7.1 — Ciclo Básico, aritmética (1°–3°).** Extender `gen_arith` a **enteros
-  con signo, potencias, raíces, notación científica**. Reusa Contrarreloj / V-F /
-  Completá / Desafío → **cero UI nueva**. Opcional juego #12 "Potencias y raíces".
-  `topic_code`: `ent.*`, `pot.*`, `raiz.*`. *Valor inmediato con casi cero riesgo.*
+- **F7.1 — Ciclo Básico, aritmética: enteros con signo. ✅ (2026-08-24)** Un perfil
+  de secundaria (grade ≥ 8) juega las cuatro operaciones con **enteros con signo**
+  (resta sin forzar a≥b, mult/div con signo, división exacta) en **todos los juegos
+  de opción múltiple existentes** — Contrarreloj, Desafío, Práctica, V/F, Escalera —
+  **sin pantalla nueva**. Cómo: `gen_arith` gana `gen_sec` (camino de secundaria,
+  primaria queda bit-a-bit intacta) + `candidatos_signed` + rangos por grado 8-13
+  + `grado_efectivo`/`grade_for_band` que no cruzan el límite primaria/secundaria;
+  el render swapea `fmt_int`→**`fmt_operando`** en los operandos (parentiza negativos,
+  byte-idéntico en ≥0, paridad de primaria). El juego de teclado **Completá el hueco**
+  se clampea a positivo (`grade_teclado`, ≤7) porque el teclado no tiene ± (llega en
+  F7.1.b). 8 `@test` nuevos en `tests/secundaria.fitz` (determinismo, invariantes con
+  signo, primaria sin negativos, `fmt_operando`). Verificado: `fitz test` 83/0 +
+  `fitz build` nativo + smoke (perfil sec 4° → `(-65) − (-13)`, `225 + (-98)`, opciones
+  negativas; perfil primaria → positivo sin paréntesis). `topic_code`: `add`/`sub`/`mul`/`div`
+  (reusa las destrezas; el grado siembra el signo). *Casi cero UI nueva, paridad intacta.*
+- **F7.1.b — Potencias, raíces, notación científica (pendiente).** Necesitan display
+  propio (`^`, `√`, mantisa×10^k) que el prompt binario `a op b` no cubre + `±` en el
+  teclado para Completá. Sub-slice siguiente. `topic_code`: `pot.*`, `raiz.*`, `pot.notacion`.
 - **F7.2 — Ecuaciones (#13).** Generador `gen_ecuaciones` (1er grado → sistemas
   2×2 → cuadráticas), respuesta numérica con el **`keypad` que ya existe**. `.fitzv`
   nuevo `Ecuaciones` + `live_ecuaciones.fitz` (patrón de `Completa`). `topic_code`:

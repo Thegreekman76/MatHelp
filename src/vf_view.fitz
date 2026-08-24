@@ -13,7 +13,7 @@
 from fitz_liveviews import Html, html, flv
 from gen_arith import gen_for, vf_shown, op_symbol
 from i18n import t, t1
-from fmt import fmt_int
+from fmt import fmt_int, fmt_operando
 
 // Punto de entrada. `mode` == "adaptive" (contrarreloj V/F) | "desafio" (N fijo).
 // `correct_last` es la verdad del ejercicio recién fallado (para el feedback).
@@ -33,8 +33,8 @@ fn vf_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: 
 fn vf_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, hud_a: Int, hud_b: Int, hud_c: Int, feedback: Str, correct_last: Bool, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, es_desafio: Bool) -> Html {
     let ex = gen_for(mode, "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
     let shown = vf_shown(ex, seed, idx)
-    let a = flv(fmt_int(locale, ex.a))
-    let b = flv(fmt_int(locale, ex.b))
+    let a = flv(fmt_operando(locale, ex.a))
+    let b = flv(fmt_operando(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
     let res = flv(fmt_int(locale, shown))
     let banner = vf_feedback(locale, feedback, correct_last)

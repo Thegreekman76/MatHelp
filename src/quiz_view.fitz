@@ -12,7 +12,7 @@
 from fitz_liveviews import Html, html, flv, h_join
 from gen_arith import gen_mix, gen_for, op_symbol
 from i18n import t, t1
-from fmt import fmt_int
+from fmt import fmt_int, fmt_operando
 
 // Punto de entrada. `mode` decide la pantalla:
 //   - "practice": práctica libre (sin reloj ni puntaje, tema+banda fijos).
@@ -38,8 +38,8 @@ fn quiz_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct
 // (el componente marca phase="done" → quiz_resumen).
 fn quiz_desafio(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, feedback: Str, last_answer: Int, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Html {
     let ex = gen_for("desafio", "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
-    let a = flv(fmt_int(locale, ex.a))
-    let b = flv(fmt_int(locale, ex.b))
+    let a = flv(fmt_operando(locale, ex.a))
+    let b = flv(fmt_operando(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
     let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
     let banner = feedback_banner(locale, feedback, last_answer, idx)
@@ -82,8 +82,8 @@ fn quiz_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, score: 
     // El contrarreloj usa modo "adaptive" (selección 70/20/10 por rating). El
     // "topic"/"band" no aplican acá — gen_for los ignora en modo adaptativo.
     let ex = gen_for(mode, "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
-    let a = flv(fmt_int(locale, ex.a))
-    let b = flv(fmt_int(locale, ex.b))
+    let a = flv(fmt_operando(locale, ex.a))
+    let b = flv(fmt_operando(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
     let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
     let banner = feedback_banner(locale, feedback, last_answer, idx)
@@ -110,8 +110,8 @@ fn quiz_practica(seed: Int, idx: Int, grade: Int, locale: Str, topic: Str, band:
     // Práctica libre NO es adaptativa: tema+banda fijos. Los ratings del
     // snapshot no aplican (por eso pasa 800.0 — gen_for los ignora en "practice").
     let ex = gen_for("practice", topic, band, seed, idx, grade, 800.0, 800.0, 800.0, 800.0)
-    let a = flv(fmt_int(locale, ex.a))
-    let b = flv(fmt_int(locale, ex.b))
+    let a = flv(fmt_operando(locale, ex.a))
+    let b = flv(fmt_operando(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
     let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
     let banner = feedback_banner(locale, feedback, last_answer, idx)

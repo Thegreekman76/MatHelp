@@ -22,6 +22,17 @@ fn fmt_int(loc: Str, n: Int) -> Str {
     return num.format(n, num_locale(loc))
 }
 
+// Operando de un ejercicio, listo para el prompt (F7). Los negativos van entre
+// paréntesis — los enteros de secundaria ("7 + (-3)", "8 − (-3)") no pueden
+// mostrar doble signo. Para n >= 0 es EXACTAMENTE fmt_int (paridad bit-a-bit con
+// primaria: un ejercicio de operandos positivos se renderiza idéntico a antes).
+fn fmt_operando(loc: Str, n: Int) -> Str {
+    if (n < 0) {
+        return "(" + fmt_int(loc, n) + ")"
+    }
+    return fmt_int(loc, n)
+}
+
 // Porcentaje con `digits` decimales (para el resumen de la partida).
 fn fmt_pct(loc: Str, x: Float, digits: Int) -> Str {
     return num.percent(x, num_locale(loc), digits)
