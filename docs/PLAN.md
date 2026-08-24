@@ -8,10 +8,10 @@
 
 ## 📍 Estado — actualizado 23/08/2026
 
-**Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo) + F7.1 (enteros con signo,
-reusa todos los juegos de opción múltiple, sin pantalla nueva) CERRADAS. F0…F6
-cerradas. Próximo: F7.1.b (potencias/raíces/notación científica — display propio
-`^`/`√` + `±` en el teclado) o F7.2 (juego Ecuaciones).**
+**Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo) + F7.1 (enteros con signo)
++ F7.1.b (juego Potencias y raíces) CERRADAS. F0…F6 cerradas. Próximo: F7.1.c
+(notación científica + `±` en el teclado) o F7.2 (juego Ecuaciones — 1er grado →
+sistemas → cuadráticas, teclado).**
 
 > **F6 (2026-08-23)** — cuatro piezas de pulido:
 > - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo
@@ -962,9 +962,22 @@ nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E
   `fitz build` nativo + smoke (perfil sec 4° → `(-65) − (-13)`, `225 + (-98)`, opciones
   negativas; perfil primaria → positivo sin paréntesis). `topic_code`: `add`/`sub`/`mul`/`div`
   (reusa las destrezas; el grado siembra el signo). *Casi cero UI nueva, paridad intacta.*
-- **F7.1.b — Potencias, raíces, notación científica (pendiente).** Necesitan display
-  propio (`^`, `√`, mantisa×10^k) que el prompt binario `a op b` no cubre + `±` en el
-  teclado para Completá. Sub-slice siguiente. `topic_code`: `pot.*`, `raiz.*`, `pot.notacion`.
+- **F7.1.b — Potencias y raíces. ✅ (2026-08-24)** Juego dedicado nuevo "Potencias
+  y raíces" (`/potencias`, `min_grade` 8) que REUSA el componente Quiz (mode
+  `"potencias"`, no adaptativo). Genera `a^b` (base 2..9, a veces negativa —
+  regla del signo por paridad del exponente) y √/∛ exactas (radicando = r^n). El
+  display propio lo arma `prompt_potencia` (`base^exp` / `√rad` / `∛rad`), sin
+  tocar el prompt binario `a op b` de los otros juegos. `gen_arith` gana `ipow`
+  (pura) + `gen_potencia` + rama `"potencias"` en `gen_for`; `quiz_view` gana
+  `quiz_potencias` + dispatch; `live_potencias.fitz` nuevo (ruta + `@ws` + persist,
+  modela el Desafío). Migración `0004_f7_potencias.sql` suma `'potencias'` al CHECK
+  de `sessions.mode`. `topic_code`: `pot.entera`, `raiz.enesima`. 3 `@test` (ipow,
+  determinismo, invariantes a^b/answer^b). Verificado: `fitz test` 86/0 + `fitz build`
+  nativo + smoke (juego en grilla, `/potencias` renderiza, WS sirve `(-7)^3` / `8^2` /
+  `∛125` / `√49`, persiste sesión `mode='potencias'`).
+- **F7.1.c — Notación científica (pendiente).** `m × 10^k` → número: display propio
+  (`m × 10^k`) + distractores por orden de magnitud (no ±offset). `topic_code`:
+  `pot.notacion`. + `±` en el teclado para que Completá acepte enteros negativos.
 - **F7.2 — Ecuaciones (#13).** Generador `gen_ecuaciones` (1er grado → sistemas
   2×2 → cuadráticas), respuesta numérica con el **`keypad` que ya existe**. `.fitzv`
   nuevo `Ecuaciones` + `live_ecuaciones.fitz` (patrón de `Completa`). `topic_code`:

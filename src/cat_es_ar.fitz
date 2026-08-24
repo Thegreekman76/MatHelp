@@ -66,6 +66,7 @@ fn cat_es_ar(key: Str) -> Str {
         "juego.kiosco" => "El kiosco",
         "juego.nivel" => "Nivel",
         "juego.porcentaje" => "Porcentaje",
+        "juego.potencias" => "Potencias y raíces",
         "juego.puntaje" => "Puntaje",
         "juego.reanudar" => "Reanudar partida",
         "juego.resumen" => "Resumen de la partida",

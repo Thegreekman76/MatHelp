@@ -1,0 +1,133 @@
+// live_potencias.fitz — "Potencias y raíces" en vivo (F7.1.b). Página, socket y
+// persistencia. Modela el Desafío del día (sin reloj, N ejercicios), pero NO es
+// adaptativo: gen_potencia no usa los ratings por operación, así que no hace
+// falta leer el snapshot de mastery. Reusa el MISMO componente Quiz (mode
+// "potencias") y su render (quiz_potencias en quiz_view).
+
+from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, flv_frame, component_state, flv_evict, live_embed
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from live_game import resolver_contexto, pget_int
+from models import GameSession, Attempt
+from engine import desafio_n
+from mastery import actualizar_mastery
+from streaks import registrar_y_premiar
+from gen_arith import gen_for
+from Quiz import quiz
+
+async fn crear_sesion_potencias(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let sess = GameSession.insert(conn, GameSession {
+        profile_id: profile_id,
+        mode: "potencias",
+        topic_code: "pot",
+        level: grade,
+        seed: seed,
+    }).await?
+    return Ok(sess.id)
+}
+
+// Re-deriva el ejercicio con el MISMO generador que el componente (gen_potencia,
+// no adaptativo → r_* neutros) para no confiar en el cliente. El prompt canónico
+// para el panel del padre: "a^b" (potencia) o "√a" (raíz).
+async fn persistir_potencias(sess_id: Int, profile_id: Int, seed: Int, idx: Int, grade: Int, given: Int) -> Result<Int> {
+    let ex = gen_for("potencias", "mix", 2, seed, idx, grade, 800.0, 800.0, 800.0, 800.0)
+    let acierto = given == ex.answer
+    let prompt = match ex.op {
+        "raiz" => "√{ex.a}",
+        _ => "{ex.a}^{ex.b}",
+    }
+    let conn = db.connect(db_url()).await?
+    let row = Attempt.insert(conn, Attempt {
+        session_id: sess_id,
+        profile_id: profile_id,
+        skill_code: ex.skill_code,
+        idx: idx,
+        prompt: prompt,
+        expected: "{ex.answer}",
+        given: "{given}",
+        correct: acierto,
+        ms: 0,
+        difficulty: ex.difficulty,
+    }).await?
+    let _ = actualizar_mastery(profile_id, ex.skill_code, ex.difficulty, acierto, 0).await
+    return Ok(row.id)
+}
+
+async fn finalizar_potencias(sess_id: Int, total: Int, correct: Int, score: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("UPDATE sessions SET total = $1, correct = $2, score = $3, ended_at = now() WHERE id = $4", [total, correct, score, sess_id]).await?
+    return Ok(1)
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/potencias")
+async fn potencias_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let inicial = component_with("quiz", "ssr", quiz {
+        seed: 1,
+        grade: ctx.grade,
+        locale: locale,
+        mode: "potencias",
+        limit: desafio_n(),
+    })
+    let embed = live_embed("/live/potencias", "quiz-app", inicial)
+    let titulo = t(locale, "juego.potencias") + " — MatHelp"
+    return responder_html(page(locale, titulo, embed, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@ws("/live/potencias")
+async fn potencias_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
+    let locale = locale_from_cookie(lang)
+    let ctx = resolver_contexto(session).await?
+    let cid = Uuid.v4().to_str()
+    let seed = rand.int(1, 2000000000)
+    let sess_id = crear_sesion_potencias(ctx.profile_id, seed, ctx.grade).await?
+    let _ = component_with("quiz", cid, quiz {
+        seed: seed,
+        grade: ctx.grade,
+        locale: locale,
+        mode: "potencias",
+        limit: desafio_n(),
+    }).raw
+    ws.send(flv_frame("quiz", cid))?
+    let next_idx = 0
+    let finalizado = false
+    loop {
+        let frame = match ws.recv() {
+            Ok(f) => f,
+            Err(_) => { break },
+        }
+        let ev = frame.event
+        let _ = dispatch_component_events(frame)
+        if (ev == "answer") {
+            let ei = pget_int(frame.payload, "ei", -1)
+            if (ei == next_idx) {
+                let given = pget_int(frame.payload, "v", -1)
+                let _ = persistir_potencias(sess_id, ctx.profile_id, seed, ei, ctx.grade, given).await
+                let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
+                next_idx = next_idx + 1
+            }
+        }
+        match ws.send(flv_frame("quiz", cid)) {
+            Ok(_) => 0,
+            Err(_) => { break },
+        }
+        let st: quiz = component_state("quiz", cid)
+        if (st.phase == "done") {
+            if (not finalizado) {
+                let _ = finalizar_potencias(sess_id, st.total, st.correct, st.score).await
+                finalizado = true
+            }
+        }
+    }
+    let _ = flv_evict("quiz", cid)
+}

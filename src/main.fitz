@@ -19,6 +19,7 @@ import live_completa
 import live_escalera
 import live_kiosco
 import live_fracciones
+import live_potencias
 import menu
 import progreso
 import parent

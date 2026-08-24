@@ -159,6 +159,18 @@ fn grade_teclado(grade: Int) -> Int {
     return imin(grade, 7)
 }
 
+// Potencia entera base^exp (exp >= 0), pura. Con base negativa el signo sigue la
+// paridad del exponente: (-3)^2 = 9, (-2)^3 = -8 (la regla del signo, F7.1.b).
+fn ipow(base: Int, exp: Int) -> Int {
+    let r = 1
+    let i = 0
+    while (i < exp) {
+        r = r * base
+        i = i + 1
+    }
+    return r
+}
+
 // El skill code lleva la operación adentro; `op` es el corto para el símbolo.
 fn skill_a_op(skill: Str) -> Str {
     return match skill {
@@ -352,6 +364,64 @@ fn gen_sec(op: Str, seed: Int, idx: Int, grade: Int) -> Exercise {
     }
 }
 
+// Potencias y raíces (F7.1.b, juego "Potencias y raíces"). Sub-tipo determinista:
+//   - potencia (op "pot"): a^b, base 2..9 (a veces negativa), exponente 2..3.
+//     El signo de la respuesta sigue la paridad del exponente.
+//   - raíz (op "raiz"): se elige la respuesta r (2..12) y el índice n (2..3);
+//     el radicando es r^n, así la raíz es exacta. b lleva el índice (2=cuadrada,
+//     3=cúbica). El render (prompt_potencia) formatea √ / ∛ / a^b.
+// Opciones = respuesta + 3 distractores (candidatos_signed: la potencia puede ser
+// negativa). El RandGen `g` es local (FITZ-01).
+fn gen_potencia(seed: Int, idx: Int, grade: Int) -> Exercise {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let tipo = g.int(0, 1)
+    let a = 0
+    let b = 0
+    let answer = 0
+    let op = "pot"
+    let skill = "pot.entera"
+    let dificultad = 3
+    if (tipo == 0) {
+        let base = g.int(2, 9)
+        let exp = g.int(2, 3)
+        if (g.int(0, 1) == 1) {
+            base = 0 - base
+        }
+        a = base
+        b = exp
+        answer = ipow(base, exp)
+        op = "pot"
+        skill = "pot.entera"
+        dificultad = 3
+    }
+    if (tipo == 1) {
+        let r = g.int(2, 12)
+        let n = g.int(2, 3)
+        a = ipow(r, n)
+        b = n
+        answer = r
+        op = "raiz"
+        skill = "raiz.enesima"
+        dificultad = 4
+    }
+    let cands = candidatos_signed(answer)
+    let distractors = take3(g.shuffle(cands))
+    let raw = [answer]
+    for dd in distractors {
+        raw.push(dd)
+    }
+    let options = g.shuffle(raw)
+    return Exercise {
+        a: a,
+        b: b,
+        op: op,
+        answer: answer,
+        options: options,
+        skill_code: skill,
+        difficulty: dificultad,
+    }
+}
+
 // Genera un ejercicio mezclando las operaciones apropiadas al grado. Elige la
 // operación con un generador propio (determinista desde el seed) y delega en
 // `gen`. (seed, idx, grade) devuelve siempre el mismo ejercicio.
@@ -401,6 +471,11 @@ fn gen_for(mode: Str, topic: Str, band: Int, seed: Int, idx: Int, grade: Int, r_
             return gen_mix(seed, idx, eg)
         }
         return gen(topic, seed, idx, eg)
+    }
+    if (mode == "potencias") {
+        // Juego "Potencias y raíces" (F7.1.b): no usa el rating por operación
+        // (no es una de las cuatro básicas), así que ignora los r_*.
+        return gen_potencia(seed, idx, grade)
     }
     return gen_mix(seed, idx, grade)
 }

@@ -66,6 +66,7 @@ fn cat_en(key: Str) -> Str {
         "juego.kiosco" => "The corner store",
         "juego.nivel" => "Level",
         "juego.porcentaje" => "Percentage",
+        "juego.potencias" => "Powers and roots",
         "juego.puntaje" => "Score",
         "juego.reanudar" => "Resume game",
         "juego.resumen" => "Round summary",

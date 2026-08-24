@@ -27,6 +27,9 @@ fn quiz_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct
     if (phase == "done") {
         return quiz_resumen(locale, score, correct, total, mode)
     }
+    if (mode == "potencias") {
+        return quiz_potencias(seed, idx, grade, locale, correct, total, limit, feedback, last_answer)
+    }
     if (mode == "desafio") {
         return quiz_desafio(seed, idx, grade, locale, correct, total, limit, feedback, last_answer, r_add, r_sub, r_mul, r_div)
     }
@@ -53,6 +56,44 @@ fn quiz_desafio(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, tota
 <div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
 </div>
 <div class="q-prompt">{a} {sym} {b}</div>
+<div class="q-options">{opciones}</div>
+<div class="q-fbwrap">{banner}</div>""")
+}
+
+// Prompt del juego "Potencias y raíces" (F7.1.b). No es `a op b`: la potencia es
+// `base^exp` (base negativa entre paréntesis) y la raíz es unaria `√rad` / `∛rad`
+// (b lleva el índice). Devuelve un Str; el caller lo pasa por flv.
+fn prompt_potencia(locale: Str, a: Int, b: Int, op: Str) -> Str {
+    if (op == "raiz") {
+        let rad = fmt_int(locale, a)
+        if (b == 3) {
+            return "∛" + rad
+        }
+        return "√" + rad
+    }
+    let base = fmt_operando(locale, a)
+    let exp = fmt_int(locale, b)
+    return base + "^" + exp
+}
+
+// Pantalla del juego "Potencias y raíces": misma estructura que el Desafío
+// (progreso X/N, sin reloj), pero el prompt lo arma prompt_potencia. No es
+// adaptativo (gen_potencia ignora los ratings), así que pasa r_* neutros.
+fn quiz_potencias(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, feedback: Str, last_answer: Int) -> Html {
+    let ex = gen_for("potencias", "mix", 2, seed, idx, grade, 800.0, 800.0, 800.0, 800.0)
+    let prompt = flv(prompt_potencia(locale, ex.a, ex.b, ex.op))
+    let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
+    let banner = feedback_banner(locale, feedback, last_answer, idx)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    return html("""<div class="q-hud">
+<div class="q-mode">🔷 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+</div>
+<div class="q-prompt">{prompt}</div>
 <div class="q-options">{opciones}</div>
 <div class="q-fbwrap">{banner}</div>""")
 }

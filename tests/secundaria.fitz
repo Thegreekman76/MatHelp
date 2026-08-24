@@ -7,7 +7,7 @@
 // Corré con:  fitz test
 
 from engine import es_secundaria, anio_secundaria, es_ciclo_orientado, modalidad_valida
-from gen_arith import gen, grade_teclado
+from gen_arith import gen, grade_teclado, gen_potencia, ipow
 from fmt import fmt_operando
 
 // --- es_secundaria (grade >= 8) ---------------------------------------------
@@ -135,4 +135,37 @@ from fmt import fmt_operando
 @test fn fmt_operando_parentiza_negativos() {
     assert_eq(fmt_operando("es-AR", 0 - 5), "(-5)")
     assert_eq(fmt_operando("en", 0 - 42), "(-42)")
+}
+
+// --- F7.1.b: potencias y raíces ---------------------------------------------
+
+@test fn ipow_calcula_potencias() {
+    assert_eq(ipow(2, 5), 32)
+    assert_eq(ipow(10, 3), 1000)
+    assert_eq(ipow(0 - 3, 2), 9)       // base negativa, exp par → positivo
+    assert_eq(ipow(0 - 2, 3), 0 - 8)   // base negativa, exp impar → negativo
+    assert_eq(ipow(7, 0), 1)           // exponente 0
+}
+
+@test fn gen_potencia_es_determinista() {
+    let e1 = gen_potencia(555, 7, 8)
+    let e2 = gen_potencia(555, 7, 8)
+    assert_eq(e1.a, e2.a)
+    assert_eq(e1.b, e2.b)
+    assert_eq(e1.answer, e2.answer)
+    assert_eq(e1.op, e2.op)
+}
+
+// Cada ejercicio cumple su invariante: potencia a^b == answer; raíz exacta
+// answer^b == a (el radicando). Cubre 40 idx deterministas.
+@test fn gen_potencia_invariantes() {
+    for i in 0..40 {
+        let e = gen_potencia(31337, i, 8)
+        if (e.op == "raiz") {
+            assert_eq(ipow(e.answer, e.b), e.a)
+        }
+        if (e.op == "pot") {
+            assert_eq(ipow(e.a, e.b), e.answer)
+        }
+    }
 }
