@@ -36,6 +36,41 @@ fn a_int(s: Str) -> Int {
     }
 }
 
+// --- F7: niveles y modalidad ------------------------------------------------
+//
+// La numeración de `grade` se extiende: primaria 1..7, secundaria 8..13
+// (= 1°..6°). La edad/año solo SIEMBRA el rango del generador; el rating de
+// Elo-lite manda igual que en primaria.
+
+// ¿El grado es de secundaria? (grade >= 8).
+fn es_secundaria(grade: Int) -> Bool => grade >= 8
+
+// Año de secundaria (1..6) a partir del grade; para primaria devuelve el grado.
+fn anio_secundaria(grade: Int) -> Int {
+    if (grade >= 8) {
+        return grade - 7
+    }
+    return grade
+}
+
+// El Ciclo Orientado — donde la modalidad importa — es 4°..6° de secundaria
+// (= grade 11..13). Antes de eso (primaria + Ciclo Básico) todo es "comun".
+fn es_ciclo_orientado(grade: Int) -> Bool => grade >= 11
+
+// Normaliza la orientación a un valor conocido. Cualquier otra cosa → "comun".
+fn modalidad_valida(m: Str) -> Str {
+    if (m == "bachiller") {
+        return "bachiller"
+    }
+    if (m == "comercial") {
+        return "comercial"
+    }
+    if (m == "industrial") {
+        return "industrial"
+    }
+    return "comun"
+}
+
 // --- Motor adaptativo (F3): Elo-lite ----------------------------------------
 //
 // El corazón del §7 del PLAN. Todo acá es PURO (Float/Int, sin DB ni tiempo):

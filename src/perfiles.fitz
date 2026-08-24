@@ -14,6 +14,7 @@ from config import db_url
 from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from auth import read_session, mint_session, redirect_con_sesion
+from engine import modalidad_valida
 from models import Profile
 
 // --- DB ------------------------------------------------------------------
@@ -30,7 +31,7 @@ async fn perfil_de_familia(family_id: Int, pid: Int) -> Result<Profile> {
     return Profile.where(fn(p) => p.id == pid and p.family_id == family_id).first(conn).await
 }
 
-async fn crear_perfil(family_id: Int, nombre: Str, grado: Int, pin: Str, locale: Str) -> Result<Profile> {
+async fn crear_perfil(family_id: Int, nombre: Str, grado: Int, modalidad: Str, pin: Str, locale: Str) -> Result<Profile> {
     let conn = db.connect(db_url()).await?
     return Profile.insert(conn, Profile {
         id: 0,
@@ -39,6 +40,7 @@ async fn crear_perfil(family_id: Int, nombre: Str, grado: Int, pin: Str, locale:
         avatar: "mate",
         birth_year: 0,
         grade: grado,
+        modalidad: modalidad_valida(modalidad),
         locale: locale,
         pin: pin,
         daily_goal: 10,
@@ -126,6 +128,16 @@ fn form_nuevo(locale: Str, nombre: Str, error_key: Str) -> Html {
 </select>
 </div>
 <div class="mh-field">
+<label class="mh-label" for="modalidad">{flv(t(locale, "perfiles.modalidad"))}</label>
+<select class="mh-select" id="modalidad" name="modalidad">
+<option value="comun">{flv(t(locale, "modalidad.comun"))}</option>
+<option value="bachiller">{flv(t(locale, "modalidad.bachiller"))}</option>
+<option value="comercial">{flv(t(locale, "modalidad.comercial"))}</option>
+<option value="industrial">{flv(t(locale, "modalidad.industrial"))}</option>
+</select>
+<span class="mh-hint">{flv(t(locale, "perfiles.modalidad_hint"))}</span>
+</div>
+<div class="mh-field">
 <label class="mh-label" for="pin">{flv(t(locale, "perfiles.pin"))}</label>
 <input class="mh-input" id="pin" name="pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" />
 <span class="mh-hint">{flv(t(locale, "perfiles.pin_hint"))}</span>
@@ -138,8 +150,14 @@ fn form_nuevo(locale: Str, nombre: Str, error_key: Str) -> Html {
 
 // Opciones 1º..7º grado. Devuelve un solo Str de <option>s.
 fn opciones_grado(locale: Str) -> Str {
-    let items = [1, 2, 3, 4, 5, 6, 7]
-    return h_join(items.map(fn(g) => opcion_grado(locale, g)))
+    let prim = [1, 2, 3, 4, 5, 6, 7]
+    let sec = [8, 9, 10, 11, 12, 13]
+    let ops_prim = h_join(prim.map(fn(g) => opcion_grado(locale, g)))
+    let ops_sec = h_join(sec.map(fn(g) => opcion_grado(locale, g)))
+    let g_prim = flv(t(locale, "perfiles.grupo_primaria"))
+    let g_sec = flv(t(locale, "perfiles.grupo_secundaria"))
+    return html("""<optgroup label="{g_prim}">{ops_prim}</optgroup>
+<optgroup label="{g_sec}">{ops_sec}</optgroup>""").raw
 }
 
 fn opcion_grado(locale: Str, g: Int) -> Html {
@@ -179,6 +197,7 @@ type ElegirForm {
 type NuevoPerfilForm {
     nombre: Str = ""
     grado: Str = ""
+    modalidad: Str = "comun"
     pin: Str = ""
 }
 
@@ -239,7 +258,7 @@ async fn nuevo_post(session: Str?, lang: Str?, form: NuevoPerfilForm) -> Respons
         Ok(n) => n,
         Err(_) => 0,
     }
-    match crear_perfil(fam.id, form.nombre, grado, form.pin, fam.locale).await {
+    match crear_perfil(fam.id, form.nombre, grado, form.modalidad, form.pin, fam.locale).await {
         Ok(_) => return redirect_a("/perfiles"),
         Err(_) => return responder_html(page(locale, titulo, form_nuevo(locale, form.nombre, "perfiles.error_nombre"), html(""))),
     }

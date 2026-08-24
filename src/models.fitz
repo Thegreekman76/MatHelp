@@ -41,7 +41,9 @@ type Profile {
     name: Str = ""
     avatar: Str = "mate"          // clave de avatar SVG inline
     birth_year: Int = 0           // la edad se deriva: nunca queda vieja
-    grade: Int = 0                // 1..7 primaria
+    grade: Int = 0                // 1..7 primaria; 8..13 = 1°..6° secundaria (F7)
+    modalidad: Str = "comun"      // F7: "comun" | "bachiller" | "comercial" | "industrial"
+                                  // solo aplica en el Ciclo Orientado (grade 11..13)
     locale: Str = "es-AR"
     // @hidden: el PIN nunca viaja al cliente. Opcional, 4 dígitos, para que
     // los hermanos no se metan en el perfil del otro.

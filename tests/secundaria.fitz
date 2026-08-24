@@ -1,0 +1,60 @@
+// tests/secundaria.fitz — helpers de nivel/modalidad de F7 (engine.fitz).
+//
+// La numeración de `grade` se extiende en F7: primaria 1..7, secundaria 8..13
+// (= 1°..6°). El Ciclo Orientado (donde la modalidad importa) es 4°..6° de
+// secundaria = grade 11..13. `modalidad_valida` normaliza la orientación.
+//
+// Corré con:  fitz test
+
+from engine import es_secundaria, anio_secundaria, es_ciclo_orientado, modalidad_valida
+
+// --- es_secundaria (grade >= 8) ---------------------------------------------
+
+@test fn primaria_no_es_secundaria() {
+    assert_eq(es_secundaria(1), false)
+    assert_eq(es_secundaria(7), false)
+}
+
+@test fn desde_octavo_es_secundaria() {
+    assert_eq(es_secundaria(8), true)
+    assert_eq(es_secundaria(13), true)
+}
+
+// --- anio_secundaria (grade - 7 en secundaria; el grado en primaria) --------
+
+@test fn anio_secundaria_mapea_octavo_a_primero() {
+    assert_eq(anio_secundaria(8), 1)
+    assert_eq(anio_secundaria(13), 6)
+}
+
+@test fn anio_secundaria_devuelve_el_grado_en_primaria() {
+    assert_eq(anio_secundaria(4), 4)
+    assert_eq(anio_secundaria(7), 7)
+}
+
+// --- es_ciclo_orientado (grade >= 11 = 4° de secundaria) --------------------
+
+@test fn ciclo_basico_no_es_orientado() {
+    assert_eq(es_ciclo_orientado(7), false)   // primaria
+    assert_eq(es_ciclo_orientado(10), false)  // 3° secundaria (Ciclo Básico)
+}
+
+@test fn desde_cuarto_secundaria_es_orientado() {
+    assert_eq(es_ciclo_orientado(11), true)   // 4° secundaria
+    assert_eq(es_ciclo_orientado(13), true)   // 6° secundaria
+}
+
+// --- modalidad_valida (normaliza a un valor conocido) -----------------------
+
+@test fn modalidad_conocida_pasa_tal_cual() {
+    assert_eq(modalidad_valida("bachiller"), "bachiller")
+    assert_eq(modalidad_valida("comercial"), "comercial")
+    assert_eq(modalidad_valida("industrial"), "industrial")
+    assert_eq(modalidad_valida("comun"), "comun")
+}
+
+@test fn modalidad_desconocida_cae_a_comun() {
+    assert_eq(modalidad_valida(""), "comun")
+    assert_eq(modalidad_valida("cualquier-cosa"), "comun")
+    assert_eq(modalidad_valida("COMERCIAL"), "comun")   // case-sensitive a propósito
+}

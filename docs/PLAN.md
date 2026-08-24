@@ -8,9 +8,10 @@
 
 ## 📍 Estado — actualizado 23/08/2026
 
-**Fase actual: F6 — Pulido. CERRADA ENTERA (reanudar partida + accesibilidad +
-sonido opcional + instalable/PWA). F0/F1/F2/F3/F4/F5 cerradas. Próximo: F7
-(secundaria) o afinado según prueba real en Android.**
+**Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo + navegación) CERRADA:
+`Profile.modalidad` + `grade` 8..13, helpers de nivel, formulario con optgroups
+Primaria/Secundaria + orientación. F0…F6 cerradas. Próximo: F7.1 (aritmética del
+Ciclo Básico — enteros con signo, potencias, raíces; reusa los juegos actuales).**
 
 > **F6 (2026-08-23)** — cuatro piezas de pulido:
 > - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo
@@ -931,12 +932,21 @@ arrancando por **comercial** (finanzas, todo numérico, alto valor pedagógico).
 Cada sub-fase = generador(es) + un juego; cada una cierra con `fitz build`
 nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E.
 
-- **F7.0 — Modelo + navegación.** Campo `Profile.modalidad` (`"comun"` |
-  `"bachiller"` | `"comercial"` | `"industrial"`) + extender `grade` a **8..13**
-  (= 1°..6° secundaria) con helper `grade_a_nivel(grade) -> (nivel, año)`.
-  Migración `migrations/0003_f7_secundaria.sql` + espejo en `models.fitz`. La
-  grilla de juegos filtra por grade (secundaria) + modalidad; el perfil elige
-  nivel/modalidad al crearse. **Único cambio de schema de toda F7.**
+- **F7.0 — Modelo + navegación. ✅ (2026-08-24)** Campo `Profile.modalidad`
+  (`"comun"` | `"bachiller"` | `"comercial"` | `"industrial"`) + `grade` extendido
+  a **8..13** (= 1°..6° secundaria). Migración `migrations/0003_f7_secundaria.sql`
+  (idempotente, `ADD COLUMN IF NOT EXISTS`) + espejo en `models.fitz`. Helpers en
+  `engine.fitz`: `es_secundaria` (≥8), `anio_secundaria` (grade−7), `es_ciclo_orientado`
+  (≥11 = 4° sec) y `modalidad_valida` (normaliza a un valor conocido) — 8 `@test`
+  en `tests/secundaria.fitz`. Formulario de perfil: selector de grado con optgroups
+  **Primaria/Secundaria** + `<select>` de **orientación** (i18n `grado.8-13`,
+  `modalidad.*`). La grilla tolera grade 8-13 (todos los juegos actuales se
+  desbloquean; los específicos de secundaria se suman con `min_grade` 8+ en F7.1+).
+  Verificado: `fitz test` 75/0 + `fitz build` nativo + smoke (crear perfil sec 4°
+  comercial → persiste `grade=11, modalidad='comercial'`; modalidad inválida →
+  `comun`; grilla con 6 juegos). **Único cambio de schema de toda F7.**
+  *Pendiente F7.1+: el filtro de la grilla por modalidad (cuando existan juegos de
+  modalidad, ej. Finanzas para comercial) — hoy no hay juego de modalidad que filtrar.*
 - **F7.1 — Ciclo Básico, aritmética (1°–3°).** Extender `gen_arith` a **enteros
   con signo, potencias, raíces, notación científica**. Reusa Contrarreloj / V-F /
   Completá / Desafío → **cero UI nueva**. Opcional juego #12 "Potencias y raíces".
