@@ -95,6 +95,7 @@ fn cat_en(key: Str) -> Str {
         "kiosco.vuelto" => "How much change?",
         "kp.borrar" => "Delete",
         "kp.listo" => "Done",
+        "kp.signo" => "Change sign",
         "login.crear_cuenta" => "Create an account",
         "login.email" => "Email",
         "login.error" => "Wrong email or password.",

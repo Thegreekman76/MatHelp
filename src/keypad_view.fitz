@@ -12,17 +12,34 @@
 from fitz_liveviews import Html, html, flv
 from i18n import t
 
-fn keypad_html(locale: Str, entrada: Int, idx: Int) -> Str {
+// `touched` distingue "vacío" (nada tipeado → muestra "?") de "0 tipeado": va en
+// el payload del botón Listo (data-flv-value-touched) para que el loop del @ws
+// sepa si fue una respuesta real. En primaria (positivos) queda siempre en 1 al
+// tipear; la tecla ± sólo aparece en secundaria (`con_signo`).
+fn keypad_html(locale: Str, entrada: Int, idx: Int, touched: Bool, con_signo: Bool) -> Str {
     let filas = ""
     for d in ["1", "2", "3", "4", "5", "6", "7", "8", "9"] {
         filas = filas + html("""<button class="kp-key" type="button" data-flv-click="digito" data-flv-value-d="{d}">{flv(d)}</button>""").raw
     }
     let borrar = flv(t(locale, "kp.borrar"))
     let listo = flv(t(locale, "kp.listo"))
+    let tv = match touched {
+        true => "1",
+        false => "0",
+    }
+    // Pie del teclado. Con signo (secundaria): fila [±, 0, ⌫] + Listo full-width.
+    // Sin signo (primaria / kiosco): la fila clásica [⌫, 0, Listo].
+    let cola = match con_signo {
+        true => html("""<button class="kp-key aux" type="button" data-flv-click="signo" aria-label="{flv(t(locale, "kp.signo"))}">±</button>
+<button class="kp-key" type="button" data-flv-click="digito" data-flv-value-d="0">0</button>
+<button class="kp-key aux" type="button" data-flv-click="borrar" aria-label="{borrar}">⌫</button>
+<button class="kp-key ok full" type="button" data-flv-click="answer" data-flv-value-v="{entrada}" data-flv-value-ei="{idx}" data-flv-value-touched="{tv}">{listo}</button>""").raw,
+        false => html("""<button class="kp-key aux" type="button" data-flv-click="borrar" aria-label="{borrar}">⌫</button>
+<button class="kp-key" type="button" data-flv-click="digito" data-flv-value-d="0">0</button>
+<button class="kp-key ok" type="button" data-flv-click="answer" data-flv-value-v="{entrada}" data-flv-value-ei="{idx}" data-flv-value-touched="{tv}">{listo}</button>""").raw,
+    }
     return html("""<div class="kp">
 {filas}
-<button class="kp-key aux" type="button" data-flv-click="borrar" aria-label="{borrar}">⌫</button>
-<button class="kp-key" type="button" data-flv-click="digito" data-flv-value-d="0">0</button>
-<button class="kp-key ok" type="button" data-flv-click="answer" data-flv-value-v="{entrada}" data-flv-value-ei="{idx}">{listo}</button>
+{cola}
 </div>""").raw
 }

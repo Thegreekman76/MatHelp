@@ -7,7 +7,7 @@
 // es /10. Cubre: acumulación, tope máximo, borrado, ceros a la izquierda, y que
 // dígitos fuera de 0..9 se ignoren.
 
-from keypad import kp_append, kp_borrar
+from keypad import kp_append, kp_borrar, kp_signo
 
 @test fn acumula_digitos() {
     let e = 0
@@ -44,4 +44,32 @@ from keypad import kp_append, kp_borrar
     assert_eq(kp_borrar(5), 0)
     assert_eq(kp_borrar(0), 0)     // vacío queda vacío
     assert_eq(kp_borrar(560), 56)
+}
+
+// --- F7.1: teclado con signo (secundaria) -----------------------------------
+
+@test fn signo_invierte() {
+    assert_eq(kp_signo(5), 0 - 5)
+    assert_eq(kp_signo(0 - 53), 53)
+    assert_eq(kp_signo(0), 0)      // vacío: no-op
+}
+
+@test fn acumula_negativos_extiende_la_magnitud() {
+    let e = 5
+    e = kp_signo(e)                // -5
+    assert_eq(e, 0 - 5)
+    e = kp_append(e, 3, 99999)     // -53 (NO -47)
+    assert_eq(e, 0 - 53)
+    e = kp_append(e, 0, 99999)     // -530
+    assert_eq(e, 0 - 530)
+}
+
+@test fn borrar_negativos_trunca_hacia_cero() {
+    assert_eq(kp_borrar(0 - 53), 0 - 5)
+    assert_eq(kp_borrar(0 - 5), 0)     // último dígito → vacío
+}
+
+@test fn respeta_la_magnitud_maxima_negativa() {
+    assert_eq(kp_append(0 - 99, 9, 999), 0 - 999)    // -999 == -max → OK
+    assert_eq(kp_append(0 - 999, 9, 999), 0 - 999)   // -9999 < -max → no agrega
 }

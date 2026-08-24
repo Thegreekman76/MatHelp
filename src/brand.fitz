@@ -329,6 +329,7 @@ main:focus \{ outline:none; \}
 .kp-key:active \{ transform:scale(.95); border-color:var(--mh-verde); \}
 .kp-key.aux \{ color:var(--mh-naranja); \}
 .kp-key.ok \{ background:var(--mh-verde); color:#fff; border-color:var(--mh-verde); font-size:1.1rem; \}
+.kp-key.full \{ grid-column:1 / -1; \}
 
 /* --- Escalera de tablas (F4) --- */
 .esc-hud \{ display:flex; align-items:center; gap:14px; \}

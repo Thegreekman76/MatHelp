@@ -95,6 +95,7 @@ fn cat_es_ar(key: Str) -> Str {
         "kiosco.vuelto" => "¿Cuánto vuelto?",
         "kp.borrar" => "Borrar",
         "kp.listo" => "Listo",
+        "kp.signo" => "Cambiar signo",
         "login.crear_cuenta" => "Crear una cuenta",
         "login.email" => "Correo electrónico",
         "login.error" => "Correo o contraseña incorrectos.",

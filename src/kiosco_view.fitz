@@ -32,7 +32,7 @@ fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, tot
     let de_total = flv(fmt_int(locale, limit))
     let vas_lbl = flv(t(locale, "juego.aciertos"))
     let co = flv(fmt_int(locale, correct))
-    let teclado = keypad_html(locale, entrada, idx)
+    let teclado = keypad_html(locale, entrada, idx, entrada > 0, false)
     return html("""<div class="q-hud">
 <div class="q-mode">🏪 {hecho} {de_lbl} {de_total}</div>
 <div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>

@@ -955,9 +955,7 @@ nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E
   primaria queda bit-a-bit intacta) + `candidatos_signed` + rangos por grado 8-13
   + `grado_efectivo`/`grade_for_band` que no cruzan el límite primaria/secundaria;
   el render swapea `fmt_int`→**`fmt_operando`** en los operandos (parentiza negativos,
-  byte-idéntico en ≥0, paridad de primaria). El juego de teclado **Completá el hueco**
-  se clampea a positivo (`grade_teclado`, ≤7) porque el teclado no tiene ± (llega en
-  F7.1.b). 8 `@test` nuevos en `tests/secundaria.fitz` (determinismo, invariantes con
+  byte-idéntico en ≥0, paridad de primaria). 8 `@test` nuevos en `tests/secundaria.fitz` (determinismo, invariantes con
   signo, primaria sin negativos, `fmt_operando`). Verificado: `fitz test` 83/0 +
   `fitz build` nativo + smoke (perfil sec 4° → `(-65) − (-13)`, `225 + (-98)`, opciones
   negativas; perfil primaria → positivo sin paréntesis). `topic_code`: `add`/`sub`/`mul`/`div`
@@ -985,8 +983,21 @@ nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E
   86/0 + `fitz build` nativo + smoke (`7 × 10^5`, `9 × 10^4` en el juego).
   **Con esto F7.1 (Ciclo Básico aritmética) queda COMPLETA**: enteros con signo +
   potencias + raíces + notación científica.
-  *Mejora aparte (opcional, no es contenido de F7.1): `±` en el teclado para que
-  "Completá el hueco" acepte enteros negativos en secundaria (hoy clampea a positivo).*
+- **Teclado con signo (±) para "Completá el hueco". ✅ (2026-08-24)** El juego de
+  teclado ahora acepta enteros negativos en secundaria (antes clampeaba a positivo).
+  `keypad.fitz` gana `kp_signo` + `kp_append` neg-aware (acumula extendiendo la
+  magnitud: −5 y "3" → −53); `keypad_view` suma la tecla `±` (solo si `con_signo`)
+  + `data-flv-value-touched` en Listo; `Completa.fitzv` gana estado `touched`
+  (distingue "vacío" de "0 tipeado" — el operando faltante puede ser 0/negativo en
+  secundaria) + evento `signo`; el hueco muestra el negativo con `fmt_operando`;
+  `live_completa` seedea `con_signo=es_secundaria(grade)` y el loop del `@ws`
+  persiste por `touched` (no por `given > 0`). 4 `@test` nuevos en `tests/teclado.fitz`.
+  Verificado: `fitz test` 90/0 + `fitz build` nativo + smoke (perfil sec tipea `5,3,±`
+  → hueco `(-53)` → persiste `given='-53'`; primaria sin ±). *Limitación menor: el
+  SSR-placeholder comparte la instancia "ssr" entre requests, así que el `±` puede
+  aparecer con un flash al conectar el WS — el juego en vivo es correcto.*
+  *Deuda residual: `grade_teclado` quedó sin uso en la app (lo reemplazó el ±);
+  se puede borrar (+ su test) en un cleanup.*
 - **F7.2 — Ecuaciones (#13).** Generador `gen_ecuaciones` (1er grado → sistemas
   2×2 → cuadráticas), respuesta numérica con el **`keypad` que ya existe**. `.fitzv`
   nuevo `Ecuaciones` + `live_ecuaciones.fitz` (patrón de `Completa`). `topic_code`:

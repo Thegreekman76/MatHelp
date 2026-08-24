@@ -16,7 +16,7 @@ from i18n import t, t1
 from fmt import fmt_int, fmt_operando
 from keypad_view import keypad_html
 
-fn completa_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Html {
+fn completa_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, con_signo: Bool, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Html {
     if (phase == "done") {
         return completa_resumen(locale, correct, total)
     }
@@ -24,9 +24,10 @@ fn completa_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
     let a = flv(fmt_operando(locale, ex.a))
     let sym = flv(op_symbol(ex.op))
     let ans = flv(fmt_int(locale, ex.answer))
-    // El hueco muestra lo tipeado, o "?" si está vacío (entrada == 0).
-    let hueco = match entrada > 0 {
-        true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
+    // El hueco muestra lo tipeado (con signo/paréntesis si es negativo), o "?" si
+    // no se tipeó nada. `touched` distingue vacío de un 0 tipeado.
+    let hueco = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_operando(locale, entrada))}</span>""").raw,
         false => html("""<span class="cg-slot">?</span>""").raw,
     }
     let banner = completa_feedback(locale, feedback, last_answer)
@@ -35,7 +36,7 @@ fn completa_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
     let de_total = flv(fmt_int(locale, limit))
     let vas_lbl = flv(t(locale, "juego.aciertos"))
     let co = flv(fmt_int(locale, correct))
-    let teclado = keypad_html(locale, entrada, idx)
+    let teclado = keypad_html(locale, entrada, idx, touched, con_signo)
     return html("""<div class="q-hud">
 <div class="q-mode">🔢 {hecho} {de_lbl} {de_total}</div>
 <div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>

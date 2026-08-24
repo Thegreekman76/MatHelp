@@ -15,7 +15,7 @@
 // live_completa.fitz, que re-deriva el mismo ejercicio y compara given == ex.b.
 
 from gen_arith import gen_for
-from keypad import kp_append, kp_borrar
+from keypad import kp_append, kp_borrar, kp_signo
 from engine import a_int
 from completa_view import completa_screen
 
@@ -30,7 +30,10 @@ component completa {
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // la respuesta correcta (ex.b) del ejercicio recién fallado
-    entrada: Int = 0               // lo tipeado en el teclado (0 = vacío)
+    entrada: Int = 0               // lo tipeado en el teclado
+    touched: Bool = false          // ¿tipeó algo? distingue "vacío" de "0 tipeado"
+                                   // (secundaria: el operando faltante puede ser 0 o negativo)
+    con_signo: Bool = false        // ¿mostrar la tecla ±? (secundaria)
     mode: Str = "adaptive"         // motor adaptativo (como el contrarreloj)
     r_add: Float = 800.0
     r_sub: Float = 800.0
@@ -43,6 +46,7 @@ component completa {
     if (phase == "playing") {
       if (payload.has("d")) {
         entrada = kp_append(entrada, a_int(payload["d"]), 99999)
+        touched = true
       }
     }
   }
@@ -53,6 +57,13 @@ component completa {
     }
   }
 
+  // Tecla ± (secundaria): invierte el signo de lo tipeado. Sobre vacío es no-op.
+  event signo() {
+    if (phase == "playing") {
+      entrada = kp_signo(entrada)
+    }
+  }
+
   event answer() {
     if (phase == "playing") {
       if (payload.has("v")) {
@@ -60,8 +71,9 @@ component completa {
           let ei = a_int(payload["ei"])
           if (ei == idx) {
             let given = a_int(payload["v"])
-            // Enter vacío (nada tipeado): no cuenta, no avanza.
-            if (given > 0) {
+            // Enter vacío (nada tipeado): no cuenta, no avanza. `touched` lo
+            // distingue de un 0 tipeado (respuesta válida en secundaria).
+            if (touched) {
               let ex = gen_for(mode, "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
               let acierto = given == ex.b
               total = total + 1
@@ -74,6 +86,7 @@ component completa {
                 last_answer = ex.b
               }
               entrada = 0
+              touched = false
               idx = idx + 1
               if (total >= limit) {
                 phase = "done"
@@ -87,7 +100,7 @@ component completa {
 
   <template>
     <div id="completa-app" class="mh-quiz">
-      {completa_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, mode, r_add, r_sub, r_mul, r_div).raw}
+      {completa_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, con_signo, mode, r_add, r_sub, r_mul, r_div).raw}
     </div>
   </template>
 }

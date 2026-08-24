@@ -9,11 +9,20 @@
 //
 // Puro y testeable (tests/keypad.fitz): el componente sólo llama a estas dos.
 
-// Agrega un dígito (0..9) al número tipeado. Respeta un máximo: si pasarse, no
-// agrega (evita desbordes y números absurdos). max = mayor valor aceptable.
+// Agrega un dígito (0..9) al número tipeado. Respeta un máximo de MAGNITUD: si
+// pasarse, no agrega (evita desbordes y números absurdos). Con `entrada`
+// negativa (secundaria, tras la tecla ±) el dígito EXTIENDE la magnitud hacia
+// abajo (−5 y "3" → −53), no `*10 + d`. max = mayor magnitud aceptable.
 fn kp_append(entrada: Int, d: Int, max: Int) -> Int {
     if (d < 0 or d > 9) {
         return entrada            // sólo dígitos
+    }
+    if (entrada < 0) {
+        let nuevo = entrada * 10 - d
+        if (nuevo < 0 - max) {
+            return entrada        // no pasar de la magnitud máxima
+        }
+        return nuevo
     }
     let nuevo = entrada * 10 + d
     if (nuevo > max) {
@@ -22,7 +31,13 @@ fn kp_append(entrada: Int, d: Int, max: Int) -> Int {
     return nuevo
 }
 
-// Borra el último dígito (división entera por 10). Vacío (0) queda en 0.
+// Borra el último dígito (división entera por 10, trunca hacia 0: −53 → −5,
+// −5 → 0). Vacío (0) queda en 0, y conserva el signo hasta el último dígito.
 fn kp_borrar(entrada: Int) -> Int {
     return entrada / 10
+}
+
+// Invierte el signo de lo tipeado (tecla ±). Sobre vacío (0) no hace nada.
+fn kp_signo(entrada: Int) -> Int {
+    return 0 - entrada
 }
