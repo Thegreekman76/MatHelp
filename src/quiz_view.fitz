@@ -71,6 +71,12 @@ fn prompt_potencia(locale: Str, a: Int, b: Int, op: Str) -> Str {
         }
         return "√" + rad
     }
+    if (op == "scinot") {
+        // Notación científica: mantisa × 10^exponente.
+        let mant = fmt_int(locale, a)
+        let exp = fmt_int(locale, b)
+        return mant + " × 10^" + exp
+    }
     let base = fmt_operando(locale, a)
     let exp = fmt_int(locale, b)
     return base + "^" + exp

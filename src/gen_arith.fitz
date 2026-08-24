@@ -218,6 +218,20 @@ fn candidatos_signed(answer: Int) -> List<Int> {
     return out
 }
 
+// Distractores para notación científica (F7.1.c): un ±offset no sirve — la
+// respuesta (m × 10^k) es enorme, así que los distractores son los ERRORES
+// típicos: un orden de magnitud arriba/abajo, y la mantisa ±1. Con m ∈ [2..9] y
+// k >= 2 los cuatro son distintos y != answer.
+fn candidatos_scinot(m: Int, k: Int) -> List<Int> {
+    let p = ipow(10, k)
+    let out: List<Int> = []
+    out.push(m * ipow(10, k + 1))   // un orden más
+    out.push(m * ipow(10, k - 1))   // un orden menos
+    out.push((m + 1) * p)           // mantisa +1
+    out.push((m - 1) * p)           // mantisa -1
+    return out
+}
+
 // Primeros 3 elementos de una lista (ya barajada).
 fn take3(xs: List<Int>) -> List<Int> {
     let out: List<Int> = []
@@ -374,7 +388,7 @@ fn gen_sec(op: Str, seed: Int, idx: Int, grade: Int) -> Exercise {
 // negativa). El RandGen `g` es local (FITZ-01).
 fn gen_potencia(seed: Int, idx: Int, grade: Int) -> Exercise {
     let g = rand.seeded(sub_seed(seed, idx))
-    let tipo = g.int(0, 1)
+    let tipo = g.int(0, 2)
     let a = 0
     let b = 0
     let answer = 0
@@ -404,7 +418,23 @@ fn gen_potencia(seed: Int, idx: Int, grade: Int) -> Exercise {
         skill = "raiz.enesima"
         dificultad = 4
     }
+    if (tipo == 2) {
+        // Notación científica: m × 10^k → número. Mantisa 2..9, exponente 2..5.
+        let m = g.int(2, 9)
+        let k = g.int(2, 5)
+        a = m
+        b = k
+        answer = m * ipow(10, k)
+        op = "scinot"
+        skill = "pot.notacion"
+        dificultad = 4
+    }
+    // Distractores: por orden de magnitud para notación científica (un ±offset
+    // sería indistinguible en números enormes), por ±offset para potencia/raíz.
     let cands = candidatos_signed(answer)
+    if (op == "scinot") {
+        cands = candidatos_scinot(a, b)
+    }
     let distractors = take3(g.shuffle(cands))
     let raw = [answer]
     for dd in distractors {

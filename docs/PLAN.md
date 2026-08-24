@@ -8,10 +8,10 @@
 
 ## 📍 Estado — actualizado 23/08/2026
 
-**Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo) + F7.1 (enteros con signo)
-+ F7.1.b (juego Potencias y raíces) CERRADAS. F0…F6 cerradas. Próximo: F7.1.c
-(notación científica + `±` en el teclado) o F7.2 (juego Ecuaciones — 1er grado →
-sistemas → cuadráticas, teclado).**
+**Fase actual: F7 — Secundaria. EN CURSO. F7.0 (modelo) + F7.1 COMPLETA (Ciclo
+Básico aritmética: enteros con signo + potencias + raíces + notación científica)
+CERRADAS. F0…F6 cerradas. Próximo: F7.2 (juego Ecuaciones — 1er grado → sistemas
+2×2 → cuadráticas, teclado numérico).**
 
 > **F6 (2026-08-23)** — cuatro piezas de pulido:
 > - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo
@@ -975,9 +975,18 @@ nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E
   determinismo, invariantes a^b/answer^b). Verificado: `fitz test` 86/0 + `fitz build`
   nativo + smoke (juego en grilla, `/potencias` renderiza, WS sirve `(-7)^3` / `8^2` /
   `∛125` / `√49`, persiste sesión `mode='potencias'`).
-- **F7.1.c — Notación científica (pendiente).** `m × 10^k` → número: display propio
-  (`m × 10^k`) + distractores por orden de magnitud (no ±offset). `topic_code`:
-  `pot.notacion`. + `±` en el teclado para que Completá acepte enteros negativos.
+- **F7.1.c — Notación científica. ✅ (2026-08-24)** Tercer sub-tipo del juego
+  Potencias (`m × 10^k` → número, mantisa 2..9, exponente 2..5), con distractores
+  por **orden de magnitud** (`candidatos_scinot`: un orden arriba/abajo + mantisa ±1;
+  un ±offset sería indistinguible en números enormes). Display `m × 10^k` en
+  `prompt_potencia`; prompt canónico en la persistencia. `topic_code`: `pot.notacion`.
+  Sin migración ni i18n nuevos (va en el mode `potencias`). Test de invariantes
+  extendido (m×10^k == answer + cobertura de los 3 tipos). Verificado: `fitz test`
+  86/0 + `fitz build` nativo + smoke (`7 × 10^5`, `9 × 10^4` en el juego).
+  **Con esto F7.1 (Ciclo Básico aritmética) queda COMPLETA**: enteros con signo +
+  potencias + raíces + notación científica.
+  *Mejora aparte (opcional, no es contenido de F7.1): `±` en el teclado para que
+  "Completá el hueco" acepte enteros negativos en secundaria (hoy clampea a positivo).*
 - **F7.2 — Ecuaciones (#13).** Generador `gen_ecuaciones` (1er grado → sistemas
   2×2 → cuadráticas), respuesta numérica con el **`keypad` que ya existe**. `.fitzv`
   nuevo `Ecuaciones` + `live_ecuaciones.fitz` (patrón de `Completa`). `topic_code`:

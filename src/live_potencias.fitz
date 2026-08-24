@@ -36,6 +36,7 @@ async fn persistir_potencias(sess_id: Int, profile_id: Int, seed: Int, idx: Int,
     let acierto = given == ex.answer
     let prompt = match ex.op {
         "raiz" => "√{ex.a}",
+        "scinot" => "{ex.a} × 10^{ex.b}",
         _ => "{ex.a}^{ex.b}",
     }
     let conn = db.connect(db_url()).await?

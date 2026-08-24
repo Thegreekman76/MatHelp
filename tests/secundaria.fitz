@@ -157,15 +157,28 @@ from fmt import fmt_operando
 }
 
 // Cada ejercicio cumple su invariante: potencia a^b == answer; raíz exacta
-// answer^b == a (el radicando). Cubre 40 idx deterministas.
+// answer^b == a (el radicando); notación científica m × 10^k == answer. Cubre
+// 40 idx deterministas, y verifica que aparecen los TRES tipos.
 @test fn gen_potencia_invariantes() {
+    let vio_pot = false
+    let vio_raiz = false
+    let vio_scinot = false
     for i in 0..40 {
         let e = gen_potencia(31337, i, 8)
         if (e.op == "raiz") {
             assert_eq(ipow(e.answer, e.b), e.a)
+            vio_raiz = true
         }
         if (e.op == "pot") {
             assert_eq(ipow(e.a, e.b), e.answer)
+            vio_pot = true
+        }
+        if (e.op == "scinot") {
+            assert_eq(e.a * ipow(10, e.b), e.answer)
+            vio_scinot = true
         }
     }
+    assert_eq(vio_pot, true)
+    assert_eq(vio_raiz, true)
+    assert_eq(vio_scinot, true)
 }
