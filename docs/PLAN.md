@@ -254,7 +254,7 @@ mecánicas validadas end-to-end** contra `fitz 0.58.0`.
 | **F4** ✅ | V/F, completá el hueco (teclado propio), escalera de tablas, el kiosco, fracciones a la vista | — |
 | **F5** ✅ | Panel del padre: reportes por hijo (progreso, errores, tiempo, evolución) + metas configurables | F3 |
 | **F6** ✅ | Reanudar partida (desafío), accesibilidad (foco visible + skip-link), sonido opcional, instalable/PWA | F2 |
-| **F7** | Secundaria (13–17) | F4 |
+| **F7** | Secundaria (13–17): Ciclo Básico (enteros, potencias/raíces, ecuaciones, sistemas) + Ciclo Orientado con diferencial por modalidad (finanzas→comercial, trig/vectores→industrial). Currículum en §5.b, juegos en §6.b, sub-fases en §11.b | F2 (motor + keypad ya están) |
 
 ### 🐛 Hallazgos nuevos al dockerizar
 
@@ -573,6 +573,58 @@ Organizado por edad, con los `topic_code` que usa el motor. Alineado a los NAP. 
 
 ---
 
+## 5.b Currículum — secundaria argentina (13 a 17/18 años) — F7
+
+La secundaria son **6 años** (en varias provincias 5; **técnica 6–7**), partidos en
+**Ciclo Básico (1°–3°, común a TODAS las modalidades)** y **Ciclo Orientado /
+Superior (4°–6°: un núcleo común + lo que agrega cada orientación)**. Toda la
+Matemática se organiza en cuatro ejes NAP: **Números y Operaciones · Álgebra y
+Funciones · Geometría y Medida · Probabilidad y Estadística** (fuentes: NAP
+Ciclo Básico y Orientado de educ.ar; diseños curriculares de Buenos Aires,
+Córdoba y Corrientes).
+
+**Modelo de datos — decisión pendiente para F7:** hoy `Profile.grade: Int` es
+1..7 (primaria). Para secundaria, extender la numeración a **8..13 = 1°..6° de
+secundaria** (helper `grade_a_nivel(grade) -> (nivel, año)`), o sumar un campo
+`nivel`. Recomendado: extender `grade` (el motor adaptativo igual manda por el
+`rating` de `mastery`; el grado solo *siembra* el rango del generador). La
+**modalidad** (bachiller / comercial / industrial) sí necesita un campo nuevo en
+`Profile` (`modalidad: Str = "comun"`) que solo aplica en el Ciclo Orientado
+(4°–6°) para decidir qué temas de modalidad aparecen.
+
+### Ciclo Básico (común a bachiller, comercial e industrial)
+
+| Año (edad) | Ejes / temas | `topic_code` |
+|---|---|---|
+| **1° (12–13)** | Enteros (Z) 4 operaciones + potencia y orden. Divisibilidad, mcm/mcd. Racionales (Q). Proporcionalidad directa/inversa, **porcentaje**. Ecuaciones de 1er grado simples. Ángulos, triángulos, perímetro/área. Estadística: frecuencias, promedio | `ent.suma`, `ent.resta`, `ent.mult`, `ent.div`, `num.mcd_mcm`, `num.primos`, `frac.*`, `prop.directa`, `prop.inversa`, `pct.basico`, `ec.lineal1`, `geo.angulos`, `geo.area`, `est.promedio` |
+| **2° (13–14)** | Racionales completos, **notación científica**, potencias de exponente entero. Ecuaciones **e inecuaciones** de 1er grado. **Función lineal** (pendiente, ordenada). **Teorema de Pitágoras**. Áreas y volúmenes de cuerpos. Probabilidad simple | `pot.notacion`, `pot.entera`, `ec.lineal`, `ineq.lineal`, `func.lineal`, `geo.pitagoras`, `geo.volumen`, `prob.simple` |
+| **3° (14–15)** | Reales (R): **radicación**, potencias de exponente racional. **Sistemas de ecuaciones 2×2**. **Función cuadrática** (intro: parábola, vértice, raíces). Semejanza, **Thales**, **razones trigonométricas** del triángulo rectángulo (sen/cos/tan). Estadística: media/mediana/moda, dispersión | `raiz.cuadrada`, `raiz.enesima`, `sist.2x2`, `func.cuadratica`, `geo.thales`, `trig.rectangulo`, `est.central`, `est.dispersion` |
+
+### Ciclo Orientado (4°–6°): núcleo común + modalidad
+
+**Núcleo común** (todas): función **cuadrática, polinómica, racional, exponencial,
+logarítmica y trigonométrica**; **ecuación de 2° grado** y sistemas; **polinomios**
+(operaciones, factoreo, Ruffini, Gauss); **trigonometría** (identidades, teorema
+del seno/coseno); **sucesiones/progresiones**; **combinatoria y probabilidad**;
+**estadística** (muestreo, correlación). Hacia 5°/6°, **límite y derivada** según
+orientación.
+`func.cuadratica`, `ec.cuadratica`, `poly.oper`, `poly.factoreo`, `func.racional`,
+`func.exponencial`, `func.log`, `ec.exp`, `trig.identidades`, `trig.teoremas`,
+`suc.aritmetica`, `suc.geometrica`, `comb.*`, `prob.compuesta`, `est.correlacion`,
+`analisis.limite`, `analisis.derivada`
+
+| Modalidad | Campo `modalidad` | Qué agrega/enfatiza en el Ciclo Orientado | `topic_code` propios |
+|---|---|---|---|
+| **Bachiller** (general / cs. sociales / cs. naturales) | `"bachiller"` | El núcleo común. En **Cs. Naturales/Exactas** profundiza **análisis** (límite, derivada, estudio de funciones); en sociales/humanidades pesa más **estadística y probabilidad** | `analisis.*`, `est.*`, `prob.*` |
+| **Comercial** (Economía y Administración) | `"comercial"` | Núcleo **+ Matemática Financiera**: interés **simple/compuesto**, descuento, **anualidades/rentas**, amortización, TNA/TEA, VAN/TIR básico. Funciones de **costo/ingreso/beneficio**, **punto de equilibrio**. Fuerte estadística | `fin.interes_simple`, `fin.interes_compuesto`, `fin.descuento`, `fin.anualidad`, `fin.equilibrio`, `func.costo` |
+| **Industrial** (Técnica) | `"industrial"` | La de **más matemática**: materias separadas (Matemática + **Análisis Matemático** + **Matemática Aplicada**). Agrega **trigonometría avanzada, vectores, matrices/determinantes, números complejos, geometría analítica, cálculo** aplicado | `trig.avanzada`, `vec.*`, `matriz.*`, `complejo.*`, `geo.analitica`, `analisis.*` |
+
+**Los `topic_code` reservan el nombre** (como en primaria): el motor y `mastery`
+los reconocen cuando aterrice cada generador. La edad/año **sugiere** el punto de
+entrada; el `rating` de Elo-lite manda igual que en primaria.
+
+---
+
 ## 6. Los juegos
 
 Todos pensados para **pulgar en celular**: botones grandes, nada de arrastrar, nada que dependa de `hover`.
@@ -596,6 +648,38 @@ Todos pensados para **pulgar en celular**: botones grandes, nada de arrastrar, n
 - Racha diaria con meta configurable por el padre (default 10 ejercicios).
 - Medallas por dominio real, no por tiempo de pantalla: "tablas completas", "10 días seguidos", "fracciones sin errores".
 - **Sin vidas, sin timers de espera, sin nada que empuje a jugar más de la cuenta.** El error muestra el procedimiento correcto, no un cartel rojo.
+
+---
+
+## 6.b Juegos de secundaria (F7)
+
+La secundaria es más simbólica/gráfica que la primaria, pero **buena parte encaja
+directo con el motor actual** (opción múltiple / teclado numérico, deterministas
+seed+idx). Clasificados por esfuerzo de UI:
+
+**✅ Encajan ya con el motor (respuesta numérica / opción múltiple):**
+
+| # | Juego | Mecánica | Temas | Modalidad |
+|---|---|---|---|---|
+| 12 | **Potencias y raíces** | opción múltiple / teclado | `ent.*`, `pot.*`, `raiz.*`, `pot.notacion` | común (1°–3°) |
+| 13 | **Ecuaciones** | teclado numérico (reusa `keypad`): 1er grado → sistemas 2×2 → cuadráticas, respuesta = valor de x | `ec.lineal`, `sist.2x2`, `ec.cuadratica` | común |
+| 14 | **Finanzas** | teclado: interés simple/compuesto, %, descuento, punto de equilibrio | `fin.*`, `pct.basico` | **comercial** (diferencial) |
+| 15 | **Trigonometría** | triángulo rectángulo, dado cateto/ángulo → hipotenusa/razón, respuesta numérica | `trig.rectangulo`, `geo.pitagoras` | común / industrial |
+| 16 | **Evaluar función** | opción múltiple: dado f(x), calcular f(a); o hallar raíz/vértice | `func.lineal`, `func.cuadratica`, `func.exponencial` | común |
+
+**🔶 Necesitan UI nueva (SVG inline, ya hay patrón en `brand.fitz`/reloj):**
+- **Reconocer funciones** (elegir la parábola/recta/exponencial correcta del gráfico).
+- **Geometría con figura** (área/perímetro/volumen leyendo el dibujo — ya mapeado como `geo.*` desde F5).
+- **Vectores** (industrial): suma gráfica, módulo.
+
+**🔴 Fuera de un juego de opción rápida** (no van): demostraciones, factoreo
+simbólico largo, derivadas/integrales simbólicas, matrices grandes. Para eso el
+formato "juego" no sirve; queda como límite consciente de la app.
+
+**Diferencial por modalidad:** el juego **Finanzas (#14)** es lo que distingue a la
+orientación **comercial**; **Trigonometría/Vectores** y el peso de `analisis.*`
+distinguen a la **industrial/técnica**; el **bachiller** vive del núcleo común +
+más estadística. Un chico ve el mix de su `grade` + los juegos de su `modalidad`.
 
 ---
 
@@ -833,9 +917,51 @@ mathelp/
 | **F4 — Más juegos** ✅ | V/F, completá el hueco (teclado propio), escalera de tablas, el kiosco, fracciones a la vista | 5 modos jugables en celu + paridad `run`↔binario ✅ |
 | **F5 — Panel del padre** ✅ | Reportes por hijo: progreso por tema, errores frecuentes, tiempo, evolución; metas configurables | Gráficos con `bar_chart` / `progress_bar` / `stat_card` — `src/parent.fitz` |
 | **F6 — Pulido** ✅ | Reanudar partida (desafío), accesibilidad (foco visible + skip-link; ya había dark mode/`lang`/reduced-motion), sonido opcional (Web Audio), instalable/PWA (manifest + service worker) — `src/live_game.fitz`, `layout`/`brand`, `public/sound.js`, `public/sw.js`. **Pendiente: Lighthouse mobile + prueba real en un Android.** | Lighthouse mobile + prueba real en un Android |
-| **F7 — Secundaria** | Currículum 13–17: enteros, ecuaciones, funciones, geometría analítica, trigonometría | Nuevos generadores, cero cambios de arquitectura |
+| **F7 — Secundaria** | Currículum 13–17 (§5.b) + juegos nuevos (§6.b) + plan por sub-fases (§11.b). Mayormente generadores nuevos + `keypad` (ya existe); único cambio de schema: campo `Profile.modalidad` + extender `grade` a 8..13 | Generadores deterministas (paridad seed+idx), `fitz test` de cada generador, E2E de un juego por sub-fase |
 
 **F0 → F2 es el corazón.** Al cerrar F2 ya hay un juego real en el celular; todo lo demás es acumular.
+
+---
+
+## 11.b Plan de F7 (secundaria) por sub-fases
+
+Orden: primero el **Ciclo Básico** (común a todas las modalidades → máxima
+cobertura, sin decisión de modalidad), luego el **diferencial de modalidad**
+arrancando por **comercial** (finanzas, todo numérico, alto valor pedagógico).
+Cada sub-fase = generador(es) + un juego; cada una cierra con `fitz build`
+nativo verde (**check✓ no garantiza build✓**) + `fitz test` de paridad + E2E.
+
+- **F7.0 — Modelo + navegación.** Campo `Profile.modalidad` (`"comun"` |
+  `"bachiller"` | `"comercial"` | `"industrial"`) + extender `grade` a **8..13**
+  (= 1°..6° secundaria) con helper `grade_a_nivel(grade) -> (nivel, año)`.
+  Migración `migrations/0003_f7_secundaria.sql` + espejo en `models.fitz`. La
+  grilla de juegos filtra por grade (secundaria) + modalidad; el perfil elige
+  nivel/modalidad al crearse. **Único cambio de schema de toda F7.**
+- **F7.1 — Ciclo Básico, aritmética (1°–3°).** Extender `gen_arith` a **enteros
+  con signo, potencias, raíces, notación científica**. Reusa Contrarreloj / V-F /
+  Completá / Desafío → **cero UI nueva**. Opcional juego #12 "Potencias y raíces".
+  `topic_code`: `ent.*`, `pot.*`, `raiz.*`. *Valor inmediato con casi cero riesgo.*
+- **F7.2 — Ecuaciones (#13).** Generador `gen_ecuaciones` (1er grado → sistemas
+  2×2 → cuadráticas), respuesta numérica con el **`keypad` que ya existe**. `.fitzv`
+  nuevo `Ecuaciones` + `live_ecuaciones.fitz` (patrón de `Completa`). `topic_code`:
+  `ec.lineal`, `sist.2x2`, `ec.cuadratica`.
+- **F7.3 — Finanzas (#14) — diferencial COMERCIAL.** Generador `gen_finanzas`
+  (interés simple/compuesto, %, descuento, punto de equilibrio), teclado numérico
+  + contexto localizado (plazo fijo, plata). Aparece solo para `modalidad="comercial"`
+  (+ práctica libre). `topic_code`: `fin.*`. **El juego que justifica la modalidad
+  comercial.**
+- **F7.4 — Trigonometría (#15).** Triángulo rectángulo con **figura SVG** (patrón
+  reloj/geometría de F5): dado cateto/ángulo → hipotenusa/razón, respuesta numérica.
+  Común + industrial. `topic_code`: `trig.rectangulo`.
+- **F7.5 — Funciones (#16, opcional/SVG).** Evaluar f(x) / reconocer el gráfico
+  (recta/parábola/exponencial). Reusa SVG inline. `topic_code`: `func.*`.
+- **Industrial (posterior, según demanda).** Vectores, matrices — más SVG + más
+  motor; se evalúa cuando aparezca un usuario real de esa orientación.
+
+**Arranque sugerido:** **F7.0 + F7.1** dan valor con casi cero UI nueva (reusan
+todos los juegos actuales). **F7.2 (Ecuaciones)** y **F7.3 (Finanzas)** son los dos
+juegos-ancla de secundaria. F7.4/F7.5 (SVG) después. Todo con paridad determinista
+seed+idx e i18n es-AR/en desde el commit — igual que primaria.
 
 ---
 
