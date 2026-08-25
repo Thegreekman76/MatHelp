@@ -22,6 +22,7 @@ component fracciones {
     total: Int = 0
     racha: Int = 0
     racha_max: Int = 0
+    record_prev: Int = 999999
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Str = ""          // la fracción correcta del ejercicio recién fallado
@@ -63,7 +64,7 @@ component fracciones {
 
   <template>
     <div id="fracciones-app" class="mh-quiz">
-      {frac_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, racha, racha_max).raw}
+      {frac_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

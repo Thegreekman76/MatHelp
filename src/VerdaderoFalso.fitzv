@@ -26,6 +26,7 @@ component verdadero_falso {
     total: Int = 0
     racha: Int = 0
     racha_max: Int = 0
+    record_prev: Int = 999999
     time_left: Int = 60
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
@@ -88,7 +89,7 @@ component verdadero_falso {
 
   <template>
     <div id="vf-app" class="mh-quiz">
-      {vf_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, correct_last, mode, r_add, r_sub, r_mul, r_div, limit, racha, racha_max).raw}
+      {vf_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, correct_last, mode, r_add, r_sub, r_mul, r_div, limit, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

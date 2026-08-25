@@ -23,6 +23,7 @@ component kiosco {
     total: Int = 0
     racha: Int = 0
     racha_max: Int = 0
+    record_prev: Int = 999999
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // la respuesta correcta del problema recién fallado
@@ -84,7 +85,7 @@ component kiosco {
 
   <template>
     <div id="kiosco-app" class="mh-quiz">
-      {kiosco_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, last_money, entrada, racha, racha_max).raw}
+      {kiosco_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, last_money, entrada, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

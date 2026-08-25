@@ -53,9 +53,9 @@ fn prompt_ecuacion(locale: Str, a: Int, b: Int, a2: Int, b2: Int, answer: Int, a
     return s + " = " + fmt_int(locale, c)
 }
 
-fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, con_signo: Bool, racha: Int, racha_max: Int) -> Html {
+fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, con_signo: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
-        return ecuacion_resumen(locale, correct, total, racha_max)
+        return ecuacion_resumen(locale, correct, total, racha_max, record_prev)
     }
     let ex = gen_ecuacion(seed, idx, grade)
     let ecua = flv(prompt_ecuacion(locale, ex.a, ex.b, ex.a2, ex.b2, ex.answer, ex.answer2, ex.op))
@@ -101,12 +101,12 @@ fn ecuacion_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> 
     return ""
 }
 
-fn ecuacion_resumen(locale: Str, correct: Int, total: Int, racha_max: Int) -> Html {
+fn ecuacion_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
     let estrellas = resumen_estrellas(locale, correct, total)
-    let mejor = mejor_racha_html(locale, racha_max)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>

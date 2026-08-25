@@ -77,9 +77,9 @@ fn trig_pregunta(locale: Str, op: Str, modo: Int) -> Str {
 
 // --- pantalla ----------------------------------------------------------------
 
-fn trig_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int) -> Html {
+fn trig_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
-        return trig_resumen(locale, correct, total, racha_max)
+        return trig_resumen(locale, correct, total, racha_max, record_prev)
     }
     let ex = gen_trig(seed, idx, grade)
     let figura = trig_figura(locale, ex)
@@ -120,12 +120,12 @@ fn trig_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str 
     return ""
 }
 
-fn trig_resumen(locale: Str, correct: Int, total: Int, racha_max: Int) -> Html {
+fn trig_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
     let estrellas = resumen_estrellas(locale, correct, total)
-    let mejor = mejor_racha_html(locale, racha_max)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
     return html("""<div class="q-done">
 <div class="q-medal">📐</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>

@@ -5,6 +5,7 @@
 
 from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, flv_frame, component_state, flv_evict, live_embed
 from config import db_url
+from records import leer_record, guardar_record
 from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from live_game import resolver_contexto, pget_int
@@ -93,7 +94,9 @@ async fn finanzas_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     let cid = Uuid.v4().to_str()
     let seed = rand.int(1, 2000000000)
     let sess_id = crear_sesion_finanzas(ctx.profile_id, seed, ctx.grade).await?
+    let record_prev = leer_record(ctx.profile_id, "finanzas").await
     let _ = component_with("finanzas", cid, finanzas {
+        record_prev: record_prev,
         seed: seed,
         grade: eff,
         locale: locale,
@@ -127,6 +130,7 @@ async fn finanzas_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
         if (st.phase == "done") {
             if (not finalizado) {
                 let _ = finalizar_finanzas(sess_id, st.total, st.correct).await
+                let _ = guardar_record(ctx.profile_id, "finanzas", st.racha_max).await
                 finalizado = true
             }
         }

@@ -23,6 +23,7 @@ component funciones {
     total: Int = 0
     racha: Int = 0
     racha_max: Int = 0
+    record_prev: Int = 999999
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // la respuesta del ejercicio recién fallado
@@ -91,7 +92,7 @@ component funciones {
 
   <template>
     <div id="funciones-app" class="mh-quiz">
-      {func_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, racha, racha_max).raw}
+      {func_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

@@ -188,14 +188,16 @@ def jugar_ronda(grado):
     assert "★★★" in html.replace("</span><span", "").replace('<span class="star on">', "★") or html.count("★") == 3, f"grade {grado}: 10/10 debería dar 3 estrellas"
     assert "mh-estrellas perfect" in html, f"grade {grado}: 10/10 debería marcar ronda perfecta"
     assert "mh-confetti" in html, f"grade {grado}: 10/10 debería tirar confetti"
-    assert "mh-mejor-racha" in html, f"grade {grado}: 10/10 debería mostrar la mejor racha"
+    assert "mh-record" in html, f"grade {grado}: primera ronda 10/10 debería ser NUEVO récord"
 
     sid = psql(f"SELECT id FROM sessions WHERE profile_id={pid} AND mode='kiosco' AND topic_code='problemas' ORDER BY id DESC LIMIT 1")
     assert sid, "no se creó la sesión de Problemas (kiosco/problemas)"
     n_att = int(psql(f"SELECT count(*) FROM attempts WHERE session_id={sid}"))
     n_ok = int(psql(f"SELECT count(*) FROM attempts WHERE session_id={sid} AND correct"))
     skills = set(psql(f"SELECT DISTINCT skill_code FROM attempts WHERE session_id={sid}").split("\n"))
-    print(f"  grade {grado}: perfil={pid} attempts={n_att} correctos={n_ok} distintos={len(set(enunciados))} skills={sorted(skills)}")
+    rec = psql(f"SELECT best_streak FROM profile_game_stats WHERE profile_id={pid} AND game_code='kiosco'")
+    assert rec == "10", f"grade {grado}: récord kiosco debería ser 10, fue '{rec}'"
+    print(f"  grade {grado}: perfil={pid} attempts={n_att} correctos={n_ok} distintos={len(set(enunciados))} record={rec} skills={sorted(skills)}")
     assert n_att == LIMIT, f"grade {grado}: esperaba {LIMIT} attempts, hubo {n_att}"
     assert n_ok == LIMIT, f"grade {grado}: resolví todos pero solo {n_ok} quedaron correctos"
     assert len(skills) >= 2, f"grade {grado}: esperaba variedad, sólo hubo {skills}"

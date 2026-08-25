@@ -1,0 +1,45 @@
+// records.fitz — récord de mejor racha POR JUEGO (por perfil).
+//
+// Una fila por (perfil, juego) en `profile_game_stats`. `leer_record` la lee al
+// abrir el socket (para saber si la ronda actual va a romper el récord) y
+// `guardar_record` la sube al cerrar, con GREATEST (nunca baja, race-safe en un
+// solo statement — el ORM de Fitz no tiene upsert nativo).
+//
+// Ambas son best-effort: si la DB falla devuelven 0 / no rompen la partida (el
+// récord es un extra motivacional, no puede tumbar el juego). Params heterogéneos
+// literales inline (regla del proyecto: en variable rompen `fitz build`).
+
+from config import db_url
+
+// Mejor racha histórica del perfil en `game_code` (0 si nunca jugó).
+async fn leer_record(profile_id: Int, game_code: Str) -> Int {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return 0 },
+    }
+    let rows = match conn.query("SELECT best_streak FROM profile_game_stats WHERE profile_id = $1 AND game_code = $2", [profile_id, game_code]).await {
+        Ok(r) => r,
+        Err(_) => { return 0 },
+    }
+    if (rows.len() > 0) {
+        return match rows[0].get_int("best_streak") {
+            Ok(n) => n,
+            Err(_) => 0,
+        }
+    }
+    return 0
+}
+
+// Sube el récord si `streak` lo supera (GREATEST). Devuelve `streak` (best-effort).
+async fn guardar_record(profile_id: Int, game_code: Str, streak: Int) -> Int {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return 0 },
+    }
+    let up = "INSERT INTO profile_game_stats (profile_id, game_code, best_streak, updated_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (profile_id, game_code) DO UPDATE SET best_streak = GREATEST(profile_game_stats.best_streak, $3), updated_at = NOW()"
+    let _ = match conn.exec(up, [profile_id, game_code, streak]).await {
+        Ok(_) => 0,
+        Err(_) => 0,
+    }
+    return streak
+}

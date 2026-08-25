@@ -225,5 +225,6 @@
   "juego.mejor_racha": "Best streak: {0}",
   "juego.series": "Sequences",
   "tema.series": "Patterns",
-  "series.pregunta": "What number comes next?"
+  "series.pregunta": "What number comes next?",
+  "juego.nuevo_record": "New record: {0}!"
 }

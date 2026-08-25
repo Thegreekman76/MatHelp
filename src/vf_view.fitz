@@ -18,9 +18,9 @@ from fmt import fmt_int, fmt_operando
 
 // Punto de entrada. `mode` == "adaptive" (contrarreloj V/F) | "desafio" (N fijo).
 // `correct_last` es la verdad del ejercicio recién fallado (para el feedback).
-fn vf_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, correct_last: Bool, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, limit: Int, racha: Int, racha_max: Int) -> Html {
+fn vf_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, correct_last: Bool, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, limit: Int, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
-        return vf_resumen(locale, score, correct, total, mode, racha_max)
+        return vf_resumen(locale, score, correct, total, mode, racha_max, record_prev)
     }
     if (mode == "desafio") {
         return vf_jugando(mode, seed, idx, grade, locale, correct, total, limit, feedback, correct_last, r_add, r_sub, r_mul, r_div, true, racha)
@@ -91,7 +91,7 @@ fn vf_feedback(locale: Str, feedback: Str, correct_last: Bool, seq: Int) -> Str 
     return ""
 }
 
-fn vf_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str, racha_max: Int) -> Html {
+fn vf_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str, racha_max: Int, record_prev: Int) -> Html {
     let sc = flv(fmt_int(locale, score))
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
@@ -101,7 +101,7 @@ fn vf_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str, rach
         false => "/vf",
     }
     let estrellas = resumen_estrellas(locale, correct, total)
-    let mejor = mejor_racha_html(locale, racha_max)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>

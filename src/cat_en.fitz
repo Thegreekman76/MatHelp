@@ -83,6 +83,7 @@ fn cat_en(key: Str) -> Str {
         "juego.kiosco" => "Problems",
         "juego.mejor_racha" => "Best streak: \{0\}",
         "juego.nivel" => "Level",
+        "juego.nuevo_record" => "New record: \{0\}!",
         "juego.porcentaje" => "Percentage",
         "juego.potencias" => "Powers and roots",
         "juego.puntaje" => "Score",

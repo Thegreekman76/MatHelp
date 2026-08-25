@@ -18,9 +18,9 @@ from fmt import fmt_int, fmt_operando
 from keypad_view import keypad_html
 
 
-fn completa_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, con_signo: Bool, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, racha: Int, racha_max: Int) -> Html {
+fn completa_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, con_signo: Bool, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
-        return completa_resumen(locale, correct, total, racha_max)
+        return completa_resumen(locale, correct, total, racha_max, record_prev)
     }
     let ex = gen_for(mode, "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
     let a = flv(fmt_operando(locale, ex.a))
@@ -62,12 +62,12 @@ fn completa_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> 
     return ""
 }
 
-fn completa_resumen(locale: Str, correct: Int, total: Int, racha_max: Int) -> Html {
+fn completa_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
     let estrellas = resumen_estrellas(locale, correct, total)
-    let mejor = mejor_racha_html(locale, racha_max)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>

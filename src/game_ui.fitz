@@ -63,13 +63,18 @@ fn incorrecto_msg(locale: Str, seq: Int, resp: Str) -> Str {
 }
 
 // Línea de "mejor racha" para la pantalla final: la mayor cantidad de aciertos
-// seguidos que se logró en la ronda (persiste aunque después se falle). Vacía si
-// fue < 3 (no celebra rachas triviales).
-fn mejor_racha_html(locale: Str, racha_max: Int) -> Str {
+// seguidos que se logró en la ronda (persiste aunque después se falle). Si supera
+// el récord histórico del juego (`record_prev`), lo celebra como NUEVO RÉCORD 🏆.
+// Vacía si fue < 3 (no celebra rachas triviales).
+fn mejor_racha_html(locale: Str, racha_max: Int, record_prev: Int) -> Str {
     if (racha_max < 3) {
         return ""
     }
     let n_str = "{racha_max}"
+    if (racha_max > record_prev) {
+        let txt = flv(t1(locale, "juego.nuevo_record", n_str))
+        return html("""<p class="mh-record">🏆 {txt}</p>""").raw
+    }
     let txt = flv(t1(locale, "juego.mejor_racha", n_str))
     return html("""<p class="mh-mejor-racha">🔥 {txt}</p>""").raw
 }

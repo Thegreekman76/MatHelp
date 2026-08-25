@@ -14,6 +14,7 @@
 
 from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, dispatch_to, flv_frame, component_state, flv_evict, live_embed
 from config import db_url
+from records import leer_record, guardar_record
 from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from models import GameSession, Attempt
@@ -124,7 +125,9 @@ async fn vf_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
         Ok(s) => s,
         Err(_) => MasterySnapshot { },
     }
+    let record_prev = leer_record(ctx.profile_id, "verdadero_falso").await
     let _ = component_with("verdadero_falso", cid, verdadero_falso {
+        record_prev: record_prev,
         seed: seed,
         grade: ctx.grade,
         locale: locale,
@@ -136,7 +139,7 @@ async fn vf_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
         r_div: snap.r_div,
     }).raw
     ws.send(flv_frame("verdadero_falso", cid))?
-    spawn(vf_timer(ws, cid, sess_id))
+    spawn(vf_timer(ws, cid, sess_id, ctx.profile_id))
     let next_idx = 0
     loop {
         let frame = match ws.recv() {
@@ -165,13 +168,14 @@ async fn vf_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
 // Reloj de la partida (1 tick/seg). Al terminar el tiempo cierra la partida con
 // el resumen. El `?` sobre ws.send es también la limpieza al cerrarse la pestaña.
 @background
-async fn vf_timer(ws: WsConn<LiveFrame>, cid: Str, sess_id: Int) -> Result<Null> {
+async fn vf_timer(ws: WsConn<LiveFrame>, cid: Str, sess_id: Int, profile_id: Int) -> Result<Null> {
     loop {
         let _ = sleep(1000).await
         let _ = dispatch_to("verdadero_falso", cid, "tick", { })
         ws.send(flv_frame("verdadero_falso", cid))?
         let st: verdadero_falso = component_state("verdadero_falso", cid)
         if (st.phase == "done") {
+            let _ = guardar_record(profile_id, "verdadero_falso", st.racha_max).await
             let _ = finalizar_vf(sess_id, st.total, st.correct, st.score).await
             break
         }

@@ -225,5 +225,6 @@
   "juego.mejor_racha": "Mejor racha: {0}",
   "juego.series": "Series",
   "tema.series": "Patrones",
-  "series.pregunta": "¿Qué número sigue?"
+  "series.pregunta": "¿Qué número sigue?",
+  "juego.nuevo_record": "¡Nuevo récord: {0}!"
 }

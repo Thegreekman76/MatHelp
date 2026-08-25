@@ -23,6 +23,7 @@ component ecuaciones {
     total: Int = 0
     racha: Int = 0
     racha_max: Int = 0
+    record_prev: Int = 999999
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // la solución x del ejercicio recién fallado
@@ -93,7 +94,7 @@ component ecuaciones {
 
   <template>
     <div id="ecuaciones-app" class="mh-quiz">
-      {ecuacion_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, con_signo, racha, racha_max).raw}
+      {ecuacion_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, con_signo, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

@@ -21,12 +21,12 @@ from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, 
 //   - "adaptive" / "timed" (contrarreloj): partida en curso o resumen final.
 // Los `r_*` son el snapshot de mastery (ratings por operación); los usa la
 // selección adaptativa (gen_for "adaptive"/"desafio"). En práctica se ignoran.
-fn quiz_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, last_answer: Int, topic: Str, band: Int, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, limit: Int, racha: Int, racha_max: Int) -> Html {
+fn quiz_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, last_answer: Int, topic: Str, band: Int, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, limit: Int, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (mode == "practice") {
         return quiz_practica(seed, idx, grade, locale, topic, band, correct, feedback, last_answer, racha)
     }
     if (phase == "done") {
-        return quiz_resumen(locale, score, correct, total, mode, racha_max)
+        return quiz_resumen(locale, score, correct, total, mode, racha_max, record_prev)
     }
     if (mode == "potencias") {
         return quiz_potencias(seed, idx, grade, locale, correct, total, limit, feedback, last_answer, racha)
@@ -185,7 +185,7 @@ fn quiz_practica(seed: Int, idx: Int, grade: Int, locale: Str, topic: Str, band:
 <a class="mh-btn sec" href="/">{salir}</a>""")
 }
 
-fn quiz_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str, racha_max: Int) -> Html {
+fn quiz_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str, racha_max: Int, record_prev: Int) -> Html {
     let sc = flv(fmt_int(locale, score))
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
@@ -196,7 +196,7 @@ fn quiz_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str, ra
         false => "/jugar",
     }
     let estrellas = resumen_estrellas(locale, correct, total)
-    let mejor = mejor_racha_html(locale, racha_max)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>

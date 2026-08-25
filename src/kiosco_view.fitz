@@ -66,9 +66,9 @@ fn kiosco_enunciado(locale: Str, it: KioscoItem) -> Str {
     return t4(locale, "kiosco.p_combo", fmt_int(locale, it.a), prod, fmt_money(locale, it.b), fmt_money(locale, it.c))
 }
 
-fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_money: Bool, entrada: Int, racha: Int, racha_max: Int) -> Html {
+fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_money: Bool, entrada: Int, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
-        return kiosco_resumen(locale, correct, total, racha_max)
+        return kiosco_resumen(locale, correct, total, racha_max, record_prev)
     }
     let it = gen_kiosco(seed, idx, grade)
     let enun = flv(kiosco_enunciado(locale, it))
@@ -121,12 +121,12 @@ fn kiosco_feedback(locale: Str, feedback: Str, last_answer: Int, last_money: Boo
     return ""
 }
 
-fn kiosco_resumen(locale: Str, correct: Int, total: Int, racha_max: Int) -> Html {
+fn kiosco_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
     let estrellas = resumen_estrellas(locale, correct, total)
-    let mejor = mejor_racha_html(locale, racha_max)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>

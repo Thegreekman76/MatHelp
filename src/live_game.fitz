@@ -18,6 +18,7 @@
 
 from fitz_liveviews import Html, html, flv, LiveFrame, component_with, dispatch_component_events, dispatch_to, flv_frame, component_state, flv_evict, live_embed
 from config import db_url
+from records import leer_record, guardar_record
 from i18n import t, locale_from_cookie
 from fmt import fmt_int
 from layout import page, responder_html, redirect_a
@@ -195,7 +196,9 @@ async fn quiz_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     }
     // Sembrar el componente con el estado de ESTA partida (modo adaptativo +
     // snapshot) y mandar el primer frame (el ejercicio idx 0 del seed).
+    let record_prev = leer_record(ctx.profile_id, "contrarreloj").await
     let _ = component_with("quiz", cid, quiz {
+        record_prev: record_prev,
         seed: seed,
         grade: ctx.grade,
         locale: locale,
@@ -208,7 +211,7 @@ async fn quiz_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     }).raw
     ws.send(flv_frame("quiz", cid))?
     // Cronómetro server-pushed: 1 tick/seg. Cierra la partida al llegar a 0.
-    spawn(timer(ws, cid, sess_id))
+    spawn(timer(ws, cid, sess_id, ctx.profile_id))
     // Loop de eventos + persistencia. `next_idx` descarta taps repetidos o viejos
     // (solo persiste el ejercicio esperado). Sale por `break` cuando el socket se
     // cierra (recv o send fallan).
@@ -246,13 +249,14 @@ async fn quiz_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
 // el send falla y el `?` termina la task (no hay leak). Al terminar el tiempo,
 // cierra la partida con el resumen y corta.
 @background
-async fn timer(ws: WsConn<LiveFrame>, cid: Str, sess_id: Int) -> Result<Null> {
+async fn timer(ws: WsConn<LiveFrame>, cid: Str, sess_id: Int, profile_id: Int) -> Result<Null> {
     loop {
         let _ = sleep(1000).await
         let _ = dispatch_to("quiz", cid, "tick", { })
         ws.send(flv_frame("quiz", cid))?
         let st: quiz = component_state("quiz", cid)
         if (st.phase == "done") {
+            let _ = guardar_record(profile_id, "contrarreloj", st.racha_max).await
             let _ = finalizar_sesion(sess_id, st.total, st.correct, st.score).await
             break
         }
@@ -639,7 +643,9 @@ async fn desafio_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     }
     // Sembrá el componente en el punto reanudado: idx/total/correct/score salen
     // de la DB, así el chico ve "vas 4 de 10" y sigue sin re-responder lo hecho.
+    let record_prev = leer_record(ctx.profile_id, "desafio").await
     let _ = component_with("quiz", cid, quiz {
+        record_prev: record_prev,
         seed: seed,
         grade: ctx.grade,
         locale: locale,
@@ -682,6 +688,7 @@ async fn desafio_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
         let st: quiz = component_state("quiz", cid)
         if (st.phase == "done") {
             if (not finalizado) {
+                let _ = guardar_record(ctx.profile_id, "desafio", st.racha_max).await
                 let _ = finalizar_desafio(sess_id, st.total, st.correct, st.score).await
                 finalizado = true
             }

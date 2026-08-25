@@ -32,6 +32,7 @@ component quiz {
     total: Int = 0
     racha: Int = 0
     racha_max: Int = 0
+    record_prev: Int = 999999
     time_left: Int = 60
     phase: Str = "playing"      // "playing" | "done"
     feedback: Str = ""          // "" | "ok" | "bad"
@@ -98,7 +99,7 @@ component quiz {
 
   <template>
     <div id="quiz-app" class="mh-quiz">
-      {quiz_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, last_answer, topic, band, mode, r_add, r_sub, r_mul, r_div, limit, racha, racha_max).raw}
+      {quiz_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, last_answer, topic, band, mode, r_add, r_sub, r_mul, r_div, limit, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

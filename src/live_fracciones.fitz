@@ -8,6 +8,7 @@
 
 from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, flv_frame, component_state, flv_evict, live_embed
 from config import db_url
+from records import leer_record, guardar_record
 from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from models import GameSession, Attempt
@@ -97,7 +98,9 @@ async fn frac_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     let cid = Uuid.v4().to_str()
     let seed = rand.int(1, 2000000000)
     let sess_id = crear_sesion_frac(ctx.profile_id, seed, ctx.grade).await?
+    let record_prev = leer_record(ctx.profile_id, "fracciones").await
     let _ = component_with("fracciones", cid, fracciones {
+        record_prev: record_prev,
         seed: seed,
         grade: ctx.grade,
         locale: locale,
@@ -130,6 +133,7 @@ async fn frac_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
         if (st.phase == "done") {
             if (not finalizado) {
                 let _ = cerrar_frac(sess_id, st.total, st.correct).await
+                let _ = guardar_record(ctx.profile_id, "fracciones", st.racha_max).await
                 finalizado = true
             }
         }

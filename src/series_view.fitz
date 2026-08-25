@@ -12,9 +12,9 @@ from fmt import fmt_int
 from keypad_view import keypad_html
 
 
-fn series_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int) -> Html {
+fn series_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
-        return series_resumen(locale, correct, total, racha_max)
+        return series_resumen(locale, correct, total, racha_max, record_prev)
     }
     let it = gen_series(seed, idx, grade)
     let seq = flv(it.shown)
@@ -55,12 +55,12 @@ fn series_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> St
     return ""
 }
 
-fn series_resumen(locale: Str, correct: Int, total: Int, racha_max: Int) -> Html {
+fn series_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
     let estrellas = resumen_estrellas(locale, correct, total)
-    let mejor = mejor_racha_html(locale, racha_max)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>
