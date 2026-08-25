@@ -239,5 +239,9 @@
   "memoria.pares": "pares",
   "tema.memoria": "Memoria",
   "enteros.era": "Casi. Era {0}.",
-  "tema.enteros": "Enteros"
+  "tema.enteros": "Enteros",
+  "juego.ordenar": "Ordenar",
+  "ordenar.pregunta": "Tocá de menor a mayor",
+  "ordenar.no_orden": "Ese no es el más chico. ¡Fijate bien!",
+  "tema.ordenar": "Ordenar"
 }

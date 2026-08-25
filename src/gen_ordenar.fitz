@@ -1,0 +1,172 @@
+// gen_ordenar.fitz — generador del juego "Ordenar" (de menor a mayor).
+//
+// Muestra K cartas con números desordenados; el chico las toca en orden CRECIENTE.
+// Otro modo cognitivo (sentido de orden y magnitud), no "resolvé y tipeá". Escala
+// por grado (F8): naturales en 1° → fracciones/decimales mezclados en secundaria.
+//
+// Clave de orden ENTERA y EXACTA: `key = valor × 120`. Como 120 es divisible por
+// 2,3,4,5,6,8,10,12, las fracciones y decimales de una cifra dan claves enteras y
+// comparables entre sí y con los naturales/enteros. Las K claves son DISTINTAS.
+//
+// Reproducible desde (seed, grade); el RandGen `g` es LOCAL (regla FITZ-01).
+
+type OrdCard {
+    pos: Int = 0               // posición en la grilla (0..K-1)
+    key: Int = 0               // clave de orden (valor × 120, exacta)
+    text: Str = ""             // "45" | "3,7" | "3/4" | "-5"
+}
+
+type OrdGrid {
+    cards: List<OrdCard> = []
+    n: Int = 0                 // K
+    difficulty: Int = 1
+}
+
+// --- bitmask de cartas ya colocadas (estado todo-Int) ---
+
+fn pow2(n: Int) -> Int {
+    let r = 1
+    let i = 0
+    while (i < n) {
+        r = r * 2
+        i = i + 1
+    }
+    return r
+}
+
+fn bit_set(mask: Int, p: Int) -> Bool {
+    return (mask / pow2(p)) % 2 == 1
+}
+
+fn bit_add(mask: Int, p: Int) -> Int {
+    if (bit_set(mask, p)) {
+        return mask
+    }
+    return mask + pow2(p)
+}
+
+fn lista_tiene(xs: List<Int>, n: Int) -> Bool {
+    for x in xs {
+        if (x == n) {
+            return true
+        }
+    }
+    return false
+}
+
+// Menor clave entre las cartas que faltan (bit no seteado en `placed`). El evento
+// del componente no puede tener loops (emitter SSR), así que el barrido vive acá.
+fn min_key_unplaced(grid: OrdGrid, placed: Int) -> Int {
+    let min_key = 999999999
+    for c in grid.cards {
+        if (not bit_set(placed, c.pos)) {
+            if (c.key < min_key) {
+                min_key = c.key
+            }
+        }
+    }
+    return min_key
+}
+
+fn nivel_ordenar(grade: Int) -> Int {
+    if (grade <= 2) {
+        return 1
+    }
+    if (grade <= 4) {
+        return 2
+    }
+    if (grade <= 6) {
+        return 3
+    }
+    if (grade <= 8) {
+        return 4
+    }
+    return 5
+}
+
+fn gen_ordenar(seed: Int, grade: Int) -> OrdGrid {
+    let g = rand.seeded(seed)
+    let nivel = nivel_ordenar(grade)
+    let k = match nivel >= 5 {
+        true => 6,
+        false => 5,
+    }
+
+    // K valores con claves DISTINTAS.
+    let keys: List<Int> = []
+    let texts: List<Str> = []
+    let intentos = 0
+    while (texts.len() < k) {
+        if (intentos >= 400) {
+            break
+        }
+        intentos = intentos + 1
+        let key = 0
+        let text = ""
+        if (nivel == 1) {
+            let n = g.int(1, 99)
+            key = n * 120
+            text = "{n}"
+        }
+        if (nivel == 2) {
+            let x = g.int(0, 9)
+            let y = g.int(0, 9)
+            key = (x * 10 + y) * 12
+            text = "{x},{y}"
+        }
+        if (nivel == 3) {
+            let dens = [2, 3, 4, 6, 8]
+            let d = dens[g.int(0, 4)]
+            let n = g.int(1, 2 * d - 1)
+            key = n * (120 / d)
+            text = "{n}/{d}"
+        }
+        if (nivel == 4) {
+            let n = g.int(-20, 20)
+            key = n * 120
+            text = "{n}"
+        }
+        if (nivel >= 5) {
+            let modo = g.int(0, 1)
+            if (modo == 0) {
+                let x = g.int(0, 5)
+                let y = g.int(1, 9)
+                key = (x * 10 + y) * 12
+                text = "{x},{y}"
+            }
+            if (modo == 1) {
+                let dens = [2, 3, 4, 6]
+                let d = dens[g.int(0, 3)]
+                let n = g.int(1, 2 * d - 1)
+                key = n * (120 / d)
+                text = "{n}/{d}"
+            }
+        }
+        if (not lista_tiene(keys, key)) {
+            keys.push(key)
+            texts.push(text)
+        }
+    }
+
+    // Barajar por índices y asignar pos = orden final.
+    let orden: List<Int> = []
+    let z = 0
+    while (z < texts.len()) {
+        orden.push(z)
+        z = z + 1
+    }
+    let sh = g.shuffle(orden)
+    let cards: List<OrdCard> = []
+    let p = 0
+    while (p < sh.len()) {
+        let src = sh[p]
+        cards.push(OrdCard { pos: p, key: keys[src], text: texts[src] })
+        p = p + 1
+    }
+
+    return OrdGrid {
+        cards: cards,
+        n: texts.len(),
+        difficulty: nivel,
+    }
+}

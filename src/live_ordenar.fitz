@@ -1,0 +1,131 @@
+// live_ordenar.fitz — "Ordenar" en vivo: página, socket y persistencia.
+//
+// Una ronda es UNA grilla de K cartas. No hay `idx`: la persistencia se dispara por
+// DELTA de estado — tras cada place, si `total` subió hubo un intento (acierto si
+// `correct` también subió). Termina cuando el componente marca phase="done".
+
+from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, flv_frame, component_state, flv_evict, live_embed
+from config import db_url
+from records import leer_record, guardar_record
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from models import GameSession, Attempt
+from mastery import actualizar_mastery
+from streaks import registrar_y_premiar
+from gen_ordenar import nivel_ordenar
+from live_game import resolver_contexto
+from Ordenar import ordenar
+
+async fn crear_sesion_ordenar(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let sess = GameSession.insert(conn, GameSession {
+        profile_id: profile_id,
+        mode: "ordenar",           // CHECK sessions_mode_valido (0011_ordenar.sql)
+        topic_code: "ordenar",
+        level: grade,
+        seed: seed,
+    }).await?
+    return Ok(sess.id)
+}
+
+async fn persistir_ordenar(sess_id: Int, profile_id: Int, grade: Int, idx: Int, acierto: Bool) -> Result<Int> {
+    let nivel = nivel_ordenar(grade)
+    let dado = match acierto {
+        true => "ok",
+        false => "fuera-de-orden",
+    }
+    let conn = db.connect(db_url()).await?
+    let row = Attempt.insert(conn, Attempt {
+        session_id: sess_id,
+        profile_id: profile_id,
+        skill_code: "ordenar",
+        idx: idx,
+        prompt: "orden",
+        expected: "menor",
+        given: dado,
+        correct: acierto,
+        ms: 0,
+        difficulty: nivel,
+    }).await?
+    let _ = actualizar_mastery(profile_id, "ordenar", nivel, acierto, 0).await
+    return Ok(row.id)
+}
+
+async fn cerrar_ordenar(sess_id: Int, total: Int, correct: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = GameSession.where(fn(s) => s.id == sess_id).update(conn, {
+        "total": total,
+        "correct": correct,
+    }).await?
+    return Ok(1)
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/ordenar")
+async fn ordenar_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let inicial = component_with("ordenar", "ssr", ordenar {
+        seed: 1,
+        grade: ctx.grade,
+        locale: locale,
+    })
+    let embed = live_embed("/live/ordenar", "ordenar-app", inicial)
+    let titulo = t(locale, "juego.ordenar") + " — MatHelp"
+    return responder_html(page(locale, titulo, embed, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@ws("/live/ordenar")
+async fn ordenar_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
+    let locale = locale_from_cookie(lang)
+    let ctx = resolver_contexto(session).await?
+    let cid = Uuid.v4().to_str()
+    let seed = rand.int(1, 2000000000)
+    let sess_id = crear_sesion_ordenar(ctx.profile_id, seed, ctx.grade).await?
+    let record_prev = leer_record(ctx.profile_id, "ordenar").await
+    let _ = component_with("ordenar", cid, ordenar {
+        record_prev: record_prev,
+        seed: seed,
+        grade: ctx.grade,
+        locale: locale,
+    }).raw
+    ws.send(flv_frame("ordenar", cid))?
+    let prev_total = 0
+    let prev_correct = 0
+    let intento = 0
+    let finalizado = false
+    loop {
+        let frame = match ws.recv() {
+            Ok(f) => f,
+            Err(_) => { break },
+        }
+        let _ = dispatch_component_events(frame)
+        match ws.send(flv_frame("ordenar", cid)) {
+            Ok(_) => 0,
+            Err(_) => { break },
+        }
+        let st: ordenar = component_state("ordenar", cid)
+        if (st.total > prev_total) {
+            let acierto = st.correct > prev_correct
+            let _ = persistir_ordenar(sess_id, ctx.profile_id, ctx.grade, intento, acierto).await
+            let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
+            intento = intento + 1
+            prev_total = st.total
+            prev_correct = st.correct
+        }
+        if (st.phase == "done") {
+            if (not finalizado) {
+                let _ = guardar_record(ctx.profile_id, "ordenar", st.racha_max).await
+                let _ = cerrar_ordenar(sess_id, st.total, st.correct).await
+                finalizado = true
+            }
+        }
+    }
+    let _ = flv_evict("ordenar", cid)
+}

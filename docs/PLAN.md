@@ -1256,7 +1256,7 @@ Requieren mecánica de input distinta al teclado → primer candidato a definir 
 | Modo | Ícono | Mecánica | Por qué suma | Escalado |
 |---|---|---|---|---|
 | Memoria / Parejas ✅ | 🃏 | **HECHO (2026-08-25)** — grilla de cartas (matching abierto): unir cada expresión con su resultado (`3×4` ↔ `12`). Estado bitmask, persistencia por delta. | Otro modo cognitivo (cálculo + emparejar), no "resolvé y tipeá" | N1 sumas → N2 restas → N3 tablas × → N4 división → N5 mixto; K=4..6 pares |
-| Ordenar / Comparar | 📊 | Arrastrar (o tocar en orden) de menor a mayor: números, fracciones, decimales, enteros con signo. | Sentido de orden y magnitud; sin él, fracciones/enteros quedan abstractos | N1 naturales → N2 decimales → N3 fracciones → N4 enteros → N5 mezcla |
+| Ordenar / Comparar ✅ | 📊 | **HECHO (2026-08-25)** — tocar cartas en orden de menor a mayor. Clave de orden entera exacta (×120) para comparar naturales/decimales/fracciones/enteros. | Sentido de orden y magnitud; sin él, fracciones/enteros quedan abstractos | N1 naturales → N2 decimales → N3 fracciones → N4 enteros → N5 mezcla |
 | Estimación | 🎯 | "¿Está cerca?" — redondear, estimar el resultado sin calcular exacto; se acepta un rango. | Sentido numérico (number sense), la habilidad que más falta en cálculo mental | N1 redondeo a la decena → N5 estimar productos/porcentajes |
 
 ### Orden recomendado
@@ -1265,15 +1265,16 @@ Requieren mecánica de input distinta al teclado → primer candidato a definir 
 2. ~~**📐 Geometría (5°)**~~ — ✅ **HECHO (2026-08-25)**: cuadrado/rectángulo/triángulo/L en SVG + teclado, E2E que recomputa la fórmula.
 3. ~~**🃏 Memoria (transversal)**~~ — ✅ **HECHO (2026-08-25)**: grilla de cartas (matching abierto), estado bitmask, persistencia por delta. Definió el patrón de input-nuevo para Ordenar/Estimación.
 4. ~~**± Enteros (7°)**~~ — ✅ **HECHO (2026-08-25)**: operaciones con signo + recta numérica SVG, teclado con ±, E2E que recomputa con signo.
-5. **📊 Ordenar / Comparar (transversal)** — segundo modo de input nuevo (tocar en orden de menor a mayor); reusa el patrón de input-nuevo de Memoria. **← próximo sugerido**
-6. **📖 Historia (1°)** — depende de Web Speech API (pre-lectores); más UX que matemática.
-7. Resto (Porcentaje, Volumen, Estimación) según demanda/feedback.
+5. ~~**📊 Ordenar / Comparar (transversal)**~~ — ✅ **HECHO (2026-08-25)**: tocar cartas en orden de menor a mayor, clave entera exacta (×120), E2E que ordena por valor.
+6. **🎯 Estimación (transversal)** — redondeo / "¿está cerca?" con rango de tolerancia; sentido numérico. **← próximo sugerido**
+7. **📖 Historia (1°)** — depende de Web Speech API (pre-lectores); más UX que matemática.
+8. Resto (Porcentaje, Volumen) según demanda/feedback.
 
-> **Nota de estado (2026-08-25):** con 🧩 Series, 🕐 Hora, 📐 Geometría, 🃏 Memoria y
-> ± Enteros construidos, el catálogo activo es de **16 juegos** (contrarreloj, V/F, series,
-> memoria, completá, escalera, problemas, fracciones, hora, geometría, enteros, potencias,
-> ecuaciones, finanzas, trigonometría, funciones). Este backlog llevaría el catálogo a ~21
-> con cobertura de 1° a 6° secundaria en varios modos cognitivos.
+> **Nota de estado (2026-08-25):** con 🧩 Series, 🕐 Hora, 📐 Geometría, 🃏 Memoria,
+> ± Enteros y 📊 Ordenar construidos, el catálogo activo es de **17 juegos** (contrarreloj,
+> V/F, series, memoria, ordenar, completá, escalera, problemas, fracciones, hora, geometría,
+> enteros, potencias, ecuaciones, finanzas, trigonometría, funciones). Quedan del backlog:
+> 🎯 Estimación, 📖 Historia, ％ Porcentaje, 📦 Volumen (~21 al completarlo).
 
 ---
 

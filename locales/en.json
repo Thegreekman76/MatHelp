@@ -239,5 +239,9 @@
   "memoria.pares": "pairs",
   "tema.memoria": "Memory",
   "enteros.era": "Almost. It was {0}.",
-  "tema.enteros": "Integers"
+  "tema.enteros": "Integers",
+  "juego.ordenar": "Order",
+  "ordenar.pregunta": "Tap from smallest to largest",
+  "ordenar.no_orden": "That's not the smallest. Look again!",
+  "tema.ordenar": "Ordering"
 }

@@ -1,0 +1,49 @@
+// tests/ordenar.fitz — el generador de "Ordenar" (gen_ordenar.fitz).
+//
+// (Nombre distinto del módulo importado → sin ciclo, FITZ-21.)
+//
+// Invariantes: reproducibilidad, estructura de la grilla (K cartas, pos 0..K-1,
+// claves DISTINTAS — sin empates al ordenar), y el bitmask del estado.
+
+from gen_ordenar import gen_ordenar, bit_set, bit_add, pow2, lista_tiene, nivel_ordenar
+
+@test fn ordenar_reproducible() {
+    let a = gen_ordenar(4242, 5)
+    let b = gen_ordenar(4242, 5)
+    assert_eq(a.n, b.n)
+    let i = 0
+    while (i < a.cards.len()) {
+        assert_eq(a.cards[i].text, b.cards[i].text)
+        assert_eq(a.cards[i].key, b.cards[i].key)
+        i = i + 1
+    }
+}
+
+@test fn ordenar_estructura_claves_distintas() {
+    let grades = [1, 3, 5, 7, 13]
+    for gr in grades {
+        let it = gen_ordenar(88, gr)
+        assert(it.n >= 5)
+        assert_eq(it.cards.len(), it.n)
+        let vistas: List<Int> = []
+        let p = 0
+        while (p < it.cards.len()) {
+            assert_eq(it.cards[p].pos, p)
+            assert(not lista_tiene(vistas, it.cards[p].key))
+            vistas.push(it.cards[p].key)
+            p = p + 1
+        }
+    }
+}
+
+@test fn ordenar_bitmask() {
+    let m = bit_add(0, 2)
+    assert(bit_set(m, 2))
+    assert(not bit_set(m, 1))
+    assert_eq(pow2(3), 8)
+}
+
+@test fn ordenar_nivel_por_grado() {
+    assert_eq(nivel_ordenar(1), 1)
+    assert_eq(nivel_ordenar(13), 5)
+}

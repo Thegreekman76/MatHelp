@@ -1,0 +1,67 @@
+// Ordenar.fitzv — "De menor a mayor" como LiveComponent SSR.
+//
+// Grilla de K cartas desordenadas; el chico las toca en orden CRECIENTE. Un solo
+// evento place(pos): si la carta tocada es la de MENOR clave entre las que faltan →
+// bien (bit en `placed`, correct+1, racha+1); si no → error (racha=0). En ambos
+// casos total+1. Termina cuando `correct` == K. Estado todo-Int (placed es un
+// bitmask), como el resto de los juegos.
+//
+// La persistencia (Attempt + mastery + racha) la hace el loop del @ws en
+// live_ordenar.fitz.
+
+from gen_ordenar import gen_ordenar, bit_set, bit_add, min_key_unplaced, OrdGrid, OrdCard
+from engine import a_int
+from ordenar_view import ordenar_screen
+
+component ordenar {
+  state {
+    seed: Int = 0
+    grade: Int = 3
+    locale: Str = "es-AR"
+    placed: Int = 0                // bitmask de posiciones ya colocadas
+    correct: Int = 0               // cartas colocadas bien (en orden)
+    total: Int = 0                 // intentos (aciertos + errores)
+    racha: Int = 0
+    racha_max: Int = 0
+    record_prev: Int = 999999
+    feedback: Str = ""             // "" | "ok" | "bad"
+    phase: Str = "playing"         // "playing" | "done"
+  }
+
+  event place() {
+    if (phase == "playing") {
+      if (payload.has("pos")) {
+        let pos = a_int(payload["pos"])
+        let grid = gen_ordenar(seed, grade)
+        if (not bit_set(placed, pos)) {
+          // Menor clave entre las cartas que faltan (loop fuera del evento).
+          let min_key = min_key_unplaced(grid, placed)
+          let elegido = grid.cards[pos]
+          total = total + 1
+          if (elegido.key == min_key) {
+            placed = bit_add(placed, pos)
+            correct = correct + 1
+            racha = racha + 1
+            if (racha > racha_max) {
+              racha_max = racha
+            }
+            feedback = "ok"
+            if (correct >= grid.n) {
+              phase = "done"
+            }
+          }
+          if (elegido.key != min_key) {
+            racha = 0
+            feedback = "bad"
+          }
+        }
+      }
+    }
+  }
+
+  <template>
+    <div id="ordenar-app" class="mh-quiz">
+      {ordenar_screen(seed, grade, locale, placed, correct, total, feedback, phase, racha, racha_max, record_prev).raw}
+    </div>
+  </template>
+}

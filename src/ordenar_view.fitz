@@ -1,0 +1,75 @@
+// ordenar_view.fitz — el render de "Ordenar" (de menor a mayor).
+//
+// Dibuja las cartas desordenadas. Cada carta manda place(pos) al tocarla. Las
+// colocadas bien quedan marcadas (bit en `placed`); el progreso es cartas colocadas
+// / K.
+
+from fitz_liveviews import Html, html, flv, h_join
+from game_ui import resumen_estrellas, correcto_msg, progreso_bar, racha_badge, mejor_racha_html
+from gen_ordenar import gen_ordenar, bit_set, OrdCard
+from i18n import t
+from fmt import fmt_int
+
+fn ord_card_btn(c: OrdCard, placed: Int) -> Html {
+    let done = bit_set(placed, c.pos)
+    let cls = match done {
+        true => "ord-card done",
+        false => "ord-card",
+    }
+    let txt = flv(c.text)
+    return html("""<button class="{cls}" type="button" data-flv-click="place" data-flv-value-pos="{c.pos}">{txt}</button>""")
+}
+
+fn ordenar_screen(seed: Int, grade: Int, locale: Str, placed: Int, correct: Int, total: Int, feedback: Str, phase: Str, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+    let grid = gen_ordenar(seed, grade)
+    if (phase == "done") {
+        return ordenar_resumen(locale, correct, total, racha_max, record_prev)
+    }
+    let cartas = h_join(grid.cards.map(fn(c) => ord_card_btn(c, placed)))
+    let banner = ordenar_feedback(locale, feedback, total)
+    let hechos = flv(fmt_int(locale, correct))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, grid.n))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(correct, grid.n)
+    let pregunta = flv(t(locale, "ordenar.pregunta"))
+    return html("""<div class="q-hud">
+<div class="q-mode">📊 {hechos} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
+</div>
+{progb}
+<p class="ord-preg">{pregunta}</p>
+<div class="ord-grid">{cartas}</div>
+<div class="q-fbwrap">{banner}</div>""")
+}
+
+fn ordenar_feedback(locale: Str, feedback: Str, seq: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(t(locale, "ordenar.no_orden"))}</div>""").raw
+    }
+    return ""
+}
+
+fn ordenar_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
+{mejor}
+<div class="q-actions">
+<a class="mh-btn" href="/ordenar">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}
