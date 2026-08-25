@@ -7,7 +7,7 @@
 // Corré con:  fitz test
 
 from engine import es_secundaria, anio_secundaria, es_ciclo_orientado, modalidad_valida
-from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta, gen_finanzas, gen_trig, gen_func
+from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta, gen_finanzas, gen_trig, gen_func, nivel_por_idx
 from fmt import fmt_operando
 
 // --- es_secundaria (grade >= 8) ---------------------------------------------
@@ -157,14 +157,14 @@ from fmt import fmt_operando
 }
 
 // Cada ejercicio cumple su invariante: potencia a^b == answer; raíz exacta
-// answer^b == a (el radicando); notación científica m × 10^k == answer. Cubre
-// 40 idx deterministas, y verifica que aparecen los TRES tipos.
+// answer^b == a (el radicando); notación científica m × 10^k == answer. Grado 10
+// (niveles 2..4) despliega los tres OPs (pot/raiz/scinot) al subir el idx.
 @test fn gen_potencia_invariantes() {
     let vio_pot = false
     let vio_raiz = false
     let vio_scinot = false
     for i in 0..40 {
-        let e = gen_potencia(31337, i, 8)
+        let e = gen_potencia(31337, i, 10)
         if (e.op == "raiz") {
             assert_eq(ipow(e.answer, e.b), e.a)
             vio_raiz = true
@@ -199,7 +199,7 @@ from fmt import fmt_operando
     let vio_cuad = false
     let vio_sist = false
     for i in 0..40 {
-        let e = gen_ecuacion(12321, i, 9)
+        let e = gen_ecuacion(12321, i, 11)
         if (e.op == "eclin") {
             vio_lin = true
         }
@@ -219,7 +219,7 @@ from fmt import fmt_operando
 // 40 idx deterministas (cada ecsist que aparezca).
 @test fn gen_sistema_es_no_degenerado() {
     for i in 0..40 {
-        let e = gen_ecuacion(555, i, 9)
+        let e = gen_ecuacion(555, i, 11)
         if (e.op == "ecsist") {
             let det = e.a * e.b2 - e.a2 * e.b
             assert_ne(det, 0)
@@ -251,32 +251,50 @@ from fmt import fmt_operando
     assert_eq(e1.op, e2.op)
 }
 
-@test fn gen_finanzas_aparecen_los_cinco_tipos() {
-    let vio_simple = false
-    let vio_comp = false
-    let vio_pct = false
-    let vio_desc = false
-    let vio_break = false
+// F8: cobertura por grado. Ningún grado ve los 5 tipos (cotas del currículum). Un
+// 4° (grade 11, niveles 1..3) ve %, descuento e interés simple — NO compuesto ni
+// punto de equilibrio. Un 6° (grade 13, niveles 2..5) sí llega a compuesto y punto
+// de equilibrio (y ya no ve el % de nivel 1).
+@test fn gen_finanzas_cobertura_por_grado() {
+    let g11_pct = false
+    let g11_desc = false
+    let g11_simple = false
+    let g11_comp = false
+    let g11_break = false
     for i in 0..80 {
         let e = gen_finanzas(4242, i, 11)
-        if (e.op == "finsimple") { vio_simple = true }
-        if (e.op == "fincomp") { vio_comp = true }
-        if (e.op == "finpct") { vio_pct = true }
-        if (e.op == "findesc") { vio_desc = true }
-        if (e.op == "finbreak") { vio_break = true }
+        if (e.op == "finpct") { g11_pct = true }
+        if (e.op == "findesc") { g11_desc = true }
+        if (e.op == "finsimple") { g11_simple = true }
+        if (e.op == "fincomp") { g11_comp = true }
+        if (e.op == "finbreak") { g11_break = true }
     }
-    assert_eq(vio_simple, true)
-    assert_eq(vio_comp, true)
-    assert_eq(vio_pct, true)
-    assert_eq(vio_desc, true)
-    assert_eq(vio_break, true)
+    assert_eq(g11_pct, true)
+    assert_eq(g11_desc, true)
+    assert_eq(g11_simple, true)
+    assert_eq(g11_comp, false)    // interés compuesto no le toca a 4°
+    assert_eq(g11_break, false)   // punto de equilibrio tampoco
+
+    let g13_comp = false
+    let g13_break = false
+    let g13_pct = false
+    for i in 0..80 {
+        let e = gen_finanzas(4242, i, 13)
+        if (e.op == "fincomp") { g13_comp = true }
+        if (e.op == "finbreak") { g13_break = true }
+        if (e.op == "finpct") { g13_pct = true }
+    }
+    assert_eq(g13_comp, true)
+    assert_eq(g13_break, true)
+    assert_eq(g13_pct, false)     // 6° ya no ve el % trivial de nivel 1
 }
 
 // Punto de equilibrio: Q = CF / (Precio − Costo). a=CF, b=Precio, a2=Costo. Q>0
-// y divide exacto (por construcción CF = margen · Q).
+// y divide exacto (por construcción CF = margen · Q). En 6° (grade 13) el nivel 5
+// aparece al subir el idx.
 @test fn gen_finanzas_punto_equilibrio_exacto() {
     for i in 0..80 {
-        let e = gen_finanzas(4848, i, 11)
+        let e = gen_finanzas(4848, i, 13)
         if (e.op == "finbreak") {
             let margen = e.b - e.a2
             assert_eq(margen > 0, true)
@@ -378,7 +396,7 @@ from fmt import fmt_operando
 // exponencial a·b^x0. a2 es el punto; answer el valor.
 @test fn gen_func_evalua_correcto() {
     for i in 0..60 {
-        let e = gen_func(2929, i, 12)
+        let e = gen_func(2929, i, 13)
         if (e.op == "funclin") {
             assert_eq(e.answer, e.a * e.a2 + e.b)
         }
@@ -393,12 +411,13 @@ from fmt import fmt_operando
     }
 }
 
-// La pendiente lineal aparece con los dos signos (gráfico sube/baja).
+// La pendiente del nivel 2 (lineal ±) aparece con los dos signos (gráfico
+// sube/baja). Fijamos (grade 12, idx 4) → nivel 2, y variamos la semilla.
 @test fn gen_func_lineal_pendiente_con_signo() {
     let vio_pos = false
     let vio_neg = false
-    for i in 0..80 {
-        let e = gen_func(5151, i, 12)
+    for s in 0..80 {
+        let e = gen_func(s, 4, 12)
         if (e.op == "funclin") {
             if (e.a > 0) { vio_pos = true }
             if (e.a < 0) { vio_neg = true }
@@ -437,4 +456,43 @@ from fmt import fmt_operando
             assert_eq(e.answer, e.a * e.b / 100)
         }
     }
+}
+
+// --- F8: niveles y progresión graduada --------------------------------------
+
+// La rampa: arranca en el piso, sube un nivel cada 3 idx, y no pasa el techo.
+@test fn nivel_por_idx_arranca_en_piso_y_sube() {
+    assert_eq(nivel_por_idx(2, 5, 0), 2)     // idx 0 → piso
+    assert_eq(nivel_por_idx(2, 5, 2), 2)     // sigue en el piso
+    assert_eq(nivel_por_idx(2, 5, 3), 3)     // +1 al tercer ejercicio
+    assert_eq(nivel_por_idx(2, 5, 6), 4)
+    assert_eq(nivel_por_idx(2, 5, 9), 5)     // llega al techo
+    assert_eq(nivel_por_idx(2, 5, 30), 5)    // no lo pasa (clamp)
+    assert_eq(nivel_por_idx(1, 2, 30), 2)    // techo bajo: capado en 2
+}
+
+// Cota por grado: un 1° secundaria (grade 8) NUNCA ve cuadráticas ni sistemas
+// (techo 2) — sólo ecuaciones lineales, por más que suba el idx.
+@test fn gen_ecuacion_grado_bajo_capado_en_lineal() {
+    for i in 0..40 {
+        let e = gen_ecuacion(2024, i, 8)
+        assert_eq(e.op, "eclin")
+    }
+}
+
+// Cota por grado: un 6° secundaria (grade 13) ARRANCA en cuadrática (piso 3), se
+// saltea las lineales triviales de los primeros niveles.
+@test fn gen_ecuacion_grado_alto_arranca_complejo() {
+    let e = gen_ecuacion(2024, 0, 13)
+    assert_eq(e.op, "eccuad")               // nivel 3 desde el idx 0
+    assert_eq(e.difficulty, 3)
+}
+
+// La dificultad del Exercise = nivel: sube con el idx dentro de la ronda.
+@test fn gen_ecuacion_difficulty_sube_con_idx() {
+    let e0 = gen_ecuacion(77, 0, 11)        // nivel 2
+    let e9 = gen_ecuacion(77, 9, 11)        // nivel 5 (techo)
+    assert_eq(e0.difficulty, 2)
+    assert_eq(e9.difficulty, 5)
+    assert_eq(e9.difficulty > e0.difficulty, true)
 }

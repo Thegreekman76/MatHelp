@@ -1099,6 +1099,76 @@ seed+idx e i18n es-AR/en desde el commit — igual que primaria.
 
 ---
 
+## 11.c Niveles y progresión graduada (F8)
+
+**El problema (verificado 2026-08-24).** La dificultad hoy es despareja:
+- Aritmética (opción múltiple / contrarreloj / V·F / completá / desafío) escala por
+  grado y es **adaptativa** (rating Elo F3, `grado_efectivo`), pero el snapshot se
+  congela al abrir el socket → no sube *dentro* de la ronda.
+- Kiosco / Fracciones escalan por grado (`kiosco_max`/`frac_den_max`) pero son fijos.
+- Práctica libre usa banda 1/2/3 = grado−1/grado/grado+1.
+- **Los 5 juegos de secundaria (Potencias, Ecuaciones, Finanzas, Trigonometría,
+  Funciones) reciben `grade` pero lo IGNORAN**: un 1° secundaria (grade 8) y un 6°
+  (grade 13) reciben la misma mezcla de sub-tipos y rangos. Ninguno sube "de a poco"
+  dentro de la ronda (`idx` sólo cambia la semilla, no la dificultad).
+
+**El objetivo.** Que cada juego, para **cada grado** (primaria 1..7, secundaria
+8..13), tenga niveles que **suban de a poco en intensidad y complejidad**, para que
+los chicos aprendan gradualmente mientras practican.
+
+**El modelo — `nivel` 1..5, determinista.** Cada ejercicio tiene un `nivel`:
+
+```
+nivel = clamp( piso(grado) + idx / PASO , piso(grado) , techo(grado) )   // PASO ≈ 3
+```
+
+- **`piso`/`techo` por grado** = cotas del currículum: un grado bajo queda **capado**
+  (nunca ve los sub-tipos avanzados), un grado alto **arranca más arriba** (se saltea
+  lo trivial). Da el "para cada grado".
+- **rampa por `idx`** dentro de `[piso, techo]`: la ronda **empieza fácil y sube de a
+  poco** (primeros ejercicios en el piso, últimos más complejos). Da el "aprender de
+  a poco practicando".
+
+Como el `nivel` sale de `(idx, grado)` — ambos ya determinan el ejercicio — **se
+calcula ADENTRO del generador**: cero cambios de firma, el server re-deriva idéntico
+para persistir (paridad run↔build por construcción). El `nivel` setea además
+`Exercise.difficulty` (1..5) → el Elo/puntaje ya lo reflejan (reusa lo existente).
+
+**Escaleras por juego + cotas por grado:**
+
+| Juego | N1 | N2 | N3 | N4 | N5 | piso/techo por grado |
+|---|---|---|---|---|---|---|
+| **Ecuaciones** | lineal x+ | lineal x± coef↑ | cuadrática x²=k | ax²+c | sistema 2×2 | 8:[1,2] 9:[1,3] 10:[2,4] 11:[2,5] 12-13:[3,5] |
+| **Potencias** | cuadrados chicos | cubos + base 6-9 | raíces exactas | notación científica | exp/base ↑ | 8:[1,2] 9:[1,3] 10:[2,4] 11-13:[2,5] |
+| **Trigonometría** | Pitág. hip. triples chicos | todos los triples | hallar cateto | razón 30° hip→cateto | razón 30° cateto→hip | 10:[1,3] 11:[1,4] 12-13:[2,5] |
+| **Funciones** | lineal + | lineal ± | cuadrática | exponencial base 2 | exp base 3 + coef | 11:[1,3] 12:[1,4] 13:[2,5] |
+| **Finanzas** | porcentaje | descuento | interés simple | interés compuesto | punto de equilibrio | 11:[1,3] 12:[1,4] 13:[2,5] |
+
+**Fases:**
+- **Fase A (el hueco real). ✅ (2026-08-24)** Helper compartido `nivel_por_idx(piso,
+  techo, idx)` + `iabs` + tablas `nivel_piso_<juego>(grade)`/`nivel_techo_<juego>`
+  por los 5 juegos + los 5 generadores de secundaria (`gen_potencia`/`gen_ecuacion`/
+  `gen_finanzas`/`gen_trig`/`gen_func`) reescritos: computan `nivel` desde
+  `(grade, idx)` y branchean el sub-tipo por nivel (antes elegían el tipo con un
+  dado ignorando `grade`). `Exercise.difficulty = nivel` → el Elo/puntaje ya lo
+  reflejan. Escaleras implementadas exactamente como la tabla de arriba. Tests
+  actualizados/nuevos (113 total): `nivel_por_idx` (piso/rampa/techo clamp),
+  cobertura por grado (`gen_finanzas_cobertura_por_grado`, `gen_ecuacion_grado_bajo_
+  capado_en_lineal`, `gen_ecuacion_grado_alto_arranca_complejo`, `..._difficulty_
+  sube_con_idx`), + los invariantes por juego reapuntados a grados donde el sub-tipo
+  aparece. Smoke E2E `tools/e2e_niveles.py`: juega Trigonometría en grade 10 vs 13 y
+  verifica **escala por grado** (g10 sólo `trig.pitagoras`; g13 suma `trig.razon` y
+  ya no ve el nivel 1) **+ rampa en la ronda** (dificultad g10 1→3, g13 2→5, y el 6°
+  arranca más arriba). Paridad bit-a-bit `fitz run` ↔ binario; smokes de los juegos
+  (trig/funciones/finanzas) siguen 10/10.
+- **Fase B.** Rampa por `idx` en Fracciones/Kiosco (y opcional en los adaptativos,
+  para que cada ronda sea también un mini-ascenso).
+- **Fase C (opcional).** Piso inicial nudgeado por el rating de mastery del skill del
+  juego (reusa `grado_efectivo`) → adaptativo cross-sesión para secundaria: el que ya
+  domina Ecuaciones arranca más arriba la próxima sesión.
+
+---
+
 ## 12. Lo que necesito de tu lado
 
 1. **Versión de Fitz instalada** — `fitz --version`. El plan asume ≥ v0.42.1 (`@every` y `ws_broadcast` desde el scheduler). Si tenés menos, el cronómetro va con `@background`+`spawn`, que anda desde antes.
