@@ -423,6 +423,7 @@ main:focus \{ outline:none; \}
 .mh-confetti .cf10 \{ left:92%; background:var(--mh-amarillo); animation-delay:.36s \}
 .mh-confetti .cf11 \{ left:48%; background:var(--mh-celeste); animation-delay:.44s \}
 .mh-aliento \{ text-align:center; font-weight:800; font-size:1.1rem; color:var(--mh-tinta); margin:.1rem 0 .4rem; \}
+.mh-mejor-racha \{ text-align:center; font-weight:800; font-size:.95rem; color:var(--mh-naranja); margin:0 0 .5rem; animation:slot-in .4s ease-out both; \}
 @media (prefers-reduced-motion:reduce) \{ * \{ transition:none !important; animation:none !important; \} \}
 """
 }

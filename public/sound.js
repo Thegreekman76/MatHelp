@@ -68,6 +68,30 @@ if ("serviceWorker" in navigator) {
     o.stop(t + dur + 0.02);
   }
 
+  // Acorde ascendente ("¡nivel!") para los hitos de racha. Cero assets: tres
+  // ondas escalonadas (C5-E5-G5). No spamea: sólo suena en el hito, no en cada
+  // acierto (eso ya lo cubre beep()).
+  function chord() {
+    if (!isOn()) return;
+    var c = ctx();
+    if (!c) return;
+    var notes = [523.25, 659.25, 783.99];
+    for (var i = 0; i < notes.length; i++) {
+      var o = c.createOscillator();
+      var g = c.createGain();
+      o.connect(g);
+      g.connect(c.destination);
+      o.type = "sine";
+      var t = c.currentTime + i * 0.08;
+      o.frequency.setValueAtTime(notes[i], t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.30);
+      o.start(t);
+      o.stop(t + 0.34);
+    }
+  }
+
   // --- toggle del topbar ---
   function refreshBtn() {
     var b = document.getElementById("mh-sound-btn");
@@ -98,17 +122,30 @@ if ("serviceWorker" in navigator) {
     else if (fb.classList.contains("bad")) beep(false);
   }
 
+  // --- acorde en los hitos de racha (5, 10, ...) ---
+  var lastRacha = 0;
+  function checkStreak() {
+    var el = document.querySelector(".q-racha[data-racha]");
+    if (!el) { lastRacha = 0; return; } // la racha se cortó (o no hay)
+    var n = parseInt(el.getAttribute("data-racha"), 10) || 0;
+    if (n > lastRacha && n >= 5 && n % 5 === 0) chord();
+    lastRacha = n;
+  }
+  function tick() { checkFeedback(); checkStreak(); }
+
   function start() {
     // Cebá lastSeq con el banner que ya esté en pantalla (reanudar/SSR): no
     // queremos un beep espurio al cargar.
     var fb = document.querySelector(".q-fb[data-fb-seq]");
     if (fb) lastSeq = fb.getAttribute("data-fb-seq");
+    var rc = document.querySelector(".q-racha[data-racha]");
+    if (rc) lastRacha = parseInt(rc.getAttribute("data-racha"), 10) || 0;
     refreshBtn();
     try {
-      var mo = new MutationObserver(checkFeedback);
+      var mo = new MutationObserver(tick);
       mo.observe(document.body, {
         childList: true, subtree: true,
-        attributes: true, attributeFilter: ["data-fb-seq", "class"],
+        attributes: true, attributeFilter: ["data-fb-seq", "data-racha", "class"],
       });
     } catch (e) {}
   }

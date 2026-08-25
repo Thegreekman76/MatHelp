@@ -13,14 +13,14 @@
 from fitz_liveviews import Html, html, flv
 from gen_arith import gen_for, vf_shown, op_symbol
 from i18n import t, t1
-from game_ui import resumen_estrellas, correcto_msg, racha_badge
+from game_ui import resumen_estrellas, correcto_msg, racha_badge, mejor_racha_html
 from fmt import fmt_int, fmt_operando
 
 // Punto de entrada. `mode` == "adaptive" (contrarreloj V/F) | "desafio" (N fijo).
 // `correct_last` es la verdad del ejercicio recién fallado (para el feedback).
-fn vf_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, correct_last: Bool, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, limit: Int, racha: Int) -> Html {
+fn vf_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, correct_last: Bool, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, limit: Int, racha: Int, racha_max: Int) -> Html {
     if (phase == "done") {
-        return vf_resumen(locale, score, correct, total, mode)
+        return vf_resumen(locale, score, correct, total, mode, racha_max)
     }
     if (mode == "desafio") {
         return vf_jugando(mode, seed, idx, grade, locale, correct, total, limit, feedback, correct_last, r_add, r_sub, r_mul, r_div, true, racha)
@@ -91,7 +91,7 @@ fn vf_feedback(locale: Str, feedback: Str, correct_last: Bool, seq: Int) -> Str 
     return ""
 }
 
-fn vf_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str) -> Html {
+fn vf_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str, racha_max: Int) -> Html {
     let sc = flv(fmt_int(locale, score))
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
@@ -101,12 +101,14 @@ fn vf_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str) -> H
         false => "/vf",
     }
     let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>
 <div class="q-stat"><span class="q-big">{sc}</span><span class="q-lbl">{flv(t(locale, "juego.puntaje"))}</span></div>
 <div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
 {estrellas}
+{mejor}
 <div class="q-actions">
 <a class="mh-btn" href="{de_nuevo_href}">{flv(t(locale, "juego.de_nuevo"))}</a>
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>

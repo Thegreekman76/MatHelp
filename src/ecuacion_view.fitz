@@ -8,7 +8,7 @@
 // corrección (given resuelve la ecuación) la hace ecuacion_correcta.
 
 from fitz_liveviews import Html, html, flv
-from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, incorrecto_msg
+from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, incorrecto_msg, mejor_racha_html
 from gen_arith import gen_ecuacion
 from i18n import t, t1
 from fmt import fmt_int, fmt_operando
@@ -53,9 +53,9 @@ fn prompt_ecuacion(locale: Str, a: Int, b: Int, a2: Int, b2: Int, answer: Int, a
     return s + " = " + fmt_int(locale, c)
 }
 
-fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, con_signo: Bool, racha: Int) -> Html {
+fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, con_signo: Bool, racha: Int, racha_max: Int) -> Html {
     if (phase == "done") {
-        return ecuacion_resumen(locale, correct, total)
+        return ecuacion_resumen(locale, correct, total, racha_max)
     }
     let ex = gen_ecuacion(seed, idx, grade)
     let ecua = flv(prompt_ecuacion(locale, ex.a, ex.b, ex.a2, ex.b2, ex.answer, ex.answer2, ex.op))
@@ -101,16 +101,18 @@ fn ecuacion_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> 
     return ""
 }
 
-fn ecuacion_resumen(locale: Str, correct: Int, total: Int) -> Html {
+fn ecuacion_resumen(locale: Str, correct: Int, total: Int, racha_max: Int) -> Html {
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
     let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>
 <div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
 {estrellas}
+{mejor}
 <div class="q-actions">
 <a class="mh-btn" href="/ecuaciones">{flv(t(locale, "juego.de_nuevo"))}</a>
 <a class="mh-btn sec" href="/juegos">{flv(t(locale, "juegos.titulo"))}</a>

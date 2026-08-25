@@ -22,6 +22,7 @@ component finanzas {
     correct: Int = 0
     total: Int = 0
     racha: Int = 0
+    racha_max: Int = 0
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // la respuesta (en pesos) del ejercicio recién fallado
@@ -60,6 +61,9 @@ component finanzas {
                 correct = correct + 1
                 feedback = "ok"
                 racha = racha + 1
+                if (racha > racha_max) {
+                  racha_max = racha
+                }
               }
               if (not acierto) {
                 feedback = "bad"
@@ -81,7 +85,7 @@ component finanzas {
 
   <template>
     <div id="finanzas-app" class="mh-quiz">
-      {finanzas_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, racha).raw}
+      {finanzas_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, racha, racha_max).raw}
     </div>
   </template>
 }

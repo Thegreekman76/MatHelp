@@ -5,7 +5,7 @@
 // porcentaje, descuento. El ejercicio se deriva de (seed, idx) con gen_finanzas.
 
 from fitz_liveviews import Html, html, flv
-from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, incorrecto_msg
+from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, incorrecto_msg, mejor_racha_html
 from gen_arith import gen_finanzas
 from i18n import t, t1, t2, t3
 from fmt import fmt_int, fmt_money
@@ -32,9 +32,9 @@ fn prompt_finanzas(locale: Str, a: Int, b: Int, a2: Int, op: Str) -> Str {
     return t2(locale, "fin.p_desc", fmt_money(locale, a), fmt_int(locale, b))
 }
 
-fn finanzas_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int) -> Html {
+fn finanzas_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int) -> Html {
     if (phase == "done") {
-        return finanzas_resumen(locale, correct, total)
+        return finanzas_resumen(locale, correct, total, racha_max)
     }
     let ex = gen_finanzas(seed, idx, grade)
     let problema = flv(prompt_finanzas(locale, ex.a, ex.b, ex.a2, ex.op))
@@ -76,16 +76,18 @@ fn finanzas_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> 
     return ""
 }
 
-fn finanzas_resumen(locale: Str, correct: Int, total: Int) -> Html {
+fn finanzas_resumen(locale: Str, correct: Int, total: Int, racha_max: Int) -> Html {
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
     let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>
 <div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
 {estrellas}
+{mejor}
 <div class="q-actions">
 <a class="mh-btn" href="/finanzas">{flv(t(locale, "juego.de_nuevo"))}</a>
 <a class="mh-btn sec" href="/juegos">{flv(t(locale, "juegos.titulo"))}</a>

@@ -16,7 +16,7 @@ fn racha_badge(racha: Int) -> Str {
         true => " hot",
         false => "",
     }
-    return html("""<span class="q-racha{hot}" aria-label="racha {racha}">🔥{racha}</span>""").raw
+    return html("""<span class="q-racha{hot}" data-racha="{racha}" aria-label="racha {racha}">🔥{racha}</span>""").raw
 }
 
 // Barra de progreso de la ronda (cuántos de `limit`). `limit` <= 0 → vacía (los
@@ -60,6 +60,18 @@ fn incorrecto_msg(locale: Str, seq: Int, resp: Str) -> Str {
         return t1(locale, "juego.incorrecto3", resp)
     }
     return t1(locale, "juego.incorrecto", resp)
+}
+
+// Línea de "mejor racha" para la pantalla final: la mayor cantidad de aciertos
+// seguidos que se logró en la ronda (persiste aunque después se falle). Vacía si
+// fue < 3 (no celebra rachas triviales).
+fn mejor_racha_html(locale: Str, racha_max: Int) -> Str {
+    if (racha_max < 3) {
+        return ""
+    }
+    let n_str = "{racha_max}"
+    let txt = flv(t1(locale, "juego.mejor_racha", n_str))
+    return html("""<p class="mh-mejor-racha">🔥 {txt}</p>""").raw
 }
 
 // Estrellas (0..3) según la precisión de la ronda + una frase de aliento acorde.

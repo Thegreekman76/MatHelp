@@ -23,6 +23,7 @@ component escalera {
     correct: Int = 0
     total: Int = 0
     racha: Int = 0
+    racha_max: Int = 0
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // el producto correcto del ejercicio recién fallado
@@ -44,6 +45,9 @@ component escalera {
               step = step + 1
               feedback = "ok"
               racha = racha + 1
+              if (racha > racha_max) {
+                racha_max = racha
+              }
             }
             if (not acierto) {
               step = step - 2        // caés dos escalones
@@ -66,7 +70,7 @@ component escalera {
 
   <template>
     <div id="escalera-app" class="mh-quiz">
-      {escalera_screen(seed, idx, grade, locale, step, meta, correct, total, phase, feedback, last_answer, r_mul, racha).raw}
+      {escalera_screen(seed, idx, grade, locale, step, meta, correct, total, phase, feedback, last_answer, r_mul, racha, racha_max).raw}
     </div>
   </template>
 }

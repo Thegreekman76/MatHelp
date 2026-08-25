@@ -7,7 +7,7 @@
 // contexto se localiza, §4); la plata por fmt_money, las cuentas por fmt_int.
 
 from fitz_liveviews import Html, html, flv
-from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, incorrecto_msg
+from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, incorrecto_msg, mejor_racha_html
 from gen_kiosco import gen_kiosco, KioscoItem
 from keypad_view import keypad_html
 from i18n import t, t1, t2, t3, t4
@@ -66,9 +66,9 @@ fn kiosco_enunciado(locale: Str, it: KioscoItem) -> Str {
     return t4(locale, "kiosco.p_combo", fmt_int(locale, it.a), prod, fmt_money(locale, it.b), fmt_money(locale, it.c))
 }
 
-fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_money: Bool, entrada: Int, racha: Int) -> Html {
+fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_money: Bool, entrada: Int, racha: Int, racha_max: Int) -> Html {
     if (phase == "done") {
-        return kiosco_resumen(locale, correct, total)
+        return kiosco_resumen(locale, correct, total, racha_max)
     }
     let it = gen_kiosco(seed, idx, grade)
     let enun = flv(kiosco_enunciado(locale, it))
@@ -121,16 +121,18 @@ fn kiosco_feedback(locale: Str, feedback: Str, last_answer: Int, last_money: Boo
     return ""
 }
 
-fn kiosco_resumen(locale: Str, correct: Int, total: Int) -> Html {
+fn kiosco_resumen(locale: Str, correct: Int, total: Int, racha_max: Int) -> Html {
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
     let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>
 <div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
 {estrellas}
+{mejor}
 <div class="q-actions">
 <a class="mh-btn" href="/problemas">{flv(t(locale, "juego.de_nuevo"))}</a>
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
