@@ -232,5 +232,10 @@
   "tema.hora": "La hora",
   "geo.perimetro": "¿Cuál es el perímetro?",
   "geo.area": "¿Cuál es el área?",
-  "geo.era": "Casi. Era {0}."
+  "geo.era": "Casi. Era {0}.",
+  "juego.memoria": "Memoria",
+  "memoria.pregunta": "Uní cada cuenta con su resultado",
+  "memoria.no_par": "No son pareja. ¡Probá otra!",
+  "memoria.pares": "pares",
+  "tema.memoria": "Memoria"
 }

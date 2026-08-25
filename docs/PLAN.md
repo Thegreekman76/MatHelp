@@ -1255,7 +1255,7 @@ Requieren mecánica de input distinta al teclado → primer candidato a definir 
 
 | Modo | Ícono | Mecánica | Por qué suma | Escalado |
 |---|---|---|---|---|
-| Memoria / Parejas | 🃏 | Grilla de cartas; unir expresión ↔ resultado (`3×4` ↔ `12`), fracción ↔ decimal, etc. Memoria espacial + cálculo. | Otro modo cognitivo (memoria de trabajo), no "resolvé y tipeá" | N1 sumas 1 dígito → N5 fracciones/potencias; más pares por nivel |
+| Memoria / Parejas ✅ | 🃏 | **HECHO (2026-08-25)** — grilla de cartas (matching abierto): unir cada expresión con su resultado (`3×4` ↔ `12`). Estado bitmask, persistencia por delta. | Otro modo cognitivo (cálculo + emparejar), no "resolvé y tipeá" | N1 sumas → N2 restas → N3 tablas × → N4 división → N5 mixto; K=4..6 pares |
 | Ordenar / Comparar | 📊 | Arrastrar (o tocar en orden) de menor a mayor: números, fracciones, decimales, enteros con signo. | Sentido de orden y magnitud; sin él, fracciones/enteros quedan abstractos | N1 naturales → N2 decimales → N3 fracciones → N4 enteros → N5 mezcla |
 | Estimación | 🎯 | "¿Está cerca?" — redondear, estimar el resultado sin calcular exacto; se acepta un rango. | Sentido numérico (number sense), la habilidad que más falta en cálculo mental | N1 redondeo a la decena → N5 estimar productos/porcentajes |
 
@@ -1263,16 +1263,16 @@ Requieren mecánica de input distinta al teclado → primer candidato a definir 
 
 1. ~~**🕐 Hora (2°)**~~ — ✅ **HECHO (2026-08-25)**: reloj analógico SVG + opción múltiple, 5 niveles de precisión, E2E que lee el reloj del SVG.
 2. ~~**📐 Geometría (5°)**~~ — ✅ **HECHO (2026-08-25)**: cuadrado/rectángulo/triángulo/L en SVG + teclado, E2E que recomputa la fórmula.
-3. **🃏 Memoria (transversal)** — el primer modo de input nuevo (grilla de cartas); define el patrón para Ordenar/Estimación. **← próximo sugerido**
-4. **± Enteros (7°)** — recta numérica SVG, refuerza el signo (que hoy sólo aparece incidental en secundaria).
+3. ~~**🃏 Memoria (transversal)**~~ — ✅ **HECHO (2026-08-25)**: grilla de cartas (matching abierto), estado bitmask, persistencia por delta. Definió el patrón de input-nuevo para Ordenar/Estimación.
+4. **± Enteros (7°)** — recta numérica SVG, refuerza el signo (que hoy sólo aparece incidental en secundaria). **← próximo sugerido**
 5. **📖 Historia (1°)** — depende de Web Speech API (pre-lectores); más UX que matemática.
 6. Resto (Porcentaje, Volumen, Ordenar, Estimación) según demanda/feedback.
 
-> **Nota de estado (2026-08-25):** con 🧩 Series, 🕐 Hora y 📐 Geometría construidos,
-> el catálogo activo es de **14 juegos** (contrarreloj, V/F, series, completá, escalera,
-> problemas, fracciones, hora, geometría, potencias, ecuaciones, finanzas, trigonometría,
-> funciones). Este backlog llevaría el catálogo a ~21 con cobertura de 1° a 6° secundaria
-> en varios modos cognitivos.
+> **Nota de estado (2026-08-25):** con 🧩 Series, 🕐 Hora, 📐 Geometría y 🃏 Memoria
+> construidos, el catálogo activo es de **15 juegos** (contrarreloj, V/F, series, memoria,
+> completá, escalera, problemas, fracciones, hora, geometría, potencias, ecuaciones,
+> finanzas, trigonometría, funciones). Este backlog llevaría el catálogo a ~21 con
+> cobertura de 1° a 6° secundaria en varios modos cognitivos.
 
 ---
 

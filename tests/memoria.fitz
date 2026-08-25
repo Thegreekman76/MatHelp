@@ -1,0 +1,72 @@
+// tests/memoria.fitz — el generador de "Memoria" (gen_memoria.fitz).
+//
+// (Nombre distinto del módulo importado → sin ciclo, FITZ-21.)
+//
+// Invariantes: reproducibilidad, estructura de la grilla (2K cartas, K pares, cada
+// par una "e" + una "r"), y el bitmask del estado.
+
+from gen_memoria import gen_memoria, bit_set, bit_add, pow2, nivel_memoria
+
+@test fn memoria_reproducible() {
+    let a = gen_memoria(4242, 5)
+    let b = gen_memoria(4242, 5)
+    assert_eq(a.pairs, b.pairs)
+    assert_eq(a.cards.len(), b.cards.len())
+    let i = 0
+    while (i < a.cards.len()) {
+        assert_eq(a.cards[i].text, b.cards[i].text)
+        assert_eq(a.cards[i].pair, b.cards[i].pair)
+        i = i + 1
+    }
+}
+
+@test fn memoria_estructura() {
+    let grades = [1, 3, 5, 7, 13]
+    for gr in grades {
+        let it = gen_memoria(88, gr)
+        assert_eq(it.cards.len(), it.pairs * 2)
+        assert(it.pairs >= 4)
+        let p = 0
+        while (p < it.cards.len()) {
+            assert_eq(it.cards[p].pos, p)
+            p = p + 1
+        }
+    }
+}
+
+@test fn memoria_pares_completos() {
+    // Cada par (0..K-1) aparece exactamente dos veces: una "e" y una "r".
+    let it = gen_memoria(77, 6)
+    let pid = 0
+    while (pid < it.pairs) {
+        let es = 0
+        let rs = 0
+        for c in it.cards {
+            if (c.pair == pid) {
+                if (c.kind == "e") {
+                    es = es + 1
+                }
+                if (c.kind == "r") {
+                    rs = rs + 1
+                }
+            }
+        }
+        assert_eq(es, 1)
+        assert_eq(rs, 1)
+        pid = pid + 1
+    }
+}
+
+@test fn memoria_bitmask() {
+    let m2 = bit_add(0, 3)
+    assert(bit_set(m2, 3))
+    assert(not bit_set(m2, 2))
+    let m3 = bit_add(m2, 3)
+    assert_eq(m3, m2)
+    assert_eq(pow2(4), 16)
+}
+
+@test fn memoria_nivel_por_grado() {
+    assert_eq(nivel_memoria(1), 1)
+    assert_eq(nivel_memoria(13), 5)
+}

@@ -22,6 +22,7 @@ import live_fracciones
 import live_series
 import live_hora
 import live_geo
+import live_memoria
 import live_potencias
 import live_ecuaciones
 import live_finanzas
@@ -47,6 +48,7 @@ from Fracciones import fracciones, fracciones_render, fracciones_answer
 from Series import series, series_render, series_answer, series_digito, series_borrar
 from Hora import hora, hora_render, hora_answer
 from Geometria import geometria, geometria_render, geometria_answer, geometria_digito, geometria_borrar
+from Memoria import memoria, memoria_render, memoria_pick
 // F5 — componentes presentacionales del panel del padre. Se importan en el
 // entry (además de en parent.fitz) para el auto-registro + la resolución de la
 // firma cross-módulo a Html (igual que el dashboard del admin de liveviews).

@@ -1,0 +1,80 @@
+// Memoria.fitzv — "Unir los pares" como LiveComponent SSR.
+//
+// Grilla de 2K cartas (todas visibles). El chico toca una expresión y su resultado
+// para unir el par. Un solo evento pick(pos):
+//   - primera carta → queda seleccionada (sel).
+//   - segunda carta → si forma par (mismo `pair`, distinto `kind`) → resuelto
+//     (bit en `matched`, correct+1, racha+1); si no → error (racha=0). En ambos
+//     casos total+1 y se limpia la selección.
+// Termina cuando `correct` == K. El estado es todo-Int (matched es un bitmask), así
+// se serializa como el resto de los juegos.
+//
+// La persistencia (Attempt + mastery + racha) la hace el loop del @ws en
+// live_memoria.fitz.
+
+from gen_memoria import gen_memoria, bit_set, bit_add, MemGrid, MemCard
+from engine import a_int
+from memoria_view import memoria_screen
+
+component memoria {
+  state {
+    seed: Int = 0
+    grade: Int = 3
+    locale: Str = "es-AR"
+    matched: Int = 0               // bitmask de posiciones resueltas
+    sel: Int = -1                  // posición seleccionada (o -1)
+    correct: Int = 0               // pares logrados
+    total: Int = 0                 // intentos (aciertos + errores)
+    racha: Int = 0
+    racha_max: Int = 0
+    record_prev: Int = 999999
+    feedback: Str = ""             // "" | "ok" | "bad"
+    phase: Str = "playing"         // "playing" | "done"
+  }
+
+  event pick() {
+    if (phase == "playing") {
+      if (payload.has("pos")) {
+        let pos = a_int(payload["pos"])
+        let grid = gen_memoria(seed, grade)
+        if (not bit_set(matched, pos)) {
+          if (sel == -1) {
+            sel = pos
+            feedback = ""
+          }
+          // Segunda carta distinta de la seleccionada → chequear el par.
+          if (sel != -1 and sel != pos and not bit_set(matched, sel)) {
+            let ca = grid.cards[sel]
+            let cb = grid.cards[pos]
+            let ok = (ca.pair == cb.pair) and (ca.kind != cb.kind)
+            total = total + 1
+            if (ok) {
+              matched = bit_add(matched, sel)
+              matched = bit_add(matched, pos)
+              correct = correct + 1
+              racha = racha + 1
+              if (racha > racha_max) {
+                racha_max = racha
+              }
+              feedback = "ok"
+              if (correct >= grid.pairs) {
+                phase = "done"
+              }
+            }
+            if (not ok) {
+              racha = 0
+              feedback = "bad"
+            }
+            sel = -1
+          }
+        }
+      }
+    }
+  }
+
+  <template>
+    <div id="memoria-app" class="mh-quiz">
+      {memoria_screen(seed, grade, locale, matched, sel, correct, total, feedback, phase, racha, racha_max, record_prev).raw}
+    </div>
+  </template>
+}

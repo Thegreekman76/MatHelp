@@ -1,0 +1,176 @@
+// gen_memoria.fitz — generador del juego "Memoria" (unir expresión ↔ resultado).
+//
+// Grilla de 2K cartas (K expresiones + K resultados), todas visibles. El chico toca
+// una expresión y su resultado para unir el par. Es OTRO modo cognitivo (calcular +
+// emparejar), distinto a "resolvé y tipeá". Escala por grado (F8): sumas de un
+// dígito en 1° → multiplicaciones/mixto en secundaria.
+//
+// Reproducible desde (seed, grade): la grilla (qué cartas, en qué orden) se re-deriva
+// igual en el server. El RandGen `g` es LOCAL (regla FITZ-01). Los K resultados son
+// DISTINTOS (si no, dos cartas "12" serían ambiguas).
+
+type MemCard {
+    pos: Int = 0               // posición en la grilla (0..2K-1)
+    pair: Int = 0              // id del par (0..K-1)
+    kind: Str = "e"            // "e" = expresión, "r" = resultado
+    text: Str = ""             // "3 × 4" o "12"
+}
+
+type MemGrid {
+    cards: List<MemCard> = []
+    pairs: Int = 0             // K
+    difficulty: Int = 1
+}
+
+// --- bitmask de cartas resueltas (estado todo-Int, sin List en el componente) ---
+
+fn pow2(n: Int) -> Int {
+    let r = 1
+    let i = 0
+    while (i < n) {
+        r = r * 2
+        i = i + 1
+    }
+    return r
+}
+
+fn bit_set(mask: Int, p: Int) -> Bool {
+    return (mask / pow2(p)) % 2 == 1
+}
+
+fn bit_add(mask: Int, p: Int) -> Int {
+    if (bit_set(mask, p)) {
+        return mask
+    }
+    return mask + pow2(p)
+}
+
+// ¿La lista de enteros contiene `n`? (para descartar resultados repetidos)
+fn lista_tiene(xs: List<Int>, n: Int) -> Bool {
+    for x in xs {
+        if (x == n) {
+            return true
+        }
+    }
+    return false
+}
+
+fn nivel_memoria(grade: Int) -> Int {
+    if (grade <= 2) {
+        return 1
+    }
+    if (grade <= 4) {
+        return 2
+    }
+    if (grade <= 6) {
+        return 3
+    }
+    if (grade <= 8) {
+        return 4
+    }
+    return 5
+}
+
+fn pares_por_nivel(nivel: Int) -> Int {
+    if (nivel <= 2) {
+        return 4
+    }
+    if (nivel <= 4) {
+        return 5
+    }
+    return 6
+}
+
+fn gen_memoria(seed: Int, grade: Int) -> MemGrid {
+    let g = rand.seeded(seed)
+    let nivel = nivel_memoria(grade)
+    let k = pares_por_nivel(nivel)
+
+    // K expresiones con K resultados DISTINTOS.
+    let exprs: List<Str> = []
+    let vals: List<Int> = []
+    let intentos = 0
+    while (exprs.len() < k) {
+        if (intentos >= 300) {
+            break
+        }
+        intentos = intentos + 1
+        let text = ""
+        let val = 0
+        if (nivel == 1) {
+            let a = g.int(1, 9)
+            let b = g.int(1, 9)
+            val = a + b
+            text = "{a} + {b}"
+        }
+        if (nivel == 2) {
+            let a = g.int(5, 19)
+            let b = g.int(1, a)
+            val = a - b
+            text = "{a} − {b}"
+        }
+        if (nivel == 3) {
+            let a = g.int(2, 9)
+            let b = g.int(2, 9)
+            val = a * b
+            text = "{a} × {b}"
+        }
+        if (nivel == 4) {
+            let b = g.int(2, 9)
+            let q = g.int(2, 9)
+            let a = b * q
+            val = q
+            text = "{a} ÷ {b}"
+        }
+        if (nivel >= 5) {
+            let modo = g.int(0, 1)
+            if (modo == 0) {
+                let a = g.int(3, 12)
+                let b = g.int(3, 12)
+                val = a * b
+                text = "{a} × {b}"
+            }
+            if (modo == 1) {
+                let a = g.int(10, 40)
+                let b = g.int(10, 40)
+                val = a + b
+                text = "{a} + {b}"
+            }
+        }
+        if (not lista_tiene(vals, val)) {
+            exprs.push(text)
+            vals.push(val)
+        }
+    }
+
+    // Armar las 2K cartas crudas (par i: una expresión + un resultado).
+    let raw: List<MemCard> = []
+    let i = 0
+    while (i < exprs.len()) {
+        raw.push(MemCard { pair: i, kind: "e", text: exprs[i] })
+        raw.push(MemCard { pair: i, kind: "r", text: "{vals[i]}" })
+        i = i + 1
+    }
+
+    // Barajar por índices (List<Int>, camino seguro) y asignar pos = orden final.
+    let orden: List<Int> = []
+    let z = 0
+    while (z < raw.len()) {
+        orden.push(z)
+        z = z + 1
+    }
+    let sh = g.shuffle(orden)
+    let cards: List<MemCard> = []
+    let p = 0
+    while (p < sh.len()) {
+        let src = raw[sh[p]]
+        cards.push(MemCard { pos: p, pair: src.pair, kind: src.kind, text: src.text })
+        p = p + 1
+    }
+
+    return MemGrid {
+        cards: cards,
+        pairs: exprs.len(),
+        difficulty: nivel,
+    }
+}

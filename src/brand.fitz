@@ -399,6 +399,12 @@ main:focus \{ outline:none; \}
 .geo-right \{ fill:none; stroke:var(--mh-tinta); stroke-width:1.5; \}
 .geo-lbl \{ fill:var(--mh-tinta); font-size:14px; font-weight:800; text-anchor:middle; dominant-baseline:central; \}
 .geo-lbl.sm \{ font-size:11px; fill:var(--mh-naranja); \}
+.mem-preg \{ text-align:center; font-size:1.05rem; font-weight:800; color:var(--mh-tinta); margin:.3rem 0 .3rem; \}
+.mem-grid \{ display:grid; grid-template-columns:repeat(4, 1fr); gap:.5rem; margin:.2rem 0 .4rem; \}
+.mem-card \{ min-height:58px; display:flex; align-items:center; justify-content:center; padding:.3rem; font-size:1.15rem; font-weight:800; font-family:inherit; color:var(--mh-tinta); background:var(--mh-panel); border:2px solid var(--mh-borde); border-radius:var(--mh-radio); cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; \}
+.mem-card.sel \{ border-color:var(--mh-naranja); background:var(--mh-amarillo); transform:scale(1.05); \}
+.mem-card.done \{ opacity:.45; color:#fff; background:var(--mh-verde); border-color:var(--mh-verde); pointer-events:none; animation:fb-pop .3s ease-out; \}
+@media (max-width:360px) \{ .mem-card \{ min-height:50px; font-size:1rem; \} \}
 .frac-opts .q-opt \{ min-height:88px; \}
 .frac \{ display:inline-flex; flex-direction:column; align-items:center; line-height:1; \}
 .frac .fnum \{ padding-bottom:3px; \}

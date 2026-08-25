@@ -232,5 +232,10 @@
   "tema.hora": "Time",
   "geo.perimetro": "What is the perimeter?",
   "geo.area": "What is the area?",
-  "geo.era": "Almost. It was {0}."
+  "geo.era": "Almost. It was {0}.",
+  "juego.memoria": "Memory",
+  "memoria.pregunta": "Match each expression to its result",
+  "memoria.no_par": "Not a pair. Try again!",
+  "memoria.pares": "pairs",
+  "tema.memoria": "Memory"
 }

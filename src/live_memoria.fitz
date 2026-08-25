@@ -1,0 +1,134 @@
+// live_memoria.fitz — "Memoria" en vivo: página, socket y persistencia.
+//
+// A diferencia de los juegos secuenciales (10 preguntas), acá una ronda es UNA
+// grilla de K pares. No hay `idx`: la persistencia se dispara por DELTA de estado —
+// tras cada pick, se lee el componente y si `total` subió, hubo un intento (acierto
+// si `correct` también subió, error si no). Termina cuando el componente marca
+// phase="done" (todos los pares resueltos).
+
+from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, flv_frame, component_state, flv_evict, live_embed
+from config import db_url
+from records import leer_record, guardar_record
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from models import GameSession, Attempt
+from mastery import actualizar_mastery
+from streaks import registrar_y_premiar
+from gen_memoria import nivel_memoria
+from live_game import resolver_contexto
+from Memoria import memoria
+
+async fn crear_sesion_memoria(profile_id: Int, seed: Int, grade: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let sess = GameSession.insert(conn, GameSession {
+        profile_id: profile_id,
+        mode: "memoria",           // CHECK sessions_mode_valido (0009_memoria.sql)
+        topic_code: "memoria",
+        level: grade,
+        seed: seed,
+    }).await?
+    return Ok(sess.id)
+}
+
+// Persiste un intento (un par tocado): acierto = unió el par bien.
+async fn persistir_memoria(sess_id: Int, profile_id: Int, grade: Int, idx: Int, acierto: Bool) -> Result<Int> {
+    let nivel = nivel_memoria(grade)
+    let dado = match acierto {
+        true => "match",
+        false => "miss",
+    }
+    let conn = db.connect(db_url()).await?
+    let row = Attempt.insert(conn, Attempt {
+        session_id: sess_id,
+        profile_id: profile_id,
+        skill_code: "memoria",
+        idx: idx,
+        prompt: "par",
+        expected: "pair",
+        given: dado,
+        correct: acierto,
+        ms: 0,
+        difficulty: nivel,
+    }).await?
+    let _ = actualizar_mastery(profile_id, "memoria", nivel, acierto, 0).await
+    return Ok(row.id)
+}
+
+async fn cerrar_memoria(sess_id: Int, total: Int, correct: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = GameSession.where(fn(s) => s.id == sess_id).update(conn, {
+        "total": total,
+        "correct": correct,
+    }).await?
+    return Ok(1)
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/memoria")
+async fn memoria_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let inicial = component_with("memoria", "ssr", memoria {
+        seed: 1,
+        grade: ctx.grade,
+        locale: locale,
+    })
+    let embed = live_embed("/live/memoria", "memoria-app", inicial)
+    let titulo = t(locale, "juego.memoria") + " — MatHelp"
+    return responder_html(page(locale, titulo, embed, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@ws("/live/memoria")
+async fn memoria_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
+    let locale = locale_from_cookie(lang)
+    let ctx = resolver_contexto(session).await?
+    let cid = Uuid.v4().to_str()
+    let seed = rand.int(1, 2000000000)
+    let sess_id = crear_sesion_memoria(ctx.profile_id, seed, ctx.grade).await?
+    let record_prev = leer_record(ctx.profile_id, "memoria").await
+    let _ = component_with("memoria", cid, memoria {
+        record_prev: record_prev,
+        seed: seed,
+        grade: ctx.grade,
+        locale: locale,
+    }).raw
+    ws.send(flv_frame("memoria", cid))?
+    let prev_total = 0
+    let prev_correct = 0
+    let intento = 0
+    let finalizado = false
+    loop {
+        let frame = match ws.recv() {
+            Ok(f) => f,
+            Err(_) => { break },
+        }
+        let _ = dispatch_component_events(frame)
+        match ws.send(flv_frame("memoria", cid)) {
+            Ok(_) => 0,
+            Err(_) => { break },
+        }
+        let st: memoria = component_state("memoria", cid)
+        if (st.total > prev_total) {
+            let acierto = st.correct > prev_correct
+            let _ = persistir_memoria(sess_id, ctx.profile_id, ctx.grade, intento, acierto).await
+            let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
+            intento = intento + 1
+            prev_total = st.total
+            prev_correct = st.correct
+        }
+        if (st.phase == "done") {
+            if (not finalizado) {
+                let _ = guardar_record(ctx.profile_id, "memoria", st.racha_max).await
+                let _ = cerrar_memoria(sess_id, st.total, st.correct).await
+                finalizado = true
+            }
+        }
+    }
+    let _ = flv_evict("memoria", cid)
+}
