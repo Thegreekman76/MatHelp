@@ -7,7 +7,7 @@
 // Corré con:  fitz test
 
 from engine import es_secundaria, anio_secundaria, es_ciclo_orientado, modalidad_valida
-from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta, gen_finanzas, gen_trig, gen_func, nivel_por_idx
+from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta, gen_finanzas, gen_trig, gen_func, nivel_por_idx, grado_efectivo, nivel_piso_ecuacion, nivel_techo_ecuacion
 from fmt import fmt_operando
 
 // --- es_secundaria (grade >= 8) ---------------------------------------------
@@ -495,4 +495,25 @@ from fmt import fmt_operando
     assert_eq(e0.difficulty, 2)
     assert_eq(e9.difficulty, 5)
     assert_eq(e9.difficulty > e0.difficulty, true)
+}
+
+// --- F8 Fase C: arranque adaptativo por rating de mastery -------------------
+
+// El grado efectivo con `grado_efectivo`: a ciegas (800) juega a su grado real;
+// con rating alto sube (delta = round((rating-800)/200), clamp ±3, banda 8..13).
+@test fn fase_c_grado_efectivo_por_rating() {
+    assert_eq(grado_efectivo(8, 800.0), 8)      // a ciegas → grado real
+    assert_eq(grado_efectivo(8, 1000.0), 9)     // +1
+    assert_eq(grado_efectivo(8, 1200.0), 10)    // +2
+    assert_eq(grado_efectivo(13, 1600.0), 13)   // clamp a la banda secundaria (13 máx)
+    assert_eq(grado_efectivo(10, 400.0), 8)     // struggling → baja (piso de banda 8)
+}
+
+// El nudge sube el piso Y el techo del juego → un chico que domina las lineales
+// (rating alto) arranca en cuadrática y puede llegar a sistemas, aunque sea 1° sec.
+@test fn fase_c_rating_alto_sube_la_ventana_de_nivel() {
+    let eff_base = grado_efectivo(8, 800.0)     // 8
+    let eff_alto = grado_efectivo(8, 1200.0)    // 10
+    assert_eq(nivel_piso_ecuacion(eff_alto) > nivel_piso_ecuacion(eff_base), true)   // 2 > 1
+    assert_eq(nivel_techo_ecuacion(eff_alto) > nivel_techo_ecuacion(eff_base), true) // 4 > 2
 }

@@ -1180,9 +1180,23 @@ para persistir (paridad run↔build por construcción). El `nivel` setea además
   (`frac_rampa_por_idx`); 115 total. Smoke E2E `tools/e2e_problemas.py`: juega en
   grade 7 resolviendo cada tipo desde el enunciado del frame → 10/10, variedad de
   skills (dec.dinero + div.exacta, ya no sólo vueltos), paridad run↔binario.
-- **Fase C (opcional).** Piso inicial nudgeado por el rating de mastery del skill del
-  juego (reusa `grado_efectivo`) → adaptativo cross-sesión para secundaria: el que ya
-  domina Ecuaciones arranca más arriba la próxima sesión.
+- **Fase C. ✅ (2026-08-24)** Arranque adaptativo cross-sesión para los 5 juegos de
+  secundaria: el rating de mastery del juego nudgea el grado EFECTIVO con el que se
+  calculan piso/techo (reusa `grado_efectivo(grade, rating)` del motor F3, el mismo
+  que usan los juegos de aritmética). Nuevo `leer_rating(profile_id, skill) -> Float`
+  en `mastery.fitz` (default 800 = a ciegas). Cada `live_*` de secundaria, al abrir
+  el socket, lee el rating de la **destreza ancla** (ecuaciones→`ec.lineal`,
+  potencias→`pot.entera`, trig→`trig.pitagoras`, funciones→`func.lineal`,
+  finanzas→`pct.basico`), computa `eff = grado_efectivo(ctx.grade, rating)` (congelado
+  por sesión, patrón del snapshot F3), y usa `eff` para el componente Y la
+  persistencia (mismo generador → paridad). Un chico que domina la destreza ancla
+  arranca más arriba (hasta +3 grados, banda 8..13); uno que arranca a ciegas juega a
+  su grado real; uno que struggle baja (nunca por debajo de la banda). Tests
+  (`fase_c_grado_efectivo_por_rating`, `fase_c_rating_alto_sube_la_ventana_de_nivel`).
+  Smoke E2E `tools/e2e_fase_c.py`: dos 1° sec en Ecuaciones — el de rating 1200 arranca
+  en nivel 2 (cuadrática, boosteado a grado efectivo 10), el de a ciegas en nivel 1
+  (lineal); paridad run↔binario. **Con esto F8 (niveles y progresión graduada) queda
+  cerrada: escala por grado (A) + rampa en la ronda (A/B) + adaptativo cross-sesión (C).**
 
 ---
 

@@ -11,9 +11,9 @@ from layout import page, responder_html, redirect_a
 from live_game import resolver_contexto, pget_int
 from models import GameSession, Attempt
 from engine import desafio_n
-from mastery import actualizar_mastery
+from mastery import actualizar_mastery, leer_rating
 from streaks import registrar_y_premiar
-from gen_arith import gen_trig
+from gen_arith import gen_trig, grado_efectivo
 from trig_view import trig_pregunta
 from Trigonometria import trig
 
@@ -84,12 +84,19 @@ async fn trig_get(session: Str?, lang: Str?) -> Response {
 async fn trig_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     let locale = locale_from_cookie(lang)
     let ctx = resolver_contexto(session).await?
+    // F8 Fase C: arranque nudgeado por el rating de mastery (destreza ancla
+    // "trig.pitagoras"). Congelado por sesión.
+    let rating = match leer_rating(ctx.profile_id, "trig.pitagoras").await {
+        Ok(r) => r,
+        Err(_) => 800.0,
+    }
+    let eff = grado_efectivo(ctx.grade, rating)
     let cid = Uuid.v4().to_str()
     let seed = rand.int(1, 2000000000)
     let sess_id = crear_sesion_trig(ctx.profile_id, seed, ctx.grade).await?
     let _ = component_with("trig", cid, trig {
         seed: seed,
-        grade: ctx.grade,
+        grade: eff,
         locale: locale,
         limit: desafio_n(),
     }).raw
@@ -108,7 +115,7 @@ async fn trig_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
             let given = pget_int(frame.payload, "v", -1)
             let toco = pget_int(frame.payload, "touched", 0)
             if (ei == next_idx and toco == 1) {
-                let _ = persistir_trig(sess_id, ctx.profile_id, seed, ei, ctx.grade, given).await
+                let _ = persistir_trig(sess_id, ctx.profile_id, seed, ei, eff, given).await
                 let _ = registrar_y_premiar(ctx.profile_id, ctx.daily_goal).await
                 next_idx = next_idx + 1
             }

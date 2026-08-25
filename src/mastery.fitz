@@ -57,6 +57,19 @@ async fn leer_snapshot(profile_id: Int) -> Result<MasterySnapshot> {
     return Ok(snap)
 }
 
+// Lee el rating Elo de UNA destreza (F8 Fase C: arranque adaptativo por juego —
+// el piso/techo del grado se nudgea con `grado_efectivo(grade, rating)`). Sin fila
+// (destreza nunca vista) → 800.0, el "a ciegas" del Elo (sin boost).
+async fn leer_rating(profile_id: Int, skill_code: Str) -> Result<Float> {
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT rating FROM mastery WHERE profile_id = $1 AND skill_code = $2", [profile_id, skill_code]).await?
+    let rating = 800.0
+    if (rows.len() > 0) {
+        rating = rows[0].get_float("rating")?
+    }
+    return Ok(rating)
+}
+
 // Registra el resultado de UNA respuesta en la destreza `skill_code`. Lee el
 // estado previo (o los defaults de arranque: rating 800, el "a ciegas" del Elo),
 // recalcula, y hace upsert. Devuelve el rating nuevo (útil para el selector
