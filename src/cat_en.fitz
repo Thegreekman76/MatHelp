@@ -78,6 +78,8 @@ fn cat_en(key: Str) -> Str {
         "juego.historia" => "Word problems",
         "juego.hora" => "What time is it?",
         "juego.incorrecto" => "So close. The answer was \{0\}.",
+        "juego.incorrecto2" => "Oops, it was \{0\}. Next time! 💪",
+        "juego.incorrecto3" => "Not quite. It was \{0\}. Keep going!",
         "juego.kiosco" => "Problems",
         "juego.nivel" => "Level",
         "juego.porcentaje" => "Percentage",

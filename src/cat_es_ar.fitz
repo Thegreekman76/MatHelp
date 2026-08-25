@@ -78,6 +78,8 @@ fn cat_es_ar(key: Str) -> Str {
         "juego.historia" => "Problemas con historia",
         "juego.hora" => "¿Qué hora es?",
         "juego.incorrecto" => "Casi. La respuesta era \{0\}.",
+        "juego.incorrecto2" => "Uy, era \{0\}. ¡La próxima! 💪",
+        "juego.incorrecto3" => "No era esa. Era \{0\}. ¡Seguí!",
         "juego.kiosco" => "Problemas",
         "juego.nivel" => "Nivel",
         "juego.porcentaje" => "Porcentaje",

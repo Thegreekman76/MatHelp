@@ -28,6 +28,8 @@
   "juego.correcto3": "¡Genial! 👏",
   "juego.correcto4": "¡Bien ahí! ✨",
   "juego.incorrecto": "Casi. La respuesta era {0}.",
+  "juego.incorrecto2": "Uy, era {0}. ¡La próxima! 💪",
+  "juego.incorrecto3": "No era esa. Era {0}. ¡Seguí!",
   "juego.tiempo": "Tiempo",
   "juego.puntaje": "Puntaje",
   "juego.aciertos": "Aciertos",

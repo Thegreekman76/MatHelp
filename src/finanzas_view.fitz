@@ -5,7 +5,7 @@
 // porcentaje, descuento. El ejercicio se deriva de (seed, idx) con gen_finanzas.
 
 from fitz_liveviews import Html, html, flv
-from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar
+from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, incorrecto_msg
 from gen_arith import gen_finanzas
 from i18n import t, t1, t2, t3
 from fmt import fmt_int, fmt_money
@@ -71,7 +71,7 @@ fn finanzas_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> 
     }
     if (feedback == "bad") {
         let resp = fmt_money(locale, last_answer)
-        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
     }
     return ""
 }

@@ -11,7 +11,7 @@
 // payload que el resto de los juegos, así el server y el E2E no distinguen.
 
 from fitz_liveviews import Html, html, flv
-from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar
+from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, incorrecto_msg
 from gen_arith import gen_for, op_symbol
 from i18n import t, t1
 from fmt import fmt_int, fmt_operando
@@ -57,7 +57,7 @@ fn completa_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> 
     }
     if (feedback == "bad") {
         let resp = fmt_int(locale, last_answer)
-        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
     }
     return ""
 }

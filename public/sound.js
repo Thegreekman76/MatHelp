@@ -119,3 +119,25 @@ if ("serviceWorker" in navigator) {
     start();
   }
 })();
+
+// --- teclado físico (F8 pulido): en los juegos de TECLADO, mapear las teclas del
+// teclado real a los botones. Sólo actúa si hay botones de dígito en pantalla (los
+// juegos de opción múltiple no tienen), así no interfiere con V/F ni el menú. ---
+(function () {
+  "use strict";
+  document.addEventListener("keydown", function (e) {
+    var tag = (e.target && e.target.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // ¿estamos en un juego de teclado? (hay botones de dígito)
+    if (!document.querySelector('[data-flv-click="digito"]')) return;
+    var k = e.key, sel = null;
+    if (k >= "0" && k <= "9") sel = '[data-flv-click="digito"][data-flv-value-d="' + k + '"]';
+    else if (k === "Backspace" || k === "Delete") sel = '[data-flv-click="borrar"]';
+    else if (k === "Enter") sel = '[data-flv-click="answer"]';
+    else if (k === "-" || k === "+") sel = '[data-flv-click="signo"]';
+    if (!sel) return;
+    var btn = document.querySelector(sel);
+    if (btn) { e.preventDefault(); btn.click(); }
+  });
+})();

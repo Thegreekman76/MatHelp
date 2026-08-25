@@ -187,6 +187,7 @@ def jugar_ronda(grado):
     assert "mh-estrellas" in html and 'class="mh-aliento"' in html, f"grade {grado}: la pantalla final no trae estrellas"
     assert "★★★" in html.replace("</span><span", "").replace('<span class="star on">', "★") or html.count("★") == 3, f"grade {grado}: 10/10 debería dar 3 estrellas"
     assert "mh-estrellas perfect" in html, f"grade {grado}: 10/10 debería marcar ronda perfecta"
+    assert "mh-confetti" in html, f"grade {grado}: 10/10 debería tirar confetti"
 
     sid = psql(f"SELECT id FROM sessions WHERE profile_id={pid} AND mode='kiosco' AND topic_code='problemas' ORDER BY id DESC LIMIT 1")
     assert sid, "no se creó la sesión de Problemas (kiosco/problemas)"

@@ -4,7 +4,7 @@
 // ALIENTO, para que el cierre de cualquier juego sea más rico y motivador.
 
 from fitz_liveviews import html, flv
-from i18n import t
+from i18n import t, t1
 
 // Insignia de RACHA (aciertos seguidos en la ronda). Vacía si < 2 (no distrae con
 // rachas triviales); a partir de 2 muestra 🔥N, y a partir de 5 "arde" (pulso).
@@ -49,6 +49,19 @@ fn correcto_msg(locale: Str, seq: Int) -> Str {
     return t(locale, "juego.correcto")
 }
 
+// Mensaje de error VARIADO y amable: rota entre tres frases que dan aliento (nunca
+// regañan) y muestran la respuesta correcta `resp`.
+fn incorrecto_msg(locale: Str, seq: Int, resp: Str) -> Str {
+    let v = seq % 3
+    if (v == 1) {
+        return t1(locale, "juego.incorrecto2", resp)
+    }
+    if (v == 2) {
+        return t1(locale, "juego.incorrecto3", resp)
+    }
+    return t1(locale, "juego.incorrecto", resp)
+}
+
 // Estrellas (0..3) según la precisión de la ronda + una frase de aliento acorde.
 //   100% → ★★★ ¡Perfecto!   ≥70% → ★★☆ ¡Muy bien!
 //   ≥40% → ★☆☆ ¡Vas mejorando!   <40% → ☆☆☆ ¡Seguí practicando!
@@ -86,11 +99,27 @@ fn resumen_estrellas(locale: Str, correct: Int, total: Int) -> Str {
         _ => "aliento.seguir",
     }
     let aliento = flv(t(locale, aliento_key))
-    // Ronda perfecta (★★★): las estrellas brillan.
+    // Ronda perfecta (★★★): las estrellas brillan + lluvia de confetti.
     let extra = match llenas == 3 {
         true => " perfect",
         false => "",
     }
-    return html("""<div class="mh-estrellas{extra}" role="img" aria-label="{correct}/{total}">{estrellas}</div>
+    let confetti = match llenas == 3 {
+        true => confetti_html(),
+        false => "",
+    }
+    return html("""{confetti}<div class="mh-estrellas{extra}" role="img" aria-label="{correct}/{total}">{estrellas}</div>
 <p class="mh-aliento">{aliento}</p>""").raw
+}
+
+// Lluvia de confetti (CSS puro) para la ronda perfecta. 12 piezas; cada `.cf<i>`
+// tiene su posición/color/retardo en brand.fitz. `aria-hidden` (decorativo).
+fn confetti_html() -> Str {
+    let piezas = ""
+    let i = 0
+    while (i < 12) {
+        piezas = piezas + html("""<span class="cf cf{i}"></span>""").raw
+        i = i + 1
+    }
+    return html("""<div class="mh-confetti" aria-hidden="true">{piezas}</div>""").raw
 }

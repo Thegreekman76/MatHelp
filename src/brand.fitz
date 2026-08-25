@@ -406,6 +406,22 @@ main:focus \{ outline:none; \}
 .q-racha.hot \{ animation:fb-pop .3s ease-out, star-glow 1s ease-in-out infinite; \}
 .q-progress \{ height:6px; background:var(--mh-borde); border-radius:99px; overflow:hidden; margin:.1rem 0 .6rem; \}
 .q-progress-fill \{ display:block; height:100%; background:var(--mh-verde); border-radius:99px; transition:width .3s ease; \}
+.q-done \{ position:relative; \}
+.mh-confetti \{ position:absolute; left:0; right:0; top:0; height:100%; overflow:hidden; pointer-events:none; \}
+.mh-confetti .cf \{ position:absolute; top:-14px; width:9px; height:14px; border-radius:2px; opacity:0; animation:confetti-fall 1.5s ease-in forwards; \}
+@keyframes confetti-fall \{ 0% \{ transform:translateY(-14px) rotate(0); opacity:1 \} 100% \{ transform:translateY(300px) rotate(400deg); opacity:0 \} \}
+.mh-confetti .cf0 \{ left:6%; background:var(--mh-naranja); animation-delay:0s \}
+.mh-confetti .cf1 \{ left:15%; background:var(--mh-verde); animation-delay:.12s \}
+.mh-confetti .cf2 \{ left:24%; background:var(--mh-amarillo); animation-delay:.05s \}
+.mh-confetti .cf3 \{ left:33%; background:var(--mh-celeste); animation-delay:.2s \}
+.mh-confetti .cf4 \{ left:42%; background:var(--mh-naranja); animation-delay:.32s \}
+.mh-confetti .cf5 \{ left:50%; background:var(--mh-verde); animation-delay:.08s \}
+.mh-confetti .cf6 \{ left:58%; background:var(--mh-amarillo); animation-delay:.24s \}
+.mh-confetti .cf7 \{ left:67%; background:var(--mh-celeste); animation-delay:.14s \}
+.mh-confetti .cf8 \{ left:76%; background:var(--mh-naranja); animation-delay:.28s \}
+.mh-confetti .cf9 \{ left:85%; background:var(--mh-verde); animation-delay:.02s \}
+.mh-confetti .cf10 \{ left:92%; background:var(--mh-amarillo); animation-delay:.36s \}
+.mh-confetti .cf11 \{ left:48%; background:var(--mh-celeste); animation-delay:.44s \}
 .mh-aliento \{ text-align:center; font-weight:800; font-size:1.1rem; color:var(--mh-tinta); margin:.1rem 0 .4rem; \}
 @media (prefers-reduced-motion:reduce) \{ * \{ transition:none !important; animation:none !important; \} \}
 """

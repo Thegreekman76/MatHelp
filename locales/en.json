@@ -28,6 +28,8 @@
   "juego.correcto3": "Awesome! 👏",
   "juego.correcto4": "Way to go! ✨",
   "juego.incorrecto": "So close. The answer was {0}.",
+  "juego.incorrecto2": "Oops, it was {0}. Next time! 💪",
+  "juego.incorrecto3": "Not quite. It was {0}. Keep going!",
   "juego.tiempo": "Time",
   "juego.puntaje": "Score",
   "juego.aciertos": "Correct",

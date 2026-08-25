@@ -7,7 +7,7 @@
 // contexto se localiza, §4); la plata por fmt_money, las cuentas por fmt_int.
 
 from fitz_liveviews import Html, html, flv
-from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar
+from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, incorrecto_msg
 from gen_kiosco import gen_kiosco, KioscoItem
 from keypad_view import keypad_html
 from i18n import t, t1, t2, t3, t4
@@ -116,7 +116,7 @@ fn kiosco_feedback(locale: Str, feedback: Str, last_answer: Int, last_money: Boo
             true => fmt_money(locale, last_answer),
             false => fmt_int(locale, last_answer),
         }
-        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
     }
     return ""
 }
