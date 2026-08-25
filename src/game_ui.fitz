@@ -1,0 +1,48 @@
+// game_ui.fitz — piezas de UI compartidas por las pantallas de fin de ronda de
+// todos los juegos (pulido general). Antes cada `*_resumen` armaba su q-done a
+// mano; esto agrega, en un solo lugar, las ESTRELLAS por precisión + una línea de
+// ALIENTO, para que el cierre de cualquier juego sea más rico y motivador.
+
+from fitz_liveviews import html, flv
+from i18n import t
+
+// Estrellas (0..3) según la precisión de la ronda + una frase de aliento acorde.
+//   100% → ★★★ ¡Perfecto!   ≥70% → ★★☆ ¡Muy bien!
+//   ≥40% → ★☆☆ ¡Vas mejorando!   <40% → ☆☆☆ ¡Seguí practicando!
+// Devuelve HTML crudo listo para insertar en el bloque q-done.
+fn resumen_estrellas(locale: Str, correct: Int, total: Int) -> Str {
+    let pct = match total > 0 {
+        true => correct * 100 / total,
+        false => 0,
+    }
+    let llenas = 0
+    if (pct >= 40) {
+        llenas = 1
+    }
+    if (pct >= 70) {
+        llenas = 2
+    }
+    if (pct >= 100) {
+        llenas = 3
+    }
+    let estrellas = ""
+    let i = 0
+    while (i < 3) {
+        if (i < llenas) {
+            estrellas = estrellas + html("""<span class="star on">★</span>""").raw
+        }
+        if (i >= llenas) {
+            estrellas = estrellas + html("""<span class="star">☆</span>""").raw
+        }
+        i = i + 1
+    }
+    let aliento_key = match llenas {
+        3 => "aliento.perfecto",
+        2 => "aliento.muybien",
+        1 => "aliento.mejorando",
+        _ => "aliento.seguir",
+    }
+    let aliento = flv(t(locale, aliento_key))
+    return html("""<div class="mh-estrellas" role="img" aria-label="{correct}/{total}">{estrellas}</div>
+<p class="mh-aliento">{aliento}</p>""").raw
+}

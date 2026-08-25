@@ -7,12 +7,14 @@
 // contexto se localiza, §4); la plata por fmt_money, las cuentas por fmt_int.
 
 from fitz_liveviews import Html, html, flv
+from game_ui import resumen_estrellas
 from gen_kiosco import gen_kiosco, KioscoItem
 from keypad_view import keypad_html
-from i18n import t, t1, t3, t4
+from i18n import t, t1, t2, t3, t4
 from fmt import fmt_int, fmt_money
 
 // Arma el enunciado localizado según el tipo de problema.
+
 fn kiosco_enunciado(locale: Str, it: KioscoItem) -> Str {
     let prod = t(locale, "kiosco.{it.item}")
     if (it.kind == "total") {
@@ -38,6 +40,24 @@ fn kiosco_enunciado(locale: Str, it: KioscoItem) -> Str {
     }
     if (it.kind == "descuento") {
         return t3(locale, "kiosco.p_descuento", prod, fmt_money(locale, it.a), fmt_int(locale, it.b))
+    }
+    if (it.kind == "ahorro") {
+        return t2(locale, "kiosco.p_ahorro", fmt_int(locale, it.a), fmt_money(locale, it.b))
+    }
+    if (it.kind == "edad") {
+        return t2(locale, "kiosco.p_edad", fmt_int(locale, it.a), fmt_int(locale, it.b))
+    }
+    if (it.kind == "cuadras") {
+        return t1(locale, "kiosco.p_cuadras", fmt_int(locale, it.a))
+    }
+    if (it.kind == "unitario") {
+        return t2(locale, "kiosco.p_unitario", fmt_int(locale, it.b), fmt_money(locale, it.a))
+    }
+    if (it.kind == "promedio") {
+        return t3(locale, "kiosco.p_promedio", fmt_money(locale, it.a), fmt_money(locale, it.b), fmt_money(locale, it.c))
+    }
+    if (it.kind == "porcentaje") {
+        return t2(locale, "kiosco.p_porcentaje", fmt_int(locale, it.b), fmt_money(locale, it.a))
     }
     if (it.kind == "oferta") {
         return t4(locale, "kiosco.p_oferta", fmt_int(locale, it.a), prod, fmt_money(locale, it.b), fmt_money(locale, it.c))
@@ -102,10 +122,12 @@ fn kiosco_resumen(locale: Str, correct: Int, total: Int) -> Html {
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>
 <div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
 <div class="q-actions">
 <a class="mh-btn" href="/problemas">{flv(t(locale, "juego.de_nuevo"))}</a>
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>

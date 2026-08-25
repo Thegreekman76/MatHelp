@@ -5,6 +5,7 @@
 // porcentaje, descuento. El ejercicio se deriva de (seed, idx) con gen_finanzas.
 
 from fitz_liveviews import Html, html, flv
+from game_ui import resumen_estrellas
 from gen_arith import gen_finanzas
 from i18n import t, t1, t2, t3
 from fmt import fmt_int, fmt_money
@@ -12,6 +13,7 @@ from keypad_view import keypad_html
 
 // Arma el enunciado localizado según el tipo. Los montos van con fmt_money
 // (símbolo + agrupamiento por locale); tasas/plazos/porcentajes con fmt_int.
+
 fn prompt_finanzas(locale: Str, a: Int, b: Int, a2: Int, op: Str) -> Str {
     if (op == "finsimple") {
         return t3(locale, "fin.p_simple", fmt_money(locale, a), fmt_int(locale, b), fmt_int(locale, a2))
@@ -75,10 +77,12 @@ fn finanzas_resumen(locale: Str, correct: Int, total: Int) -> Html {
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>
 <div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
 <div class="q-actions">
 <a class="mh-btn" href="/finanzas">{flv(t(locale, "juego.de_nuevo"))}</a>
 <a class="mh-btn sec" href="/juegos">{flv(t(locale, "juegos.titulo"))}</a>

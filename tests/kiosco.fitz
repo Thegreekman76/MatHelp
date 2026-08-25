@@ -98,6 +98,27 @@ fn contiene_str(xs: List<Str>, t: Str) -> Bool {
             if (k.kind == "combo") {
                 assert_eq(k.answer, k.a * k.b + k.c)
             }
+            if (k.kind == "ahorro") {
+                assert_eq(k.answer, k.a * k.b)
+            }
+            if (k.kind == "edad") {
+                assert_eq(k.answer, k.a + k.b)
+            }
+            if (k.kind == "cuadras") {
+                assert_eq(k.answer, 2 * k.a)
+            }
+            if (k.kind == "unitario") {
+                assert_eq(k.a % k.b, 0)             // división exacta
+                assert_eq(k.answer, k.a / k.b)
+            }
+            if (k.kind == "promedio") {
+                assert_eq(k.a + k.b + k.c, 3 * k.answer)   // promedio exacto
+                assert_eq(k.answer, (k.a + k.b + k.c) / 3)
+            }
+            if (k.kind == "porcentaje") {
+                assert_eq(k.a * k.b % 100, 0)       // porcentaje exacto
+                assert_eq(k.answer, k.a * k.b / 100)
+            }
             assert_eq(k.answer > 0, true)           // toda respuesta es positiva
             idx = idx + 1
         }

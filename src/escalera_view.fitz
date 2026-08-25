@@ -8,10 +8,12 @@
 // inventar el render.
 
 from fitz_liveviews import Html, html, flv, h_join
+from game_ui import resumen_estrellas
 from gen_arith import gen_escalera, op_symbol
 from quiz_view import opt_button, feedback_banner
 from i18n import t, t1
 from fmt import fmt_int, fmt_operando
+
 
 fn escalera_screen(seed: Int, idx: Int, grade: Int, locale: Str, step: Int, meta: Int, correct: Int, total: Int, phase: Str, feedback: Str, last_answer: Int, r_mul: Float) -> Html {
     if (phase == "done") {
@@ -58,10 +60,12 @@ fn escalera_resumen(locale: Str, meta: Int, correct: Int, total: Int) -> Html {
     let co = flv(fmt_int(locale, correct))
     let to = flv(fmt_int(locale, total))
     let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
     return html("""<div class="q-done">
 <div class="q-medal">🏆</div>
 <h2>{flv(t(locale, "escalera.ganaste"))}</h2>
 <div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
 <div class="q-actions">
 <a class="mh-btn" href="/escalera">{flv(t(locale, "juego.de_nuevo"))}</a>
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>

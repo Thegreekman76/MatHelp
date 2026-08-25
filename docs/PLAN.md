@@ -641,7 +641,7 @@ Todos pensados para **pulgar en celular**: botones grandes, nada de arrastrar, n
 | 2 | **Verdadero o Falso** | 2 botones gigantes — el más fácil de usar en el colectivo | todos | F4 |
 | 3 | **Completá el hueco** | `7 × __ = 56` con **teclado numérico propio** en pantalla | todos | F4 |
 | 4 | **Escalera de tablas** | Subís un escalón por acierto, caés dos por error | `mult.*` | F4 |
-| 5 | **Problemas** | 10 tipos de la vida real en pools por nivel (total, suma, vuelto, falta, comparar, reparto, cuántos, descuento, oferta, combo), sin repetir problema en la ronda | `add`, `sub`, `mul.tabla`, `dec.dinero`, `div.exacta` | F4 · enriquecido F8.B (antes "El kiosco", sólo vuelto) |
+| 5 | **Problemas** | 16 tipos de la vida real en pools por nivel (kiosco, ahorro, edades, cuadras, promedios, porcentajes, precio unitario…), sin repetir problema en la ronda | `add`, `sub`, `mul.tabla`, `dec.dinero`, `div.exacta` | F4 · enriquecido F8.B (antes "El kiosco", sólo vuelto) |
 | 6 | **Fracciones a la vista** | Pizza/barra en SVG, elegís la fracción | `frac.*` | F4 |
 | 7 | **¿Qué hora es?** | Reloj de agujas en SVG | `med.tiempo` | F5 |
 | 8 | **Problemas con historia** | Enunciado corto y localizado, respuesta numérica | 4º–7º | F5 |
@@ -1180,15 +1180,21 @@ para persistir (paridad run↔build por construcción). El `nivel` setea además
   (`frac_rampa_por_idx`); 115 total. Smoke E2E `tools/e2e_problemas.py`: juega en
   grade 7 resolviendo cada tipo desde el enunciado del frame → 10/10, variedad de
   skills (dec.dinero + div.exacta, ya no sólo vueltos), paridad run↔binario.
-  **Ampliado (misma tanda): de 5 a 10 tipos + de-dup por sesión.** Cada nivel es un
-  POOL de tipos de dificultad similar (N1 total/suma, N2 vuelto/falta/comparar, N3
-  reparto/cuantos, N4 descuento, N5 oferta/combo) y el tipo se elige al azar en el
-  pool → mucha más variedad (suma `add`, comparar `sub`, descuento, combo). **DE-DUP
+  **Ampliado (misma tanda): de 5 a 16 tipos + de-dup por sesión.** Cada nivel es un
+  POOL de tipos de dificultad similar y el tipo se elige al azar en el pool → mucha
+  más variedad, con **contextos variados de la vida real** (no todo kiosco):
+  N1 total/suma/**ahorro**(semanas)/**edad**/**cuadras**(distancia), N2 vuelto/falta/
+  comparar, N3 reparto/cuantos/**unitario**(precio c/u), N4 descuento/**promedio**/
+  **porcentaje**, N5 oferta/combo. Suma operaciones nuevas (`add`, `sub`, porcentaje,
+  promedio) y respuestas en pesos O en cuentas/años/cuadras según el tipo. **DE-DUP
   por sesión**: `gen_kiosco` reconstruye los problemas 0..idx y bumpea un `salt` si
   una firma (kind+números) ya salió, así en una ronda **no se repite ningún problema
-  ni sus números** (determinista → el server re-deriva idéntico). Tests
-  (`cada_tipo_cumple_su_formula` sobre los 10, `cobertura_por_grado` por pools,
-  `sin_repetidos_en_la_ronda`) + el E2E asegura 10 enunciados distintos en la ronda.
+  ni sus números** (determinista → el server re-deriva idéntico). Todas las respuestas
+  enteras exactas por construcción (unitario/promedio/porcentaje dividen justo). Tests
+  (`cada_tipo_cumple_su_formula` sobre los 16, `cobertura_por_grado` por pools,
+  `sin_repetidos_en_la_ronda`); E2E `tools/e2e_problemas.py` juega grade 4 Y grade 7
+  resolviendo cada tipo desde el enunciado → 10/10 + 10 enunciados distintos por ronda,
+  paridad run↔binario.
 - **Fase C. ✅ (2026-08-24)** Arranque adaptativo cross-sesión para los 5 juegos de
   secundaria: el rating de mastery del juego nudgea el grado EFECTIVO con el que se
   calculan piso/techo (reusa `grado_efectivo(grade, rating)` del motor F3, el mismo

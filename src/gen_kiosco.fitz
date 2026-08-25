@@ -77,19 +77,20 @@ fn nivel_techo_kiosco(grade: Int) -> Int {
     return 5
 }
 
-// Pool de tipos por nivel (dificultad creciente).
+// Pool de tipos por nivel (dificultad creciente). Contextos variados de la vida
+// real: kiosco, ahorro, edades, cuadras (distancia), promedios, porcentajes.
 fn tipos_de_nivel(nivel: Int) -> List<Str> {
     if (nivel == 1) {
-        return ["total", "suma"]
+        return ["total", "suma", "ahorro", "edad", "cuadras"]
     }
     if (nivel == 2) {
         return ["vuelto", "falta", "comparar"]
     }
     if (nivel == 3) {
-        return ["reparto", "cuantos"]
+        return ["reparto", "cuantos", "unitario"]
     }
     if (nivel == 4) {
-        return ["descuento"]
+        return ["descuento", "promedio", "porcentaje"]
     }
     return ["oferta", "combo"]
 }
@@ -219,6 +220,62 @@ fn gen_kiosco_raw(seed: Int, idx: Int, grade: Int, salt: Int) -> KioscoItem {
         c = precioB
         answer = n * precioA + precioB
         skill = "mul.tabla"
+    }
+    if (kind == "ahorro") {
+        // Ahorrás $X por semana → cuánto en N semanas (multiplicación).
+        let semanas = g.int(2, 8)
+        let porsemana = g.int(1, 10) * 50
+        a = semanas
+        b = porsemana
+        answer = semanas * porsemana
+        skill = "mul.tabla"
+    }
+    if (kind == "edad") {
+        // Tu edad + la diferencia del hermano (adición, sin dinero).
+        let edad = g.int(6, 12)
+        let dif = g.int(1, 8)
+        a = edad
+        b = dif
+        answer = edad + dif
+        money = false
+        skill = "add"
+    }
+    if (kind == "cuadras") {
+        // Ida y vuelta a la escuela: 2 × cuadras (sin dinero).
+        let cuadras = g.int(3, 15)
+        a = cuadras
+        answer = 2 * cuadras
+        money = false
+        skill = "mul.tabla"
+    }
+    if (kind == "unitario") {
+        // N cosas cuestan $T en total → cuánto cuesta cada una (división exacta).
+        let n = g.int(2, 6)
+        let cada = g.int(2, 10) * 50
+        a = n * cada       // total
+        b = n
+        answer = cada
+        skill = "div.exacta"
+    }
+    if (kind == "promedio") {
+        // El promedio de tres ventas (suma / 3, exacto por construcción).
+        let avg = g.int(2, 12) * 50
+        let d = g.int(1, avg / 50 - 1) * 50
+        a = avg - d
+        b = avg
+        c = avg + d
+        answer = avg          // = (a + b + c) / 3
+        skill = "div.exacta"
+    }
+    if (kind == "porcentaje") {
+        // El P% de $X (porcentaje simple, exacto).
+        let x = g.int(1, imax(max / 100, 2)) * 100
+        let pcts = [10, 20, 25, 50]
+        let p = pcts[g.int(0, 3)]
+        a = x
+        b = p
+        answer = x * p / 100
+        skill = "dec.dinero"
     }
     return KioscoItem {
         kind: kind,

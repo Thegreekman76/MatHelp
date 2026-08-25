@@ -13,6 +13,7 @@ from fitz_liveviews import Html, html, flv, h_join
 from gen_arith import gen_mix, gen_for, op_symbol
 from i18n import t, t1
 from fmt import fmt_int, fmt_operando
+from game_ui import resumen_estrellas
 
 // Punto de entrada. `mode` decide la pantalla:
 //   - "practice": práctica libre (sin reloj ni puntaje, tema+banda fijos).
@@ -186,11 +187,13 @@ fn quiz_resumen(locale: Str, score: Int, correct: Int, total: Int, mode: Str) ->
         true => "/desafio",
         false => "/jugar",
     }
+    let estrellas = resumen_estrellas(locale, correct, total)
     return html("""<div class="q-done">
 <div class="q-medal">🧉</div>
 <h2>{flv(t(locale, "juego.resumen"))}</h2>
 <div class="q-stat"><span class="q-big">{sc}</span><span class="q-lbl">{flv(t(locale, "juego.puntaje"))}</span></div>
 <div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
 <div class="q-actions">
 <a class="mh-btn" href="{de_nuevo_href}">{flv(t(locale, "juego.de_nuevo"))}</a>
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>

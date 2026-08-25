@@ -82,6 +82,30 @@ def resolver(enun):
         x, y = _monies(enun)
         n = _plain_ints(enun)[0]
         return y - n * x
+    if "por semana" in enun or "per week" in enun:            # ahorro = X · N
+        x = _monies(enun)[0]
+        n = _plain_ints(enun)[0]
+        return x * n
+    if "cuadras" in enun or "blocks" in enun:                 # cuadras = 2 · X
+        return 2 * _plain_ints(enun)[0]
+    if "años" in enun or "years old" in enun:                 # edad = N + M
+        n, m = _plain_ints(enun)
+        return n + m
+    if "cada una" in enun or "each one cost" in enun:         # unitario = T / N
+        t = _monies(enun)[0]
+        n = _plain_ints(enun)[0]
+        return t // n
+    if "promedio" in enun or "the average" in enun:           # promedio = (A+B+C)/3
+        a, b, c = _monies(enun)
+        return (a + b + c) // 3
+    if "descuento" in enun or "discount" in enun:             # descuento = X − X·P/100
+        x = _monies(enun)[0]
+        p = _plain_ints(enun)[0]
+        return x - x * p // 100
+    if "es el" in enun or "% of" in enun:                    # porcentaje = X · P/100
+        x = _monies(enun)[0]
+        p = _plain_ints(enun)[0]
+        return x * p // 100
     if "pagás en total" in enun or "pay in total" in enun:    # total = N · X
         x = _monies(enun)[0]
         n = _plain_ints(enun)[0]
@@ -92,10 +116,6 @@ def resolver(enun):
     if "diferencia" in enun or "the difference" in enun:      # comparar = |A − B|
         a, b = _monies(enun)
         return abs(a - b)
-    if "descuento" in enun or "discount" in enun:             # descuento = X − X·P/100
-        x = _monies(enun)[0]
-        p = _plain_ints(enun)[0]
-        return x - x * p // 100
     if "de vuelto" in enun or "change do you get" in enun:    # vuelto = Y − X
         x, y = _monies(enun)
         return y - x
@@ -130,14 +150,9 @@ def answer(ws, cid, ei, valor):
     return json.loads(ws.recv()).get("html", "")
 
 
-def escenario():
+def jugar_ronda(grado):
     s = requests.Session()
-    pid = setup_perfil(s, 7)
-
-    r = s.get(BASE + "/juegos")
-    assert r.status_code == 200, f"GET /juegos -> {r.status_code}"
-    assert 'href="/problemas"' in r.text, "no aparece la carta Problemas"
-
+    pid = setup_perfil(s, grado)
     rp = s.get(BASE + "/problemas")
     assert rp.status_code == 200, f"GET /problemas -> {rp.status_code}"
     assert 'class="ki-preg"' in rp.text, "el SSR no trae el enunciado"
@@ -154,20 +169,34 @@ def escenario():
     ws.close()
     time.sleep(0.4)
     # no se repite ningún problema en la ronda (el pedido del autor).
-    assert len(set(enunciados)) == LIMIT, f"hubo problemas repetidos: {len(set(enunciados))}/{LIMIT} distintos"
+    assert len(set(enunciados)) == LIMIT, f"grade {grado}: problemas repetidos ({len(set(enunciados))}/{LIMIT})"
+    # pulido: la pantalla final trae estrellas + aliento.
+    assert 'class="mh-estrellas"' in html and 'class="mh-aliento"' in html, f"grade {grado}: la pantalla final no trae estrellas"
+    assert "★" in html, f"grade {grado}: 10/10 debería dar estrellas llenas"
 
     sid = psql(f"SELECT id FROM sessions WHERE profile_id={pid} AND mode='kiosco' AND topic_code='problemas' ORDER BY id DESC LIMIT 1")
     assert sid, "no se creó la sesión de Problemas (kiosco/problemas)"
     n_att = int(psql(f"SELECT count(*) FROM attempts WHERE session_id={sid}"))
     n_ok = int(psql(f"SELECT count(*) FROM attempts WHERE session_id={sid} AND correct"))
     skills = set(psql(f"SELECT DISTINCT skill_code FROM attempts WHERE session_id={sid}").split("\n"))
-    print(f"  perfil={pid} sesion={sid} attempts={n_att} correctos={n_ok} skills={sorted(skills)}")
-    assert n_att == LIMIT, f"esperaba {LIMIT} attempts, hubo {n_att}"
-    assert n_ok == LIMIT, f"resolví todos pero solo {n_ok} quedaron correctos"
-    # variedad real: un 7° ve más de un tipo de operación (no sólo vueltos).
-    assert len(skills) >= 2, f"esperaba variedad de problemas, sólo hubo {skills}"
+    print(f"  grade {grado}: perfil={pid} attempts={n_att} correctos={n_ok} distintos={len(set(enunciados))} skills={sorted(skills)}")
+    assert n_att == LIMIT, f"grade {grado}: esperaba {LIMIT} attempts, hubo {n_att}"
+    assert n_ok == LIMIT, f"grade {grado}: resolví todos pero solo {n_ok} quedaron correctos"
+    assert len(skills) >= 2, f"grade {grado}: esperaba variedad, sólo hubo {skills}"
+    return sorted(skills)
 
-    return {"aparece": True, "attempts": n_att, "correctos": n_ok, "skills": sorted(skills)}
+
+def escenario():
+    # La carta aparece.
+    s0 = requests.Session()
+    setup_perfil(s0, 7)
+    r = s0.get(BASE + "/juegos")
+    assert r.status_code == 200, f"GET /juegos -> {r.status_code}"
+    assert 'href="/problemas"' in r.text, "no aparece la carta Problemas"
+    # Rondas en dos grados (grade 4: tipos de tier 1-2; grade 7: tier 2-5).
+    sk4 = jugar_ronda(4)
+    sk7 = jugar_ronda(7)
+    return {"aparece": True, "g4_skills": sk4, "g7_skills": sk7}
 
 
 def run_server(cmd, label):
