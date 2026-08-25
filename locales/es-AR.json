@@ -222,5 +222,8 @@
   "panel.meta_guardar": "Guardar",
   "panel.sin_datos": "{0} todavía no jugó. ¡A practicar!",
   "panel.sin_hijos": "Todavía no hay perfiles. Creá uno para ver su panel.",
-  "juego.mejor_racha": "Mejor racha: {0}"
+  "juego.mejor_racha": "Mejor racha: {0}",
+  "juego.series": "Series",
+  "tema.series": "Patrones",
+  "series.pregunta": "¿Qué número sigue?"
 }

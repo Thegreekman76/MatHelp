@@ -29,6 +29,7 @@ fn juegos() -> List<Juego> {
     return [
         Juego { code: "contrarreloj", min_grade: 1, icon: "⏱", route: "/jugar", built: true },
         Juego { code: "verdadero_falso", min_grade: 1, icon: "✅", route: "/vf", built: true },
+        Juego { code: "series", min_grade: 1, icon: "🧩", route: "/series", built: true },
         Juego { code: "historia", min_grade: 1, icon: "📖", built: false },
         Juego { code: "completa", min_grade: 2, icon: "🔢", route: "/completa", built: true },
         Juego { code: "escalera", min_grade: 2, icon: "🪜", route: "/escalera", built: true },

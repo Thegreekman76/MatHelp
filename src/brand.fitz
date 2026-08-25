@@ -269,7 +269,9 @@ main:focus \{ outline:none; \}
   display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center;
   background:var(--mh-panel); border:1px solid var(--mh-borde);
   border-radius:var(--mh-radio); padding:24px 16px calc(24px + var(--mh-safe-b));
+  animation:done-in .45s cubic-bezier(.2,.7,.3,1) both;
 \}
+@keyframes done-in \{ from \{ opacity:0; transform:translateY(14px) scale(.98) \} to \{ opacity:1; transform:translateY(0) scale(1) \} \}
 .q-medal \{ font-size:3.4rem; line-height:1; \}
 .q-done h2 \{ font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--mh-suave); margin:0; font-weight:700; \}
 .q-stat \{ display:flex; flex-direction:column; gap:2px; \}
@@ -378,6 +380,8 @@ main:focus \{ outline:none; \}
 \}
 .fseg.on \{ background:var(--mh-verde); border-color:var(--mh-verde); \}
 .frac-preg \{ text-align:center; font-size:1.15rem; font-weight:800; color:var(--mh-tinta); margin:.3rem 0 .1rem; \}
+.series-preg \{ text-align:center; font-size:1.1rem; font-weight:800; color:var(--mh-tinta); margin:.3rem 0 .1rem; \}
+.series-eq \{ font-size:1.55rem; font-weight:800; letter-spacing:.03em; \}
 .frac-opts .q-opt \{ min-height:88px; \}
 .frac \{ display:inline-flex; flex-direction:column; align-items:center; line-height:1; \}
 .frac .fnum \{ padding-bottom:3px; \}

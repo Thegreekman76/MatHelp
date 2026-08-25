@@ -1,0 +1,94 @@
+// Series.fitzv — "¿Qué número sigue?" como LiveComponent SSR.
+//
+// Muestra 4 términos de una secuencia; el chico TIPEA el 5º en un teclado numérico
+// (sin ±: las respuestas son siempre enteros positivos). Ronda fija de N, sin
+// reloj. El item se deriva de (seed, idx, grade) — el server re-deriva el mismo y
+// compara given == it.answer (no confía en el cliente).
+//
+// Tres eventos: digito() suma un dígito, borrar() quita el último, answer()
+// corrige contra it.answer, actualiza racha/racha_max y avanza.
+//
+// La persistencia (Attempt + mastery + racha) la hace el loop del @ws en
+// live_series.fitz.
+
+from gen_series import gen_series
+from keypad import kp_append, kp_borrar
+from engine import a_int
+from series_view import series_screen
+
+component series {
+  state {
+    seed: Int = 0
+    idx: Int = 0
+    grade: Int = 4
+    locale: Str = "es-AR"
+    correct: Int = 0
+    total: Int = 0
+    racha: Int = 0
+    racha_max: Int = 0
+    phase: Str = "playing"         // "playing" | "done"
+    feedback: Str = ""             // "" | "ok" | "bad"
+    last_answer: Int = 0           // el término correcto del item recién fallado
+    entrada: Int = 0               // lo tipeado en el teclado
+    touched: Bool = false          // ¿tipeó algo?
+    limit: Int = 10                // items por ronda
+  }
+
+  event digito() {
+    if (phase == "playing") {
+      if (payload.has("d")) {
+        entrada = kp_append(entrada, a_int(payload["d"]), 99999)
+        touched = true
+      }
+    }
+  }
+
+  event borrar() {
+    if (phase == "playing") {
+      entrada = kp_borrar(entrada)
+    }
+  }
+
+  event answer() {
+    if (phase == "playing") {
+      if (payload.has("v")) {
+        if (payload.has("ei")) {
+          let ei = a_int(payload["ei"])
+          if (ei == idx) {
+            let given = a_int(payload["v"])
+            if (touched) {
+              let it = gen_series(seed, idx, grade)
+              let acierto = given == it.answer
+              total = total + 1
+              if (acierto) {
+                correct = correct + 1
+                feedback = "ok"
+                racha = racha + 1
+                if (racha > racha_max) {
+                  racha_max = racha
+                }
+              }
+              if (not acierto) {
+                feedback = "bad"
+                racha = 0
+                last_answer = it.answer
+              }
+              entrada = 0
+              touched = false
+              idx = idx + 1
+              if (total >= limit) {
+                phase = "done"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  <template>
+    <div id="series-app" class="mh-quiz">
+      {series_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, racha, racha_max).raw}
+    </div>
+  </template>
+}

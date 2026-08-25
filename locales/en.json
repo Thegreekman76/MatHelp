@@ -222,5 +222,8 @@
   "panel.meta_guardar": "Save",
   "panel.sin_datos": "{0} hasn't played yet. Let's practice!",
   "panel.sin_hijos": "No profiles yet. Create one to see its dashboard.",
-  "juego.mejor_racha": "Best streak: {0}"
+  "juego.mejor_racha": "Best streak: {0}",
+  "juego.series": "Sequences",
+  "tema.series": "Patterns",
+  "series.pregunta": "What number comes next?"
 }

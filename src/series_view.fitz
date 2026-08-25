@@ -1,0 +1,75 @@
+// series_view.fitz — el render de "Series" (¿qué número sigue?).
+//
+// Muestra los 4 términos de la secuencia + un hueco donde el chico tipea el 5º con
+// el teclado numérico propio. El item se DERIVA de (seed, idx, grade) — no se
+// guarda; el server re-deriva el mismo y compara given == it.answer.
+
+from fitz_liveviews import Html, html, flv
+from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, incorrecto_msg, mejor_racha_html
+from gen_series import gen_series
+from i18n import t, t1
+from fmt import fmt_int
+from keypad_view import keypad_html
+
+
+fn series_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int) -> Html {
+    if (phase == "done") {
+        return series_resumen(locale, correct, total, racha_max)
+    }
+    let it = gen_series(seed, idx, grade)
+    let seq = flv(it.shown)
+    // El hueco muestra lo tipeado, o "?" si no se tipeó nada.
+    let hueco = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = series_feedback(locale, feedback, last_answer, total)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let teclado = keypad_html(locale, entrada, idx, touched, false)
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(total, limit)
+    let pregunta = flv(t(locale, "series.pregunta"))
+    return html("""<div class="q-hud">
+<div class="q-mode">🔢 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
+</div>
+{progb}
+<p class="series-preg">{pregunta}</p>
+<div class="q-prompt cg-eq series-eq">{seq}, {hueco}</div>
+<div class="q-fbwrap">{banner}</div>
+{teclado}""")
+}
+
+fn series_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_int(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn series_resumen(locale: Str, correct: Int, total: Int, racha_max: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max)
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
+{mejor}
+<div class="q-actions">
+<a class="mh-btn" href="/series">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

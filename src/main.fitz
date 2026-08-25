@@ -19,6 +19,7 @@ import live_completa
 import live_escalera
 import live_kiosco
 import live_fracciones
+import live_series
 import live_potencias
 import live_ecuaciones
 import live_finanzas
@@ -41,6 +42,7 @@ from Funciones import funciones, funciones_render, funciones_answer, funciones_d
 from Escalera import escalera, escalera_render, escalera_answer
 from Kiosco import kiosco, kiosco_render, kiosco_answer, kiosco_digito, kiosco_borrar
 from Fracciones import fracciones, fracciones_render, fracciones_answer
+from Series import series, series_render, series_answer, series_digito, series_borrar
 // F5 — componentes presentacionales del panel del padre. Se importan en el
 // entry (además de en parent.fitz) para el auto-registro + la resolución de la
 // firma cross-módulo a Html (igual que el dashboard del admin de liveviews).
