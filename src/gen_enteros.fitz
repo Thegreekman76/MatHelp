@@ -1,0 +1,117 @@
+// gen_enteros.fitz — generador del juego "Enteros" (operaciones con signo).
+//
+// Muestra una cuenta con enteros ("(-5) + 3 = ?") + una recta numérica de apoyo, y
+// el chico tipea el resultado (que puede ser NEGATIVO → teclado con ±). Escala por
+// nivel (F8): suma con un negativo en 7° → multiplicación de signos / mixto en el
+// Ciclo Orientado.
+//
+// Reproducible desde (seed, idx, grade); el RandGen `g` es LOCAL (regla FITZ-01).
+
+from gen_arith import sub_seed, nivel_por_idx
+
+type EnteroItem {
+    a: Int = 0
+    b: Int = 0
+    op: Str = "+"              // "+" | "−" | "×"
+    answer: Int = 0
+    rango: Int = 15            // extensión de la recta numérica (± rango)
+    skill_code: Str = "enteros"
+    difficulty: Int = 1        // 1..5 (nivel)
+}
+
+// Piso/techo del nivel por grado. min_grade del juego es 7°.
+fn nivel_piso_enteros(grade: Int) -> Int {
+    if (grade <= 7) {
+        return 1
+    }
+    if (grade <= 9) {
+        return 2
+    }
+    return 3
+}
+
+fn nivel_techo_enteros(grade: Int) -> Int {
+    if (grade <= 7) {
+        return 2
+    }
+    if (grade <= 8) {
+        return 3
+    }
+    if (grade <= 9) {
+        return 4
+    }
+    return 5
+}
+
+fn gen_enteros(seed: Int, idx: Int, grade: Int) -> EnteroItem {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let piso = nivel_piso_enteros(grade)
+    let techo = nivel_techo_enteros(grade)
+    let nivel = nivel_por_idx(piso, techo, idx)
+
+    let a = 0
+    let b = 0
+    let op = "+"
+    let answer = 0
+
+    if (nivel == 1) {
+        // Suma con un negativo (la recta hasta ±10 ayuda).
+        a = g.int(-10, 10)
+        b = g.int(1, 9)
+        op = "+"
+        answer = a + b
+    }
+    if (nivel == 2) {
+        // Suma con dos signos.
+        a = g.int(-12, 12)
+        b = g.int(-12, 12)
+        op = "+"
+        answer = a + b
+    }
+    if (nivel == 3) {
+        // Resta con signos.
+        a = g.int(-12, 12)
+        b = g.int(-12, 12)
+        op = "−"
+        answer = a - b
+    }
+    if (nivel == 4) {
+        // Multiplicación de signos.
+        a = g.int(-9, 9)
+        b = g.int(-9, 9)
+        op = "×"
+        answer = a * b
+    }
+    if (nivel >= 5) {
+        // Mixto.
+        let k = g.int(0, 2)
+        if (k == 0) {
+            a = g.int(-15, 15)
+            b = g.int(-15, 15)
+            op = "+"
+            answer = a + b
+        }
+        if (k == 1) {
+            a = g.int(-15, 15)
+            b = g.int(-15, 15)
+            op = "−"
+            answer = a - b
+        }
+        if (k == 2) {
+            a = g.int(-9, 9)
+            b = g.int(-9, 9)
+            op = "×"
+            answer = a * b
+        }
+    }
+
+    return EnteroItem {
+        a: a,
+        b: b,
+        op: op,
+        answer: answer,
+        rango: 15,
+        skill_code: "enteros",
+        difficulty: nivel,
+    }
+}

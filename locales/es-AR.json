@@ -237,5 +237,7 @@
   "memoria.pregunta": "Uní cada cuenta con su resultado",
   "memoria.no_par": "No son pareja. ¡Probá otra!",
   "memoria.pares": "pares",
-  "tema.memoria": "Memoria"
+  "tema.memoria": "Memoria",
+  "enteros.era": "Casi. Era {0}.",
+  "tema.enteros": "Enteros"
 }

@@ -1,0 +1,71 @@
+// tests/enteros.fitz — el generador de "Enteros" (gen_enteros.fitz).
+//
+// (Nombre distinto del módulo importado → sin ciclo, FITZ-21.)
+//
+// Invariante clave: la respuesta coincide con la operación (a op b) aplicada a los
+// enteros con signo. Más: reproducibilidad, aparición de resultados negativos, y la
+// operación por nivel.
+
+from gen_enteros import gen_enteros, EnteroItem
+
+@test fn enteros_reproducible() {
+    let idx = 0
+    while (idx < 60) {
+        let a = gen_enteros(1234, idx, 9)
+        let b = gen_enteros(1234, idx, 9)
+        assert_eq(a.answer, b.answer)
+        assert_eq(a.op, b.op)
+        idx = idx + 1
+    }
+}
+
+@test fn enteros_formula_correcta() {
+    let grades = [7, 8, 9, 11, 13]
+    for gr in grades {
+        let idx = 0
+        while (idx < 30) {
+            let it = gen_enteros(555, idx, gr)
+            let esperado = 0
+            if (it.op == "+") {
+                esperado = it.a + it.b
+            }
+            if (it.op == "−") {
+                esperado = it.a - it.b
+            }
+            if (it.op == "×") {
+                esperado = it.a * it.b
+            }
+            assert_eq(it.answer, esperado)
+            assert(it.difficulty >= 1)
+            assert(it.difficulty <= 5)
+            idx = idx + 1
+        }
+    }
+}
+
+@test fn enteros_grado7_nivel1_suma() {
+    let it = gen_enteros(8, 0, 7)
+    assert_eq(it.op, "+")
+    assert_eq(it.difficulty, 1)
+}
+
+@test fn enteros_rampa_por_grado() {
+    let bajo = gen_enteros(9, 0, 7)
+    assert_eq(bajo.difficulty, 1)
+    let alto = gen_enteros(9, 30, 13)
+    assert_eq(alto.difficulty, 5)
+}
+
+@test fn enteros_hay_negativos() {
+    // En una tanda de nivel 2 (grado 8) aparece al menos un resultado negativo.
+    let vio_neg = false
+    let idx = 0
+    while (idx < 40) {
+        let it = gen_enteros(4321, idx, 8)
+        if (it.answer < 0) {
+            vio_neg = true
+        }
+        idx = idx + 1
+    }
+    assert(vio_neg)
+}

@@ -1,0 +1,115 @@
+// enteros_view.fitz — el render de "Enteros" (operaciones con signo).
+//
+// Muestra la cuenta ("(-5) + 3 = ?") con los negativos entre paréntesis, una recta
+// numérica de apoyo, y un teclado numérico con la tecla ± (el resultado puede ser
+// negativo). El item se DERIVA de (seed, idx, grade); el server re-deriva el mismo
+// y compara given == it.answer.
+//
+// La recta usa escalado ENTERO (píxeles por unidad) sobre coordenadas fijas. La
+// cuenta se envuelve en `.ent-eq` con data-attrs (a/op/b) que el E2E lee para
+// recomputar la respuesta.
+
+from fitz_liveviews import Html, html, flv
+from game_ui import resumen_estrellas, correcto_msg, progreso_bar, racha_badge, incorrecto_msg, mejor_racha_html
+from gen_enteros import gen_enteros
+from i18n import t, t1
+from fmt import fmt_int, fmt_operando
+from keypad_view import keypad_html
+
+// Recta numérica de -rango a +rango: eje con flechas, ticks por unidad, números en
+// los múltiplos de 5, y el 0 resaltado.
+fn recta_svg(rango: Int) -> Str {
+    let unit = 140 / rango
+    let cx = 160
+    let y = 42
+    let ticks = ""
+    let labels = ""
+    let n = 0 - rango
+    while (n <= rango) {
+        let x = cx + n * unit
+        let th = match n % 5 == 0 {
+            true => 10,
+            false => 5,
+        }
+        ticks = ticks + html("""<line x1="{x}" y1="{y - th}" x2="{x}" y2="{y + th}" class="rn-tick" />""").raw
+        if (n % 5 == 0) {
+            let cls = match n == 0 {
+                true => "rn-lbl zero",
+                false => "rn-lbl",
+            }
+            labels = labels + html("""<text x="{x}" y="{y + 26}" class="{cls}">{n}</text>""").raw
+        }
+        n = n + 1
+    }
+    return html("""<svg viewBox="0 0 320 80" class="rn-line" role="img" aria-label="recta numérica">
+<line x1="14" y1="{y}" x2="306" y2="{y}" class="rn-axis" />
+<polygon points="306,{y} 298,{y - 5} 298,{y + 5}" class="rn-arrow" />
+<polygon points="14,{y} 22,{y - 5} 22,{y + 5}" class="rn-arrow" />
+{ticks}
+<circle cx="{cx}" cy="{y}" r="4" class="rn-zero" />
+{labels}
+</svg>""").raw
+}
+
+fn enteros_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+    if (phase == "done") {
+        return enteros_resumen(locale, correct, total, racha_max, record_prev)
+    }
+    let it = gen_enteros(seed, idx, grade)
+    let recta = recta_svg(it.rango)
+    let a = flv(fmt_operando(locale, it.a))
+    let b = flv(fmt_operando(locale, it.b))
+    let sym = flv(it.op)
+    let hueco = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_operando(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = enteros_feedback(locale, feedback, last_answer, total)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let teclado = keypad_html(locale, entrada, idx, touched, true)
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(total, limit)
+    return html("""<div class="q-hud">
+<div class="q-mode">± {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
+</div>
+{progb}
+<div class="ent-recta">{recta}</div>
+<div class="q-prompt cg-eq ent-eq" data-a="{it.a}" data-op="{it.op}" data-b="{it.b}">{a} {sym} {b} = {hueco}</div>
+<div class="q-fbwrap">{banner}</div>
+{teclado}""")
+}
+
+fn enteros_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_int(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn enteros_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
+{mejor}
+<div class="q-actions">
+<a class="mh-btn" href="/enteros">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

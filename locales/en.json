@@ -237,5 +237,7 @@
   "memoria.pregunta": "Match each expression to its result",
   "memoria.no_par": "Not a pair. Try again!",
   "memoria.pares": "pairs",
-  "tema.memoria": "Memory"
+  "tema.memoria": "Memory",
+  "enteros.era": "Almost. It was {0}.",
+  "tema.enteros": "Integers"
 }

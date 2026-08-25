@@ -1246,7 +1246,7 @@ Estas seis ya tienen su fila en `juegos.fitz` con `min_grade`; sólo falta const
 | 📐 Geometría ✅ | 5° | común | **HECHO (2026-08-25)** — área/perímetro con **figura SVG** (cuadrado/rectángulo/triángulo/L); teclado, respuestas enteras | N1 perímetro cuadrado → N2 perímetro rect → N3 área rect → N4 área triángulo → N5 área L compuesta (el círculo con π queda como Geometría v2) |
 | ％ Porcentaje | 6° | común (útil comercial) | Descuentos, IVA, recargo; enunciado con historia | N1 % simple → N2 descuento → N3 IVA 21% → N4 recargo/cuotas → N5 % sucesivos |
 | 📦 Volumen | 6° | común | Volumen de cuerpos con **figura SVG 3D** (prisma, cubo, cilindro) | N1 cubo → N2 prisma → N3 cilindro → N4 con conversión de unidades → N5 compuestos |
-| ± Enteros | 7° | común | **Recta numérica SVG** interactiva; suma/resta con signo (teclado con ±) | N1 recta hasta ±10 → N2 suma signos → N3 resta signos → N4 multiplicación de signos → N5 varias operaciones |
+| ± Enteros ✅ | 7° | común | **HECHO (2026-08-25)** — operaciones con signo + **recta numérica SVG**; teclado con ± (respuesta negativa) | N1 suma con un negativo → N2 suma dos signos → N3 resta con signos → N4 multiplicación de signos → N5 mixto |
 
 ### B — Modos nuevos que cubren huecos pedagógicos (transversales, todos los grados)
 
@@ -1264,15 +1264,16 @@ Requieren mecánica de input distinta al teclado → primer candidato a definir 
 1. ~~**🕐 Hora (2°)**~~ — ✅ **HECHO (2026-08-25)**: reloj analógico SVG + opción múltiple, 5 niveles de precisión, E2E que lee el reloj del SVG.
 2. ~~**📐 Geometría (5°)**~~ — ✅ **HECHO (2026-08-25)**: cuadrado/rectángulo/triángulo/L en SVG + teclado, E2E que recomputa la fórmula.
 3. ~~**🃏 Memoria (transversal)**~~ — ✅ **HECHO (2026-08-25)**: grilla de cartas (matching abierto), estado bitmask, persistencia por delta. Definió el patrón de input-nuevo para Ordenar/Estimación.
-4. **± Enteros (7°)** — recta numérica SVG, refuerza el signo (que hoy sólo aparece incidental en secundaria). **← próximo sugerido**
-5. **📖 Historia (1°)** — depende de Web Speech API (pre-lectores); más UX que matemática.
-6. Resto (Porcentaje, Volumen, Ordenar, Estimación) según demanda/feedback.
+4. ~~**± Enteros (7°)**~~ — ✅ **HECHO (2026-08-25)**: operaciones con signo + recta numérica SVG, teclado con ±, E2E que recomputa con signo.
+5. **📊 Ordenar / Comparar (transversal)** — segundo modo de input nuevo (tocar en orden de menor a mayor); reusa el patrón de input-nuevo de Memoria. **← próximo sugerido**
+6. **📖 Historia (1°)** — depende de Web Speech API (pre-lectores); más UX que matemática.
+7. Resto (Porcentaje, Volumen, Estimación) según demanda/feedback.
 
-> **Nota de estado (2026-08-25):** con 🧩 Series, 🕐 Hora, 📐 Geometría y 🃏 Memoria
-> construidos, el catálogo activo es de **15 juegos** (contrarreloj, V/F, series, memoria,
-> completá, escalera, problemas, fracciones, hora, geometría, potencias, ecuaciones,
-> finanzas, trigonometría, funciones). Este backlog llevaría el catálogo a ~21 con
-> cobertura de 1° a 6° secundaria en varios modos cognitivos.
+> **Nota de estado (2026-08-25):** con 🧩 Series, 🕐 Hora, 📐 Geometría, 🃏 Memoria y
+> ± Enteros construidos, el catálogo activo es de **16 juegos** (contrarreloj, V/F, series,
+> memoria, completá, escalera, problemas, fracciones, hora, geometría, enteros, potencias,
+> ecuaciones, finanzas, trigonometría, funciones). Este backlog llevaría el catálogo a ~21
+> con cobertura de 1° a 6° secundaria en varios modos cognitivos.
 
 ---
 
