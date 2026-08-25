@@ -229,5 +229,8 @@
   "juego.nuevo_record": "¡Nuevo récord: {0}!",
   "hora.pregunta": "¿Qué hora es?",
   "hora.era": "Casi. Era {0}.",
-  "tema.hora": "La hora"
+  "tema.hora": "La hora",
+  "geo.perimetro": "¿Cuál es el perímetro?",
+  "geo.area": "¿Cuál es el área?",
+  "geo.era": "Casi. Era {0}."
 }

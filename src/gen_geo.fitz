@@ -1,0 +1,110 @@
+// gen_geo.fitz — generador del juego "Geometría" (área y perímetro con figuras).
+//
+// Muestra una figura (SVG) con sus medidas y el chico tipea el área o el perímetro.
+// Escala por nivel (F8): perímetro de cuadrado en 5° → área de figura compuesta (L)
+// en secundaria. Todas las respuestas son ENTEROS positivos (teclado sin ±).
+//
+// Reproducible desde (seed, idx, grade); el RandGen `g` es LOCAL (regla FITZ-01).
+
+from gen_arith import sub_seed, nivel_por_idx, imin
+
+type GeoItem {
+    shape: Str = "cuadrado"    // "cuadrado" | "rect" | "triangulo" | "ele"
+    metric: Str = "perimetro"  // "perimetro" | "area"
+    a: Int = 0                 // dimensión 1 (lado / ancho / base)
+    b: Int = 0                 // dimensión 2 (alto / largo)
+    c: Int = 0                 // dimensión 3 (lado del hueco en la L)
+    answer: Int = 0
+    skill_code: Str = "geo"
+    difficulty: Int = 1        // 1..5 (nivel)
+}
+
+// Piso/techo del nivel por grado. min_grade del juego es 5°.
+fn nivel_piso_geo(grade: Int) -> Int {
+    if (grade <= 6) {
+        return 1
+    }
+    if (grade <= 8) {
+        return 2
+    }
+    return 3
+}
+
+fn nivel_techo_geo(grade: Int) -> Int {
+    if (grade <= 5) {
+        return 2
+    }
+    if (grade <= 6) {
+        return 3
+    }
+    if (grade <= 8) {
+        return 4
+    }
+    return 5
+}
+
+fn gen_geo(seed: Int, idx: Int, grade: Int) -> GeoItem {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let piso = nivel_piso_geo(grade)
+    let techo = nivel_techo_geo(grade)
+    let nivel = nivel_por_idx(piso, techo, idx)
+
+    let shape = "cuadrado"
+    let metric = "perimetro"
+    let a = 0
+    let b = 0
+    let c = 0
+    let answer = 0
+
+    if (nivel == 1) {
+        // Perímetro de un cuadrado.
+        shape = "cuadrado"
+        metric = "perimetro"
+        a = g.int(3, 15)
+        answer = 4 * a
+    }
+    if (nivel == 2) {
+        // Perímetro de un rectángulo.
+        shape = "rect"
+        metric = "perimetro"
+        a = g.int(3, 15)
+        b = g.int(3, 15)
+        answer = 2 * (a + b)
+    }
+    if (nivel == 3) {
+        // Área de un rectángulo.
+        shape = "rect"
+        metric = "area"
+        a = g.int(3, 15)
+        b = g.int(3, 12)
+        answer = a * b
+    }
+    if (nivel == 4) {
+        // Área de un triángulo rectángulo (base par → área entera).
+        shape = "triangulo"
+        metric = "area"
+        a = g.int(2, 7) * 2
+        b = g.int(3, 12)
+        answer = a * b / 2
+    }
+    if (nivel >= 5) {
+        // Área de una figura compuesta en L (rectángulo con un cuadrado recortado).
+        shape = "ele"
+        metric = "area"
+        a = g.int(8, 14)
+        b = g.int(8, 12)
+        c = g.int(2, imin(a, b) - 3)
+        answer = a * b - c * c
+    }
+
+    return GeoItem {
+        shape: shape,
+        metric: metric,
+        a: a,
+        b: b,
+        c: c,
+        answer: answer,
+        skill_code: "geo",
+        difficulty: nivel,
+    }
+}

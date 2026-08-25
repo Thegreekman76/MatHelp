@@ -1,0 +1,158 @@
+// geo_view.fitz — el render de "Geometría" (área y perímetro con figuras).
+//
+// Dibuja la figura (cuadrado / rectángulo / triángulo rectángulo / L compuesta) en
+// SVG con sus medidas rotuladas, y un teclado numérico para tipear la respuesta.
+// El item se DERIVA de (seed, idx, grade); el server re-deriva el mismo y compara
+// given == it.answer.
+//
+// El SVG usa escalado ENTERO (píxeles por unidad) sobre coordenadas fijas — sin
+// seno/coseno. La figura se envuelve en `.geo-fig` con data-attrs (shape/metric/
+// dims) que el E2E lee para recomputar la fórmula y validar la respuesta del server.
+
+from fitz_liveviews import Html, html, flv
+from game_ui import resumen_estrellas, correcto_msg, progreso_bar, racha_badge, incorrecto_msg, mejor_racha_html
+from gen_geo import gen_geo
+from i18n import t, t1
+from fmt import fmt_int
+from keypad_view import keypad_html
+
+// Píxeles por unidad para que la figura entre en ~130px.
+fn geo_ppu(maxd: Int) -> Int {
+    let ppu = 130 / maxd
+    if (ppu > 22) {
+        return 22
+    }
+    if (ppu < 8) {
+        return 8
+    }
+    return ppu
+}
+
+fn geo_svg(shape: Str, a: Int, b: Int, c: Int) -> Str {
+    let px = 60
+    let py = 34
+    if (shape == "cuadrado") {
+        let ppu = geo_ppu(a)
+        let w = a * ppu
+        return html("""<svg viewBox="0 0 240 200" class="geo-clock" role="img" aria-label="cuadrado">
+<rect x="{px}" y="{py}" width="{w}" height="{w}" class="geo-shape" />
+<text x="{px + w / 2}" y="{py + w + 20}" class="geo-lbl">{a} cm</text>
+</svg>""").raw
+    }
+    if (shape == "rect") {
+        let maxd = match a > b {
+            true => a,
+            false => b,
+        }
+        let ppu = geo_ppu(maxd)
+        let w = a * ppu
+        let h = b * ppu
+        return html("""<svg viewBox="0 0 240 200" class="geo-clock" role="img" aria-label="rectángulo">
+<rect x="{px}" y="{py}" width="{w}" height="{h}" class="geo-shape" />
+<text x="{px + w / 2}" y="{py + h + 20}" class="geo-lbl">{a} cm</text>
+<text x="{px - 10}" y="{py + h / 2}" class="geo-lbl" text-anchor="end">{b} cm</text>
+</svg>""").raw
+    }
+    if (shape == "triangulo") {
+        let maxd = match a > b {
+            true => a,
+            false => b,
+        }
+        let ppu = geo_ppu(maxd)
+        let w = a * ppu
+        let h = b * ppu
+        // Ángulo recto abajo-izquierda: base abajo (a), altura izquierda (b).
+        return html("""<svg viewBox="0 0 240 200" class="geo-clock" role="img" aria-label="triángulo rectángulo">
+<polygon points="{px},{py + h} {px + w},{py + h} {px},{py}" class="geo-shape" />
+<rect x="{px}" y="{py + h - 12}" width="12" height="12" class="geo-right" />
+<text x="{px + w / 2}" y="{py + h + 20}" class="geo-lbl">{a} cm</text>
+<text x="{px - 10}" y="{py + h / 2}" class="geo-lbl" text-anchor="end">{b} cm</text>
+</svg>""").raw
+    }
+    // "ele": L = rectángulo a×b con un cuadrado c×c recortado arriba-derecha.
+    let maxd = match a > b {
+        true => a,
+        false => b,
+    }
+    let ppu = geo_ppu(maxd)
+    let w = a * ppu
+    let h = b * ppu
+    let cn = c * ppu
+    return html("""<svg viewBox="0 0 240 200" class="geo-clock" role="img" aria-label="figura en L">
+<polygon points="{px},{py + h} {px + w},{py + h} {px + w},{py + cn} {px + w - cn},{py + cn} {px + w - cn},{py} {px},{py}" class="geo-shape" />
+<text x="{px + w / 2}" y="{py + h + 20}" class="geo-lbl">{a} cm</text>
+<text x="{px - 10}" y="{py + h / 2}" class="geo-lbl" text-anchor="end">{b} cm</text>
+<text x="{px + w - cn / 2}" y="{py + cn + 15}" class="geo-lbl sm">{c}</text>
+<text x="{px + w - cn - 9}" y="{py + cn / 2}" class="geo-lbl sm" text-anchor="end">{c}</text>
+</svg>""").raw
+}
+
+fn geo_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+    if (phase == "done") {
+        return geo_resumen(locale, correct, total, racha_max, record_prev)
+    }
+    let it = gen_geo(seed, idx, grade)
+    let fig = geo_svg(it.shape, it.a, it.b, it.c)
+    let hueco = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = geo_feedback(locale, feedback, last_answer, total)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let teclado = keypad_html(locale, entrada, idx, touched, false)
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(total, limit)
+    let preg_key = match it.metric {
+        "area" => "geo.area",
+        _ => "geo.perimetro",
+    }
+    let pregunta = flv(t(locale, preg_key))
+    let unidad = match it.metric {
+        "area" => "cm²",
+        _ => "cm",
+    }
+    return html("""<div class="q-hud">
+<div class="q-mode">📐 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
+</div>
+{progb}
+<p class="geo-preg">{pregunta}</p>
+<div class="geo-fig" data-shape="{it.shape}" data-metric="{it.metric}" data-a="{it.a}" data-b="{it.b}" data-c="{it.c}">{fig}</div>
+<div class="q-prompt cg-eq">{hueco} {unidad}</div>
+<div class="q-fbwrap">{banner}</div>
+{teclado}""")
+}
+
+fn geo_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_int(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn geo_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
+{mejor}
+<div class="q-actions">
+<a class="mh-btn" href="/geometria">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

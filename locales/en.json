@@ -229,5 +229,8 @@
   "juego.nuevo_record": "New record: {0}!",
   "hora.pregunta": "What time is it?",
   "hora.era": "Almost. It was {0}.",
-  "tema.hora": "Time"
+  "tema.hora": "Time",
+  "geo.perimetro": "What is the perimeter?",
+  "geo.area": "What is the area?",
+  "geo.era": "Almost. It was {0}."
 }

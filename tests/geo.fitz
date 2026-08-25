@@ -1,0 +1,69 @@
+// tests/geo.fitz — el generador de "Geometría" (gen_geo.fitz).
+//
+// (Nombre distinto del módulo importado → sin ciclo, FITZ-21.)
+//
+// Invariante clave: la respuesta del generador SIEMPRE coincide con la fórmula
+// aplicada a las medidas mostradas (perímetro/área de cada figura). Más:
+// reproducibilidad, respuesta positiva, y la figura por nivel.
+
+from gen_geo import gen_geo, GeoItem
+
+@test fn geo_reproducible() {
+    let idx = 0
+    while (idx < 60) {
+        let a = gen_geo(2323, idx, 7)
+        let b = gen_geo(2323, idx, 7)
+        assert_eq(a.answer, b.answer)
+        assert_eq(a.shape, b.shape)
+        assert_eq(a.a, b.a)
+        idx = idx + 1
+    }
+}
+
+@test fn geo_formula_correcta() {
+    let grades = [5, 6, 7, 9, 13]
+    for gr in grades {
+        let idx = 0
+        while (idx < 30) {
+            let it = gen_geo(2020, idx, gr)
+            let esperado = 0
+            if (it.shape == "cuadrado") {
+                esperado = 4 * it.a
+            }
+            if (it.shape == "rect") {
+                if (it.metric == "perimetro") {
+                    esperado = 2 * (it.a + it.b)
+                }
+                if (it.metric == "area") {
+                    esperado = it.a * it.b
+                }
+            }
+            if (it.shape == "triangulo") {
+                esperado = it.a * it.b / 2
+            }
+            if (it.shape == "ele") {
+                esperado = it.a * it.b - it.c * it.c
+            }
+            assert_eq(it.answer, esperado)
+            assert(it.answer > 0)
+            assert(it.difficulty >= 1)
+            assert(it.difficulty <= 5)
+            idx = idx + 1
+        }
+    }
+}
+
+@test fn geo_grado5_perimetro_cuadrado() {
+    // Grado 5, idx 0 → nivel 1: perímetro de un cuadrado.
+    let it = gen_geo(3, 0, 5)
+    assert_eq(it.shape, "cuadrado")
+    assert_eq(it.metric, "perimetro")
+    assert_eq(it.difficulty, 1)
+}
+
+@test fn geo_rampa_por_grado() {
+    let bajo = gen_geo(4, 0, 5)
+    assert_eq(bajo.difficulty, 1)
+    let alto = gen_geo(4, 30, 13)
+    assert_eq(alto.difficulty, 5)
+}
