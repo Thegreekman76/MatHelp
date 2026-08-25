@@ -159,20 +159,26 @@ def jugar_ronda(grado):
 
     ws, cid, html = open_ws(s)
     enunciados = []
+    fb_con_seq = False
     for ei in range(LIMIT):
         enun = extraer_enun(html)
         enunciados.append(enun)
         sol = resolver(enun)
         html = answer(ws, cid, ei, sol)
+        # el banner de feedback debe emitir data-fb-seq (trigger del sonido).
+        if 'class="q-fb' in html and "data-fb-seq" in html:
+            fb_con_seq = True
         time.sleep(0.05)
+    assert fb_con_seq, f"grade {grado}: el feedback no emite data-fb-seq (sonido muerto)"
     time.sleep(0.4)
     ws.close()
     time.sleep(0.4)
     # no se repite ningún problema en la ronda (el pedido del autor).
     assert len(set(enunciados)) == LIMIT, f"grade {grado}: problemas repetidos ({len(set(enunciados))}/{LIMIT})"
     # pulido: la pantalla final trae estrellas + aliento.
-    assert 'class="mh-estrellas"' in html and 'class="mh-aliento"' in html, f"grade {grado}: la pantalla final no trae estrellas"
-    assert "★" in html, f"grade {grado}: 10/10 debería dar estrellas llenas"
+    assert "mh-estrellas" in html and 'class="mh-aliento"' in html, f"grade {grado}: la pantalla final no trae estrellas"
+    assert "★★★" in html.replace("</span><span", "").replace('<span class="star on">', "★") or html.count("★") == 3, f"grade {grado}: 10/10 debería dar 3 estrellas"
+    assert "mh-estrellas perfect" in html, f"grade {grado}: 10/10 debería marcar ronda perfecta"
 
     sid = psql(f"SELECT id FROM sessions WHERE profile_id={pid} AND mode='kiosco' AND topic_code='problemas' ORDER BY id DESC LIMIT 1")
     assert sid, "no se creó la sesión de Problemas (kiosco/problemas)"

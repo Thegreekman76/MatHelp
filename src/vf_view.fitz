@@ -13,7 +13,7 @@
 from fitz_liveviews import Html, html, flv
 from gen_arith import gen_for, vf_shown, op_symbol
 from i18n import t, t1
-from game_ui import resumen_estrellas
+from game_ui import resumen_estrellas, correcto_msg
 from fmt import fmt_int, fmt_operando
 
 // Punto de entrada. `mode` == "adaptive" (contrarreloj V/F) | "desafio" (N fijo).
@@ -38,7 +38,7 @@ fn vf_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, hud_a: In
     let b = flv(fmt_operando(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
     let res = flv(fmt_int(locale, shown))
-    let banner = vf_feedback(locale, feedback, correct_last)
+    let banner = vf_feedback(locale, feedback, correct_last, idx)
     let hud = vf_hud(locale, es_desafio, hud_a, hud_b, hud_c)
     let btn_v = flv(t(locale, "vf.verdadero"))
     let btn_f = flv(t(locale, "vf.falso"))
@@ -76,16 +76,16 @@ fn vf_hud(locale: Str, es_desafio: Bool, a: Int, b: Int, c: Int) -> Str {
 }
 
 // Feedback: verde si acertó el juicio; ámbar con la verdad si no.
-fn vf_feedback(locale: Str, feedback: Str, correct_last: Bool) -> Str {
+fn vf_feedback(locale: Str, feedback: Str, correct_last: Bool, seq: Int) -> Str {
     if (feedback == "ok") {
-        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
     }
     if (feedback == "bad") {
         let era = match correct_last {
             true => t(locale, "vf.verdadero"),
             false => t(locale, "vf.falso"),
         }
-        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "vf.era", era))}</div>""").raw
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(t1(locale, "vf.era", era))}</div>""").raw
     }
     return ""
 }

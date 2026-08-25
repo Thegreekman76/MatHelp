@@ -7,7 +7,7 @@
 // contexto se localiza, §4); la plata por fmt_money, las cuentas por fmt_int.
 
 from fitz_liveviews import Html, html, flv
-from game_ui import resumen_estrellas
+from game_ui import resumen_estrellas, correcto_msg
 from gen_kiosco import gen_kiosco, KioscoItem
 from keypad_view import keypad_html
 from i18n import t, t1, t2, t3, t4
@@ -85,7 +85,7 @@ fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, tot
         true => html("""<span class="cg-slot filled">{flv(tipeado)}</span>""").raw,
         false => html("""<span class="cg-slot">{flv(vacio)}</span>""").raw,
     }
-    let banner = kiosco_feedback(locale, feedback, last_answer, last_money)
+    let banner = kiosco_feedback(locale, feedback, last_answer, last_money, total)
     let hecho = flv(fmt_int(locale, total))
     let de_lbl = flv(t(locale, "juego.de"))
     let de_total = flv(fmt_int(locale, limit))
@@ -104,16 +104,16 @@ fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, tot
 {teclado}""")
 }
 
-fn kiosco_feedback(locale: Str, feedback: Str, last_answer: Int, last_money: Bool) -> Str {
+fn kiosco_feedback(locale: Str, feedback: Str, last_answer: Int, last_money: Bool, seq: Int) -> Str {
     if (feedback == "ok") {
-        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
     }
     if (feedback == "bad") {
         let resp = match last_money {
             true => fmt_money(locale, last_answer),
             false => fmt_int(locale, last_answer),
         }
-        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
     }
     return ""
 }

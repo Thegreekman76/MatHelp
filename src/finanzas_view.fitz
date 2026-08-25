@@ -5,7 +5,7 @@
 // porcentaje, descuento. El ejercicio se deriva de (seed, idx) con gen_finanzas.
 
 from fitz_liveviews import Html, html, flv
-from game_ui import resumen_estrellas
+from game_ui import resumen_estrellas, correcto_msg
 from gen_arith import gen_finanzas
 from i18n import t, t1, t2, t3
 from fmt import fmt_int, fmt_money
@@ -43,7 +43,7 @@ fn finanzas_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
         true => html("""<span class="cg-slot filled">{flv(fmt_money(locale, entrada))}</span>""").raw,
         false => html("""<span class="cg-slot">?</span>""").raw,
     }
-    let banner = finanzas_feedback(locale, feedback, last_answer)
+    let banner = finanzas_feedback(locale, feedback, last_answer, total)
     let hecho = flv(fmt_int(locale, total))
     let de_lbl = flv(t(locale, "juego.de"))
     let de_total = flv(fmt_int(locale, limit))
@@ -62,13 +62,13 @@ fn finanzas_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
 }
 
 // Feedback: verde si acertó; ámbar con la respuesta (en pesos) si no.
-fn finanzas_feedback(locale: Str, feedback: Str, last_answer: Int) -> Str {
+fn finanzas_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
     if (feedback == "ok") {
-        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
     }
     if (feedback == "bad") {
         let resp = fmt_money(locale, last_answer)
-        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
     }
     return ""
 }

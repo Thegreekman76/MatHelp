@@ -8,7 +8,7 @@
 // corrección (given resuelve la ecuación) la hace ecuacion_correcta.
 
 from fitz_liveviews import Html, html, flv
-from game_ui import resumen_estrellas
+from game_ui import resumen_estrellas, correcto_msg
 from gen_arith import gen_ecuacion
 from i18n import t, t1
 from fmt import fmt_int, fmt_operando
@@ -69,7 +69,7 @@ fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
         true => html("""<span class="cg-slot filled">{flv(fmt_operando(locale, entrada))}</span>""").raw,
         false => html("""<span class="cg-slot">?</span>""").raw,
     }
-    let banner = ecuacion_feedback(locale, feedback, last_answer)
+    let banner = ecuacion_feedback(locale, feedback, last_answer, total)
     let hecho = flv(fmt_int(locale, total))
     let de_lbl = flv(t(locale, "juego.de"))
     let de_total = flv(fmt_int(locale, limit))
@@ -87,13 +87,13 @@ fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
 }
 
 // Feedback: verde si acertó, ámbar con la solución (x = last_answer) si no.
-fn ecuacion_feedback(locale: Str, feedback: Str, last_answer: Int) -> Str {
+fn ecuacion_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
     if (feedback == "ok") {
-        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
     }
     if (feedback == "bad") {
         let resp = "x = " + fmt_int(locale, last_answer)
-        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
     }
     return ""
 }

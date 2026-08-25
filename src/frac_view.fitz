@@ -11,7 +11,7 @@
 // fracción cruda en data-flv-value-v y la muestran apilada.
 
 from fitz_liveviews import Html, html, flv, h_join
-from game_ui import resumen_estrellas
+from game_ui import resumen_estrellas, correcto_msg
 from gen_frac import gen_frac
 from i18n import t, t1
 from fmt import fmt_int
@@ -24,7 +24,7 @@ fn frac_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total
     let it = gen_frac(seed, idx, grade)
     let barra = frac_bar_html(it.num, it.den)
     let opciones = h_join(it.options.map(fn(o) => frac_opt_button(o, idx)))
-    let banner = frac_feedback(locale, feedback, last_answer)
+    let banner = frac_feedback(locale, feedback, last_answer, total)
     let pregunta = flv(t(locale, "frac.pregunta"))
     let hecho = flv(fmt_int(locale, total))
     let de_lbl = flv(t(locale, "juego.de"))
@@ -64,12 +64,12 @@ fn frac_opt_button(o: Str, idx: Int) -> Html {
     return html("""<button class="q-opt" type="button" data-flv-click="answer" data-flv-value-v="{o}" data-flv-value-ei="{idx}"><span class="frac"><span class="fnum">{n}</span><span class="fden">{d}</span></span></button>""")
 }
 
-fn frac_feedback(locale: Str, feedback: Str, last_answer: Str) -> Str {
+fn frac_feedback(locale: Str, feedback: Str, last_answer: Str, seq: Int) -> Str {
     if (feedback == "ok") {
-        return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
     }
     if (feedback == "bad") {
-        return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "frac.era", last_answer))}</div>""").raw
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(t1(locale, "frac.era", last_answer))}</div>""").raw
     }
     return ""
 }
