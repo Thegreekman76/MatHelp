@@ -23,8 +23,9 @@ component kiosco {
     total: Int = 0
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
-    last_answer: Int = 0           // el vuelto correcto del problema recién fallado
-    entrada: Int = 0               // el vuelto tipeado (0 = vacío)
+    last_answer: Int = 0           // la respuesta correcta del problema recién fallado
+    last_money: Bool = false       // ¿esa respuesta era plata? (formato del feedback)
+    entrada: Int = 0               // la respuesta tipeada (0 = vacío)
     limit: Int = 10                // problemas por ronda
   }
 
@@ -51,7 +52,7 @@ component kiosco {
             let given = a_int(payload["v"])
             if (given > 0) {
               let it = gen_kiosco(seed, idx, grade)
-              let acierto = given == it.change
+              let acierto = given == it.answer
               total = total + 1
               if (acierto) {
                 correct = correct + 1
@@ -59,7 +60,8 @@ component kiosco {
               }
               if (not acierto) {
                 feedback = "bad"
-                last_answer = it.change
+                last_answer = it.answer
+                last_money = it.money
               }
               entrada = 0
               idx = idx + 1
@@ -75,7 +77,7 @@ component kiosco {
 
   <template>
     <div id="kiosco-app" class="mh-quiz">
-      {kiosco_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada).raw}
+      {kiosco_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, last_money, entrada).raw}
     </div>
   </template>
 }

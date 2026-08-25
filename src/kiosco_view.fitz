@@ -1,32 +1,60 @@
-// kiosco_view.fitz — el render de "El kiosco".
+// kiosco_view.fitz — el render de "Problemas" (situaciones de la vida real).
 //
-// Situación con contexto (§6.6): comprás un producto, pagás con un billete y
-// tipeás el VUELTO en el teclado numérico propio. El problema se deriva de
-// (seed, idx, grade) con gen_kiosco; el server re-deriva y valida given ==
-// it.change. Todo texto por t() (incluido el nombre del producto — el contexto
-// se localiza, §4); toda plata por fmt_money.
+// (Nombre interno histórico "kiosco".) Muestra un problema con historia
+// (localizado) y el chico tipea la respuesta en el teclado numérico. El problema
+// se deriva de (seed, idx, grade) con gen_kiosco; el server re-deriva y valida
+// given == it.answer. Todo texto por t()/t3()/t4() (incluido el producto — el
+// contexto se localiza, §4); la plata por fmt_money, las cuentas por fmt_int.
 
 from fitz_liveviews import Html, html, flv
-from gen_kiosco import gen_kiosco
+from gen_kiosco import gen_kiosco, KioscoItem
 from keypad_view import keypad_html
-from i18n import t, t1
+from i18n import t, t1, t3, t4
 from fmt import fmt_int, fmt_money
 
-fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int) -> Html {
+// Arma el enunciado localizado según el tipo de problema.
+fn kiosco_enunciado(locale: Str, it: KioscoItem) -> Str {
+    let prod = t(locale, "kiosco.{it.item}")
+    if (it.kind == "total") {
+        // {0}=cantidad, {1}=producto, {2}=precio unitario
+        return t3(locale, "kiosco.p_total", fmt_int(locale, it.a), prod, fmt_money(locale, it.b))
+    }
+    if (it.kind == "vuelto") {
+        // {0}=producto, {1}=precio, {2}=con cuánto paga
+        return t3(locale, "kiosco.p_vuelto", prod, fmt_money(locale, it.a), fmt_money(locale, it.b))
+    }
+    if (it.kind == "reparto") {
+        // {0}=total, {1}=producto, {2}=entre cuántos
+        return t3(locale, "kiosco.p_reparto", fmt_int(locale, it.a), prod, fmt_int(locale, it.b))
+    }
+    if (it.kind == "cuantos") {
+        // {0}=plata, {1}=producto, {2}=precio unitario
+        return t3(locale, "kiosco.p_cuantos", fmt_money(locale, it.a), prod, fmt_money(locale, it.b))
+    }
+    // oferta: {0}=cantidad, {1}=producto, {2}=precio unitario, {3}=con cuánto paga
+    return t4(locale, "kiosco.p_oferta", fmt_int(locale, it.a), prod, fmt_money(locale, it.b), fmt_money(locale, it.c))
+}
+
+fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_money: Bool, entrada: Int) -> Html {
     if (phase == "done") {
         return kiosco_resumen(locale, correct, total)
     }
     let it = gen_kiosco(seed, idx, grade)
-    let compras = flv(t1(locale, "kiosco.compras", t(locale, "kiosco.{it.item}")))
-    let cuesta = flv(t1(locale, "kiosco.cuesta", fmt_money(locale, it.price)))
-    let pagas = flv(t1(locale, "kiosco.pagas", fmt_money(locale, it.paid)))
-    let pregunta = flv(t(locale, "kiosco.vuelto"))
-    // El vuelto tipeado, formateado como plata (o "$ ?" si está vacío).
-    let slot = match entrada > 0 {
-        true => html("""<span class="cg-slot filled">{flv(fmt_money(locale, entrada))}</span>""").raw,
-        false => html("""<span class="cg-slot">$ ?</span>""").raw,
+    let enun = flv(kiosco_enunciado(locale, it))
+    // La respuesta tipeada: plata (con $) o cuenta (número pelado) según el tipo.
+    let vacio = match it.money {
+        true => "$ ?",
+        false => "?",
     }
-    let banner = kiosco_feedback(locale, feedback, last_answer)
+    let tipeado = match it.money {
+        true => fmt_money(locale, entrada),
+        false => fmt_int(locale, entrada),
+    }
+    let slot = match entrada > 0 {
+        true => html("""<span class="cg-slot filled">{flv(tipeado)}</span>""").raw,
+        false => html("""<span class="cg-slot">{flv(vacio)}</span>""").raw,
+    }
+    let banner = kiosco_feedback(locale, feedback, last_answer, last_money)
     let hecho = flv(fmt_int(locale, total))
     let de_lbl = flv(t(locale, "juego.de"))
     let de_total = flv(fmt_int(locale, limit))
@@ -34,25 +62,26 @@ fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, tot
     let co = flv(fmt_int(locale, correct))
     let teclado = keypad_html(locale, entrada, idx, entrada > 0, false)
     return html("""<div class="q-hud">
-<div class="q-mode">🏪 {hecho} {de_lbl} {de_total}</div>
+<div class="q-mode">🧮 {hecho} {de_lbl} {de_total}</div>
 <div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
 </div>
 <div class="ki-enun">
-<p class="ki-linea">{compras}</p>
-<p class="ki-linea">{cuesta} · {pagas}</p>
-<p class="ki-preg">{pregunta}</p>
+<p class="ki-preg">{enun}</p>
 </div>
 <div class="q-prompt ki-slot">{slot}</div>
 <div class="q-fbwrap">{banner}</div>
 {teclado}""")
 }
 
-fn kiosco_feedback(locale: Str, feedback: Str, last_answer: Int) -> Str {
+fn kiosco_feedback(locale: Str, feedback: Str, last_answer: Int, last_money: Bool) -> Str {
     if (feedback == "ok") {
         return html("""<div class="q-fb ok" role="status">{flv(t(locale, "juego.correcto"))}</div>""").raw
     }
     if (feedback == "bad") {
-        let resp = fmt_money(locale, last_answer)
+        let resp = match last_money {
+            true => fmt_money(locale, last_answer),
+            false => fmt_int(locale, last_answer),
+        }
         return html("""<div class="q-fb bad" role="status">{flv(t1(locale, "juego.incorrecto", resp))}</div>""").raw
     }
     return ""
@@ -67,7 +96,7 @@ fn kiosco_resumen(locale: Str, correct: Int, total: Int) -> Html {
 <h2>{flv(t(locale, "juego.resumen"))}</h2>
 <div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
 <div class="q-actions">
-<a class="mh-btn" href="/kiosco">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn" href="/problemas">{flv(t(locale, "juego.de_nuevo"))}</a>
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
 </div>
 </div>""")

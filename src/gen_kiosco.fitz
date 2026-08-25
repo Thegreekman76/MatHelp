@@ -1,29 +1,38 @@
-// gen_kiosco.fitz — generador del juego "El kiosco" (F4).
+// gen_kiosco.fitz — generador del juego "Problemas" (situaciones de la vida real).
 //
-// Situación con contexto (§6.6): comprás un producto que cuesta $X, pagás con un
-// billete de $Y, y calculás el VUELTO (Y − X). Es una resta con contexto de plata
-// — el eje "dinero" del currículum (skill `dec.dinero`). Reproducible desde
-// (seed, idx, grade): el server re-deriva el mismo problema y valida el vuelto.
-//
-// Precios redondos (múltiplos de 50) y pago con el billete siguiente hacia arriba
-// (100, 200, 500, 1000...), así el vuelto es siempre positivo y "de kiosco". El
-// producto se elige del pool por su clave i18n (kiosco.<item>) — el contexto se
-// localiza, no sólo los botones (§4). El RandGen `g` es local (FITZ-01).
+// (Nombre interno histórico "kiosco"; de cara al usuario el juego se llama
+// "Problemas" y vive en /problemas.) Antes era sólo VUELTO; ahora es un juego de
+// PROBLEMAS variados de la vida real (§6.6), con el sub-tipo elegido por NIVEL
+// (F8): a mayor nivel/grado, más complejidad. Cinco tipos, todos con respuesta
+// entera positiva (teclado):
+//   - N1 total  (multiplicación): comprás N unidades a $X c/u → total = N·X.
+//   - N2 vuelto (resta, dinero):  comprás algo de $X, pagás con $Y → vuelto Y−X.
+//   - N3 reparto (división):      repartís T entre N → cada uno = T/N (exacto).
+//   - N4 cuantos (división):      con $P, cada uno $X → cuántos = P/X (exacto).
+//   - N5 oferta (2 pasos):        N unidades a $X, pagás con $B → vuelto B−N·X.
+// El contexto se localiza (kiosco.p_* + el nombre del producto kiosco.<item>), no
+// sólo los botones (§4). Reproducible desde (seed, idx, grade): el server re-deriva
+// el mismo problema y valida la respuesta. El RandGen `g` es local (FITZ-01).
 
-from gen_arith import sub_seed, difficulty_for
+from gen_arith import sub_seed, nivel_por_idx
 
-// Un problema de kiosco: producto (clave i18n), precio, con cuánto pagás y el
-// vuelto (la respuesta = paid − price).
+// Un problema de la vida real. `kind` decide cómo se arma el enunciado (kiosco_view)
+// y qué significan a/b/c. `answer` es siempre entera positiva; `money` distingue si
+// la respuesta es plata (total/vuelto/oferta) o una cuenta (reparto/cuantos).
 type KioscoItem {
+    kind: Str = "vuelto"      // "total" | "vuelto" | "reparto" | "cuantos" | "oferta"
     item: Str = ""            // clave i18n del producto: "kiosco.<item>"
-    price: Int = 0
-    paid: Int = 0
-    change: Int = 0           // la respuesta (paid − price)
+    a: Int = 0                // números del problema (según kind)
+    b: Int = 0
+    c: Int = 0
+    answer: Int = 0           // la respuesta (siempre > 0)
+    money: Bool = false       // ¿la respuesta es plata? (para el formato del slot)
+    skill: Str = "dec.dinero" // skill de mastery (reusa las operaciones)
     difficulty: Int = 1
 }
 
-// Precio máximo (múltiplo de 50) según el grado. De pocos cientos en 1º-3º a
-// varios miles en 6º-7º.
+// Precio máximo (múltiplo de 50) del vuelto según el grado. De pocos cientos en
+// 1º-3º a varios miles en 6º-7º.
 fn kiosco_max(grade: Int) -> Int {
     if (grade <= 3) {
         return 500
@@ -34,37 +43,126 @@ fn kiosco_max(grade: Int) -> Int {
     return 5000
 }
 
-// El billete con que pagás: el más chico ESTRICTAMENTE mayor al precio, así el
-// vuelto es siempre > 0 (nunca justo). Los billetes van hasta 10.000, y el precio
-// máximo es 5.000, así que siempre hay uno mayor.
-fn kiosco_paid(price: Int) -> Int {
+// El billete con que pagás: el más chico ESTRICTAMENTE mayor al monto, así el
+// vuelto es siempre > 0 (nunca justo). Billetes hasta 10.000.
+fn kiosco_paid(monto: Int) -> Int {
     let billetes = [100, 200, 500, 1000, 2000, 5000, 10000]
     for bb in billetes {
-        if (bb > price) {
+        if (bb > monto) {
             return bb
         }
     }
-    return price + 100        // fallback (no debería alcanzarse)
+    return monto + 100        // fallback (no debería alcanzarse)
 }
 
-// Los productos del kiosco (claves i18n). El generador elige uno determinista.
+// Los productos (claves i18n). El generador elige uno determinista.
 fn kiosco_items() -> List<Str> {
     return ["alfajor", "chicle", "agua", "galletitas", "caramelo", "chocolate", "jugo", "turron"]
 }
 
-// Genera un problema de kiosco. Determinista desde (seed, idx, grade).
+// Cotas de nivel por grado (juego de primaria 4º+; en secundaria queda en el techo).
+fn nivel_piso_kiosco(grade: Int) -> Int {
+    if (grade <= 5) {
+        return 1
+    }
+    return 2
+}
+
+fn nivel_techo_kiosco(grade: Int) -> Int {
+    if (grade <= 4) {
+        return 2
+    }
+    if (grade <= 5) {
+        return 3
+    }
+    if (grade <= 6) {
+        return 4
+    }
+    return 5
+}
+
+// Genera un problema. Determinista desde (seed, idx, grade); el sub-tipo lo elige
+// el nivel (piso del grado + rampa por idx).
 fn gen_kiosco(seed: Int, idx: Int, grade: Int) -> KioscoItem {
     let g = rand.seeded(sub_seed(seed, idx))
     let items = kiosco_items()
     let it = items[g.int(0, items.len() - 1)]
     let max = kiosco_max(grade)
-    let price = g.int(1, max / 50) * 50        // múltiplo de 50 en [50, max]
-    let paid = kiosco_paid(price)
+    let nivel = nivel_por_idx(nivel_piso_kiosco(grade), nivel_techo_kiosco(grade), idx)
+    let a = 0
+    let b = 0
+    let c = 0
+    let answer = 0
+    let money = false
+    let kind = "total"
+    let skill = "mul.tabla"
+    if (nivel == 1) {
+        // Precio total: N unidades a $X cada una (multiplicación).
+        let n = g.int(2, 5)
+        let precio = g.int(1, 6) * 50          // $50..$300, mental
+        a = n
+        b = precio
+        answer = n * precio
+        money = true
+        kind = "total"
+        skill = "mul.tabla"
+    }
+    if (nivel == 2) {
+        // Vuelto: precio $X, pagás con el billete siguiente $Y (resta con dinero).
+        let precio = g.int(1, max / 50) * 50
+        let paga = kiosco_paid(precio)
+        a = precio
+        b = paga
+        answer = paga - precio
+        money = true
+        kind = "vuelto"
+        skill = "dec.dinero"
+    }
+    if (nivel == 3) {
+        // Reparto: T unidades entre N amigos, en partes iguales (división exacta).
+        let cada = g.int(2, 12)
+        let n = g.int(2, 6)
+        a = n * cada       // total a repartir
+        b = n              // entre cuántos
+        answer = cada      // cuántos a cada uno
+        money = false
+        kind = "reparto"
+        skill = "div.exacta"
+    }
+    if (nivel == 4) {
+        // Cuántos entran: con $P, cada uno cuesta $X → cuántos podés comprar.
+        let precio = g.int(2, 10) * 50         // $100..$500
+        let k = g.int(2, 8)
+        a = k * precio     // plata que tenés
+        b = precio         // precio unitario
+        answer = k         // cuántos podés comprar
+        money = false
+        kind = "cuantos"
+        skill = "div.exacta"
+    }
+    if (nivel == 5) {
+        // Oferta (2 pasos): N unidades a $X, pagás con billete → vuelto B − N·X.
+        let n = g.int(2, 4)
+        let precio = g.int(2, 10) * 50
+        let subtotal = n * precio
+        let billete = kiosco_paid(subtotal)
+        a = n
+        b = precio
+        c = billete
+        answer = billete - subtotal
+        money = true
+        kind = "oferta"
+        skill = "dec.dinero"
+    }
     return KioscoItem {
+        kind: kind,
         item: it,
-        price: price,
-        paid: paid,
-        change: paid - price,
-        difficulty: difficulty_for("sub", grade),
+        a: a,
+        b: b,
+        c: c,
+        answer: answer,
+        money: money,
+        skill: skill,
+        difficulty: nivel,
     }
 }

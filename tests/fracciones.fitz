@@ -114,3 +114,27 @@ fn contiene(xs: List<Str>, t: Str) -> Bool {
         idx = idx + 1
     }
 }
+
+// F8 rampa: dentro de la ronda el denominador arranca chico y puede crecer hacia
+// el máximo del grado. En el idx 0 el techo es 4 (nunca den > 4); en un idx alto
+// puede llegar al máximo del grado (probamos que aparece algún den > 4 en 7º).
+@test fn frac_rampa_por_idx() {
+    // idx 0: den acotado a 4 (arranca fácil), en cualquier grado.
+    let idx0 = 0
+    while (idx0 < 40) {
+        let f = gen_frac(555 + idx0, 0, 7)
+        assert_eq(f.den <= 4, true)
+        idx0 = idx0 + 1
+    }
+    // idx alto en 7º (máximo 10): aparece algún denominador fino (> 4).
+    let vio_fino = false
+    let i = 0
+    while (i < 60) {
+        let f = gen_frac(4321, 12 + i, 7)
+        if (f.den > 4) {
+            vio_fino = true
+        }
+        i = i + 1
+    }
+    assert_eq(vio_fino, true)
+}

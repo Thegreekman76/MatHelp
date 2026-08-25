@@ -641,7 +641,7 @@ Todos pensados para **pulgar en celular**: botones grandes, nada de arrastrar, n
 | 2 | **Verdadero o Falso** | 2 botones gigantes — el más fácil de usar en el colectivo | todos | F4 |
 | 3 | **Completá el hueco** | `7 × __ = 56` con **teclado numérico propio** en pantalla | todos | F4 |
 | 4 | **Escalera de tablas** | Subís un escalón por acierto, caés dos por error | `mult.*` | F4 |
-| 5 | **El kiosco** | Comprás, calculás el vuelto, con precios en pesos | `dec.dinero`, `add`, `sub` | F4 |
+| 5 | **Problemas** | Problemas de la vida real variados por nivel: total, vuelto, reparto, cuántos entran, oferta (2 pasos) | `mul.tabla`, `dec.dinero`, `div.exacta` | F4 · enriquecido F8.B (antes "El kiosco", sólo vuelto) |
 | 6 | **Fracciones a la vista** | Pizza/barra en SVG, elegís la fracción | `frac.*` | F4 |
 | 7 | **¿Qué hora es?** | Reloj de agujas en SVG | `med.tiempo` | F5 |
 | 8 | **Problemas con historia** | Enunciado corto y localizado, respuesta numérica | 4º–7º | F5 |
@@ -1161,8 +1161,25 @@ para persistir (paridad run↔build por construcción). El `nivel` setea además
   ya no ve el nivel 1) **+ rampa en la ronda** (dificultad g10 1→3, g13 2→5, y el 6°
   arranca más arriba). Paridad bit-a-bit `fitz run` ↔ binario; smokes de los juegos
   (trig/funciones/finanzas) siguen 10/10.
-- **Fase B.** Rampa por `idx` en Fracciones/Kiosco (y opcional en los adaptativos,
-  para que cada ronda sea también un mini-ascenso).
+- **Fase B. ✅ (2026-08-24)** (1) **Fracciones:** rampa por `idx` — el denominador
+  máximo crece de a poco dentro de la ronda (`imin(4 + idx/2, frac_den_max(grade))`),
+  sin pasar el máximo del grado. (2) **Kiosco → "Problemas":** el juego era sólo
+  VUELTO ("muy pobre"); ahora es **Problemas de la vida real VARIADOS** (§6.6), con
+  el sub-tipo elegido por nivel: **N1 total** (N unidades a $X → multiplicación),
+  **N2 vuelto** (resta con dinero), **N3 reparto** (división exacta), **N4 cuántos
+  entran** (división con $), **N5 oferta** (2 pasos: N·X y vuelto). Cada tipo con su
+  enunciado localizado (es-AR/en, `kiosco.p_*` + `t4` nuevo), respuesta entera
+  positiva (plata o cuenta según el tipo → el slot/feedback formatea con `fmt_money`
+  o `fmt_int`), skill de mastery por operación (`mul.tabla`/`dec.dinero`/`div.exacta`
+  → refuerza esas destrezas cross-juego). Renombrado de cara al usuario a
+  **"Problemas"** (ruta `/problemas`, ícono 🧮); el código interno sigue "kiosco"
+  (componente, `mode="kiosco"` del CHECK) como nombre histórico. `nivel_piso_kiosco`/
+  `nivel_techo_kiosco`: grade 4:[1,2] 5:[1,3] 6:[2,4] 7+:[2,5]. Tests reescritos
+  (`tests/kiosco.fitz`: fórmula exacta por tipo, cobertura por grado — un 4° no ve
+  reparto/cuantos/oferta, un 7° sí —, rampa de dificultad) + rampa de fracciones
+  (`frac_rampa_por_idx`); 115 total. Smoke E2E `tools/e2e_problemas.py`: juega en
+  grade 7 resolviendo cada tipo desde el enunciado del frame → 10/10, variedad de
+  skills (dec.dinero + div.exacta, ya no sólo vueltos), paridad run↔binario.
 - **Fase C (opcional).** Piso inicial nudgeado por el rating de mastery del skill del
   juego (reusa `grado_efectivo`) → adaptativo cross-sesión para secundaria: el que ya
   domina Ecuaciones arranca más arriba la próxima sesión.

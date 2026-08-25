@@ -16,6 +16,7 @@ from engine import desafio_n
 from mastery import actualizar_mastery
 from streaks import registrar_y_premiar
 from gen_kiosco import gen_kiosco
+from kiosco_view import kiosco_enunciado
 from live_game import resolver_contexto, pget_int
 from Kiosco import kiosco
 
@@ -23,8 +24,8 @@ async fn crear_sesion_kiosco(profile_id: Int, seed: Int, grade: Int) -> Result<I
     let conn = db.connect(db_url()).await?
     let sess = GameSession.insert(conn, GameSession {
         profile_id: profile_id,
-        mode: "kiosco",            // CHECK sessions_mode_valido (0001_init.sql)
-        topic_code: "dec.dinero",
+        mode: "kiosco",            // CHECK sessions_mode_valido (0001_init.sql) — nombre interno histórico
+        topic_code: "problemas",
         level: grade,
         seed: seed,
     }).await?
@@ -33,22 +34,22 @@ async fn crear_sesion_kiosco(profile_id: Int, seed: Int, grade: Int) -> Result<I
 
 async fn persistir_kiosco(sess_id: Int, profile_id: Int, seed: Int, idx: Int, grade: Int, given: Int) -> Result<Int> {
     let it = gen_kiosco(seed, idx, grade)
-    let acierto = given == it.change
-    let prompt = "vuelto de {it.paid} − {it.price}"
+    let acierto = given == it.answer
+    let prompt = kiosco_enunciado("es-AR", it)
     let conn = db.connect(db_url()).await?
     let row = Attempt.insert(conn, Attempt {
         session_id: sess_id,
         profile_id: profile_id,
-        skill_code: "dec.dinero",
+        skill_code: it.skill,
         idx: idx,
         prompt: prompt,
-        expected: "{it.change}",
+        expected: "{it.answer}",
         given: "{given}",
         correct: acierto,
         ms: 0,
         difficulty: it.difficulty,
     }).await?
-    let _ = actualizar_mastery(profile_id, "dec.dinero", it.difficulty, acierto, 0).await
+    let _ = actualizar_mastery(profile_id, it.skill, it.difficulty, acierto, 0).await
     return Ok(row.id)
 }
 
@@ -63,7 +64,7 @@ async fn cerrar_kiosco(sess_id: Int, total: Int, correct: Int) -> Result<Int> {
 
 @cookie(name="mathelp_session", into="session")
 @cookie(name="mathelp_lang", into="lang")
-@get("/kiosco")
+@get("/problemas")
 async fn kiosco_get(session: Str?, lang: Str?) -> Response {
     let locale = locale_from_cookie(lang)
     let ctx = match resolver_contexto(session).await {
@@ -76,14 +77,14 @@ async fn kiosco_get(session: Str?, lang: Str?) -> Response {
         locale: locale,
         limit: desafio_n(),
     })
-    let embed = live_embed("/live/kiosco", "kiosco-app", inicial)
+    let embed = live_embed("/live/problemas", "kiosco-app", inicial)
     let titulo = t(locale, "juego.kiosco") + " — MatHelp"
     return responder_html(page(locale, titulo, embed, html("")))
 }
 
 @cookie(name="mathelp_session", into="session")
 @cookie(name="mathelp_lang", into="lang")
-@ws("/live/kiosco")
+@ws("/live/problemas")
 async fn kiosco_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
     let locale = locale_from_cookie(lang)
     let ctx = resolver_contexto(session).await?

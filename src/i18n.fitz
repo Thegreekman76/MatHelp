@@ -49,6 +49,10 @@ fn t3(locale: Str, key: Str, a0: Str, a1: Str, a2: Str) -> Str {
     return t(locale, key).replace("\{0\}", a0).replace("\{1\}", a1).replace("\{2\}", a2)
 }
 
+fn t4(locale: Str, key: Str, a0: Str, a1: Str, a2: Str, a3: Str) -> Str {
+    return t(locale, key).replace("\{0\}", a0).replace("\{1\}", a1).replace("\{2\}", a2).replace("\{3\}", a3)
+}
+
 // Resuelve el locale desde el valor de la cookie de idioma. El handler la
 // recibe directo por `@cookie(name="mathelp_lang", into="lang")` (también
 // sobre `@ws`: el handshake es HTTP). `null`/ausente/inválido → default.

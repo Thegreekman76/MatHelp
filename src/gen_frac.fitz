@@ -10,7 +10,7 @@
 // cross-multiplication (n1·d2 == n2·d1) — sin fracciones equivalentes, la
 // respuesta es única. El RandGen `g` es local (FITZ-01).
 
-from gen_arith import sub_seed
+from gen_arith import sub_seed, imin
 
 // Una fracción pintada + 4 opciones "n/d" (una es la correcta), barajadas.
 type FracItem {
@@ -44,7 +44,9 @@ fn frac_dificultad(den: Int) -> Int {
 // (seed, idx, grade).
 fn gen_frac(seed: Int, idx: Int, grade: Int) -> FracItem {
     let g = rand.seeded(sub_seed(seed, idx))
-    let dmax = frac_den_max(grade)
+    // F8 rampa: el denominador máximo crece de a poco dentro de la ronda (fracciones
+    // más finas al avanzar), sin pasar el máximo del grado.
+    let dmax = imin(4 + idx / 2, frac_den_max(grade))
     let den = g.int(2, dmax)
     let num = g.int(1, den - 1)          // fracción propia (0 < num < den)
 
