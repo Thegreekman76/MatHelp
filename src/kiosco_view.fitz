@@ -16,23 +16,34 @@ from fmt import fmt_int, fmt_money
 fn kiosco_enunciado(locale: Str, it: KioscoItem) -> Str {
     let prod = t(locale, "kiosco.{it.item}")
     if (it.kind == "total") {
-        // {0}=cantidad, {1}=producto, {2}=precio unitario
         return t3(locale, "kiosco.p_total", fmt_int(locale, it.a), prod, fmt_money(locale, it.b))
     }
+    if (it.kind == "suma") {
+        return t3(locale, "kiosco.p_suma", fmt_money(locale, it.a), fmt_money(locale, it.b), fmt_money(locale, it.c))
+    }
     if (it.kind == "vuelto") {
-        // {0}=producto, {1}=precio, {2}=con cuánto paga
         return t3(locale, "kiosco.p_vuelto", prod, fmt_money(locale, it.a), fmt_money(locale, it.b))
     }
+    if (it.kind == "falta") {
+        return t3(locale, "kiosco.p_falta", prod, fmt_money(locale, it.a), fmt_money(locale, it.b))
+    }
+    if (it.kind == "comparar") {
+        return t3(locale, "kiosco.p_comparar", prod, fmt_money(locale, it.a), fmt_money(locale, it.b))
+    }
     if (it.kind == "reparto") {
-        // {0}=total, {1}=producto, {2}=entre cuántos
         return t3(locale, "kiosco.p_reparto", fmt_int(locale, it.a), prod, fmt_int(locale, it.b))
     }
     if (it.kind == "cuantos") {
-        // {0}=plata, {1}=producto, {2}=precio unitario
         return t3(locale, "kiosco.p_cuantos", fmt_money(locale, it.a), prod, fmt_money(locale, it.b))
     }
-    // oferta: {0}=cantidad, {1}=producto, {2}=precio unitario, {3}=con cuánto paga
-    return t4(locale, "kiosco.p_oferta", fmt_int(locale, it.a), prod, fmt_money(locale, it.b), fmt_money(locale, it.c))
+    if (it.kind == "descuento") {
+        return t3(locale, "kiosco.p_descuento", prod, fmt_money(locale, it.a), fmt_int(locale, it.b))
+    }
+    if (it.kind == "oferta") {
+        return t4(locale, "kiosco.p_oferta", fmt_int(locale, it.a), prod, fmt_money(locale, it.b), fmt_money(locale, it.c))
+    }
+    // combo: {0}=cantidad, {1}=producto, {2}=precio A, {3}=precio B
+    return t4(locale, "kiosco.p_combo", fmt_int(locale, it.a), prod, fmt_money(locale, it.b), fmt_money(locale, it.c))
 }
 
 fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_money: Bool, entrada: Int) -> Html {

@@ -55,9 +55,7 @@ fn contiene_str(xs: List<Str>, t: Str) -> Bool {
     }
 }
 
-// Cada tipo cumple su fórmula: total = n·precio; vuelto = paga − precio (paga >
-// precio); reparto = total/n exacto; cuantos: plata = cuántos·precio; oferta =
-// billete − n·precio (billete > subtotal). Cubre todos los grados/idx.
+// Cada uno de los 10 tipos cumple su fórmula. Cubre todos los grados/idx.
 @test fn cada_tipo_cumple_su_formula() {
     for grade in [4, 5, 6, 7] {
         let idx = 0
@@ -66,59 +64,105 @@ fn contiene_str(xs: List<Str>, t: Str) -> Bool {
             if (k.kind == "total") {
                 assert_eq(k.answer, k.a * k.b)
             }
+            if (k.kind == "suma") {
+                assert_eq(k.answer, k.a + k.b + k.c)
+            }
             if (k.kind == "vuelto") {
                 assert_eq(k.answer, k.b - k.a)
                 assert_eq(k.b > k.a, true)
             }
+            if (k.kind == "falta") {
+                assert_eq(k.answer, k.a - k.b)
+                assert_eq(k.a > k.b, true)          // el precio es mayor que lo que tenés
+            }
+            if (k.kind == "comparar") {
+                assert_eq(k.answer, k.a - k.b)
+                assert_eq(k.a > k.b, true)          // a = el más caro
+            }
             if (k.kind == "reparto") {
-                assert_eq(k.a % k.b, 0)            // división exacta
+                assert_eq(k.a % k.b, 0)             // división exacta
                 assert_eq(k.answer, k.a / k.b)
             }
             if (k.kind == "cuantos") {
-                assert_eq(k.a, k.answer * k.b)     // plata = cuántos · precio
-                assert_eq(k.b % 50, 0)             // precio redondo
+                assert_eq(k.a, k.answer * k.b)      // plata = cuántos · precio
+                assert_eq(k.b % 50, 0)              // precio redondo
+            }
+            if (k.kind == "descuento") {
+                assert_eq(k.answer, k.a - k.a * k.b / 100)
+                assert_eq(k.a * k.b % 100, 0)       // descuento exacto
             }
             if (k.kind == "oferta") {
                 assert_eq(k.answer, k.c - k.a * k.b)
                 assert_eq(k.c > k.a * k.b, true)
             }
+            if (k.kind == "combo") {
+                assert_eq(k.answer, k.a * k.b + k.c)
+            }
+            assert_eq(k.answer > 0, true)           // toda respuesta es positiva
             idx = idx + 1
         }
     }
 }
 
-// Cobertura por grado (F8): un 4° (grade 4, niveles 1..2) sólo ve total y vuelto
-// — NUNCA reparto/cuantos/oferta. Un 7° (niveles 2..5) sí llega a esos tres.
+// Cobertura por grado (F8): un 4° (niveles 1..2) sólo ve tipos de tier 1-2, NUNCA
+// tier 3+ (reparto/descuento/combo). Un 7° (niveles 2..5) sí llega a esos.
 @test fn cobertura_por_grado() {
-    let g4_reparto = false
-    let g4_cuantos = false
-    let g4_oferta = false
-    let idx = 0
-    while (idx < 40) {
-        let k = gen_kiosco(1234, idx, 4)
-        if (k.kind == "reparto") { g4_reparto = true }
-        if (k.kind == "cuantos") { g4_cuantos = true }
-        if (k.kind == "oferta") { g4_oferta = true }
-        idx = idx + 1
+    let g4: List<Str> = []
+    let s = 0
+    while (s < 60) {
+        let idx = 0
+        while (idx < 10) {
+            let k = gen_kiosco(1000 + s, idx, 4)
+            if (not contiene_str(g4, k.kind)) {
+                g4.push(k.kind)
+            }
+            idx = idx + 1
+        }
+        s = s + 1
     }
-    assert_eq(g4_reparto, false)
-    assert_eq(g4_cuantos, false)
-    assert_eq(g4_oferta, false)
+    assert_eq(contiene_str(g4, "reparto"), false)     // tier 3 no le toca a 4°
+    assert_eq(contiene_str(g4, "descuento"), false)   // tier 4
+    assert_eq(contiene_str(g4, "combo"), false)       // tier 5
+    // Y sí ve variedad de tier 1-2:
+    assert_eq(contiene_str(g4, "suma") or contiene_str(g4, "total"), true)
+    assert_eq(contiene_str(g4, "falta") or contiene_str(g4, "comparar") or contiene_str(g4, "vuelto"), true)
 
-    let g7_reparto = false
-    let g7_cuantos = false
-    let g7_oferta = false
-    idx = 0
-    while (idx < 40) {
-        let k = gen_kiosco(1234, idx, 7)
-        if (k.kind == "reparto") { g7_reparto = true }
-        if (k.kind == "cuantos") { g7_cuantos = true }
-        if (k.kind == "oferta") { g7_oferta = true }
-        idx = idx + 1
+    let g7: List<Str> = []
+    s = 0
+    while (s < 60) {
+        let idx = 0
+        while (idx < 10) {
+            let k = gen_kiosco(2000 + s, idx, 7)
+            if (not contiene_str(g7, k.kind)) {
+                g7.push(k.kind)
+            }
+            idx = idx + 1
+        }
+        s = s + 1
     }
-    assert_eq(g7_reparto, true)
-    assert_eq(g7_cuantos, true)
-    assert_eq(g7_oferta, true)
+    assert_eq(contiene_str(g7, "reparto"), true)
+    assert_eq(contiene_str(g7, "descuento"), true)
+    assert_eq(contiene_str(g7, "combo"), true)
+}
+
+// De-dup por sesión: en una ronda de 10 ningún problema se repite (misma firma
+// kind+números). Cubre varios grados y semillas.
+@test fn sin_repetidos_en_la_ronda() {
+    for grade in [4, 6, 7] {
+        let semilla = 0
+        while (semilla < 30) {
+            let vistos: List<Str> = []
+            let idx = 0
+            while (idx < 10) {
+                let k = gen_kiosco(31415 + semilla, idx, grade)
+                let f = "{k.kind}|{k.a}|{k.b}|{k.c}"
+                assert_eq(contiene_str(vistos, f), false)   // no se repite
+                vistos.push(f)
+                idx = idx + 1
+            }
+            semilla = semilla + 1
+        }
+    }
 }
 
 // La dificultad (= nivel) sube dentro de la ronda: el primer problema es más

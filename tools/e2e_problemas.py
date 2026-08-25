@@ -71,18 +71,35 @@ def _plain_ints(texto):
 
 
 def resolver(enun):
-    if "en total" in enun or "in total" in enun:              # total = N · X
-        x = _monies(enun)[0]
+    if "tres cosas que cuestan" in enun or "three things that cost" in enun:  # suma
+        a, b, c = _monies(enun)
+        return a + b + c
+    if "otra cosa de" in enun or "another item for" in enun:  # combo = N·A + B
+        a, bb = _monies(enun)
         n = _plain_ints(enun)[0]
-        return n * x
+        return n * a + bb
     if "unidades y pag" in enun or "units and pay" in enun:   # oferta = Y − N·X
         x, y = _monies(enun)
         n = _plain_ints(enun)[0]
         return y - n * x
-    if "de vuelto" in enun or "change do you get" in enun:     # vuelto = Y − X
+    if "pagás en total" in enun or "pay in total" in enun:    # total = N · X
+        x = _monies(enun)[0]
+        n = _plain_ints(enun)[0]
+        return n * x
+    if "te falta" in enun or "more do you need" in enun:      # falta = X − Y
+        x, y = _monies(enun)
+        return x - y
+    if "diferencia" in enun or "the difference" in enun:      # comparar = |A − B|
+        a, b = _monies(enun)
+        return abs(a - b)
+    if "descuento" in enun or "discount" in enun:             # descuento = X − X·P/100
+        x = _monies(enun)[0]
+        p = _plain_ints(enun)[0]
+        return x - x * p // 100
+    if "de vuelto" in enun or "change do you get" in enun:    # vuelto = Y − X
         x, y = _monies(enun)
         return y - x
-    if "entre" in enun or "among" in enun:                     # reparto = T / N
+    if "entre" in enun or "among" in enun:                    # reparto = T / N
         t, n = _plain_ints(enun)
         return t // n
     # cuantos = P / X
@@ -126,14 +143,18 @@ def escenario():
     assert 'class="ki-preg"' in rp.text, "el SSR no trae el enunciado"
 
     ws, cid, html = open_ws(s)
+    enunciados = []
     for ei in range(LIMIT):
         enun = extraer_enun(html)
+        enunciados.append(enun)
         sol = resolver(enun)
         html = answer(ws, cid, ei, sol)
         time.sleep(0.05)
     time.sleep(0.4)
     ws.close()
     time.sleep(0.4)
+    # no se repite ningún problema en la ronda (el pedido del autor).
+    assert len(set(enunciados)) == LIMIT, f"hubo problemas repetidos: {len(set(enunciados))}/{LIMIT} distintos"
 
     sid = psql(f"SELECT id FROM sessions WHERE profile_id={pid} AND mode='kiosco' AND topic_code='problemas' ORDER BY id DESC LIMIT 1")
     assert sid, "no se creó la sesión de Problemas (kiosco/problemas)"
