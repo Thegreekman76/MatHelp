@@ -1,0 +1,114 @@
+// hora_view.fitz — el render de "Hora" (leer el reloj).
+//
+// Dibuja un reloj analógico SVG con las agujas en (hh, mm) y 4 botones con las
+// opciones "H:MM". El reloj se DERIVA de (seed, idx, grade); el server re-deriva el
+// mismo y compara la opción elegida con it.correct.
+//
+// Las agujas se posicionan con transform="rotate(ang 100 100)" sobre una línea
+// vertical — así no hace falta seno/coseno en Fitz. Los números 1..12 están en
+// posiciones fijas precalculadas (el reloj siempre mide 200×200).
+
+from fitz_liveviews import Html, html, flv, h_join
+from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar, mejor_racha_html
+from gen_hora import gen_hora
+from i18n import t, t1
+from fmt import fmt_int
+
+// Números 1..12 en posiciones fijas (cx=cy=100, r=76).
+fn reloj_numeros() -> Str {
+    return html("""<text x="100" y="24" class="rl-num">12</text>
+<text x="138" y="34" class="rl-num">1</text>
+<text x="166" y="62" class="rl-num">2</text>
+<text x="176" y="100" class="rl-num">3</text>
+<text x="166" y="138" class="rl-num">4</text>
+<text x="138" y="166" class="rl-num">5</text>
+<text x="100" y="176" class="rl-num">6</text>
+<text x="62" y="166" class="rl-num">7</text>
+<text x="34" y="138" class="rl-num">8</text>
+<text x="24" y="100" class="rl-num">9</text>
+<text x="34" y="62" class="rl-num">10</text>
+<text x="62" y="34" class="rl-num">11</text>""").raw
+}
+
+fn reloj_svg(hh: Int, mm: Int) -> Str {
+    let ticks = ""
+    let i = 0
+    while (i < 12) {
+        let ang = i * 30
+        ticks = ticks + html("""<line x1="100" y1="8" x2="100" y2="18" transform="rotate({ang} 100 100)" class="rl-tick" />""").raw
+        i = i + 1
+    }
+    // La aguja horaria avanza con los minutos (30°/h + 0.5°/min).
+    let hour_ang = (hh % 12) * 30 + mm / 2
+    let min_ang = mm * 6
+    let nums = reloj_numeros()
+    return html("""<svg viewBox="0 0 200 200" class="rl-clock" role="img" aria-label="reloj analógico">
+<circle cx="100" cy="100" r="94" class="rl-face" />
+{ticks}
+{nums}
+<line x1="100" y1="100" x2="100" y2="54" transform="rotate({hour_ang} 100 100)" class="rl-hour" />
+<line x1="100" y1="100" x2="100" y2="30" transform="rotate({min_ang} 100 100)" class="rl-min" />
+<circle cx="100" cy="100" r="5" class="rl-center" />
+</svg>""").raw
+}
+
+fn hora_opt_button(o: Str, idx: Int) -> Html {
+    let txt = flv(o)
+    return html("""<button class="q-opt hora-opt" type="button" data-flv-click="answer" data-flv-value-v="{o}" data-flv-value-ei="{idx}">{txt}</button>""")
+}
+
+fn hora_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Str, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+    if (phase == "done") {
+        return hora_resumen(locale, correct, total, racha_max, record_prev)
+    }
+    let it = gen_hora(seed, idx, grade)
+    let reloj = reloj_svg(it.hh, it.mm)
+    let opciones = h_join(it.options.map(fn(o) => hora_opt_button(o, idx)))
+    let banner = hora_feedback(locale, feedback, last_answer, total)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(total, limit)
+    let pregunta = flv(t(locale, "hora.pregunta"))
+    return html("""<div class="q-hud">
+<div class="q-mode">🕐 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
+</div>
+{progb}
+<p class="hora-preg">{pregunta}</p>
+<div class="hora-clock-wrap">{reloj}</div>
+<div class="q-options hora-opts">{opciones}</div>
+<div class="q-fbwrap">{banner}</div>""")
+}
+
+fn hora_feedback(locale: Str, feedback: Str, last_answer: Str, seq: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(t1(locale, "hora.era", last_answer))}</div>""").raw
+    }
+    return ""
+}
+
+fn hora_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
+{mejor}
+<div class="q-actions">
+<a class="mh-btn" href="/hora">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

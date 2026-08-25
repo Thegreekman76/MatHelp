@@ -1,0 +1,70 @@
+// tests/hora.fitz — el generador de "Hora" (gen_hora.fitz).
+//
+// (Nombre distinto del módulo importado → sin ciclo, FITZ-21.)
+//
+// Invariantes: reproducibilidad, 4 opciones distintas con la correcta adentro,
+// dificultad en rango, y la precisión por nivel (grado 2 arranca "en punto").
+
+from gen_hora import gen_hora, HoraItem
+
+fn contiene(xs: List<Str>, s: Str) -> Bool {
+    for x in xs {
+        if (x == s) {
+            return true
+        }
+    }
+    return false
+}
+
+@test fn hora_reproducible() {
+    let idx = 0
+    while (idx < 60) {
+        let a = gen_hora(5151, idx, 5)
+        let b = gen_hora(5151, idx, 5)
+        assert_eq(a.correct, b.correct)
+        assert_eq(a.options, b.options)
+        idx = idx + 1
+    }
+}
+
+@test fn hora_cuatro_opciones_con_la_correcta() {
+    let grades = [2, 4, 6, 9, 13]
+    for gr in grades {
+        let idx = 0
+        while (idx < 25) {
+            let it = gen_hora(88, idx, gr)
+            assert_eq(it.options.len(), 4)
+            assert(contiene(it.options, it.correct))
+            assert(it.difficulty >= 1)
+            assert(it.difficulty <= 5)
+            idx = idx + 1
+        }
+    }
+}
+
+@test fn hora_opciones_distintas() {
+    let idx = 0
+    while (idx < 40) {
+        let it = gen_hora(303, idx, 8)
+        let vistos: List<Str> = []
+        for o in it.options {
+            assert(not contiene(vistos, o))
+            vistos.push(o)
+        }
+        idx = idx + 1
+    }
+}
+
+@test fn hora_grado2_en_punto() {
+    // Grado 2, idx 0 → nivel 1: siempre "en punto" (mm = 0).
+    let it = gen_hora(7, 0, 2)
+    assert_eq(it.mm, 0)
+    assert_eq(it.difficulty, 1)
+}
+
+@test fn hora_rampa_por_grado() {
+    let bajo = gen_hora(9, 0, 2)
+    assert(bajo.difficulty <= 2)
+    let alto = gen_hora(9, 30, 13)
+    assert_eq(alto.difficulty, 5)
+}

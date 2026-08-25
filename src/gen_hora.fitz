@@ -1,0 +1,150 @@
+// gen_hora.fitz — generador del juego "Hora" (leer el reloj analógico).
+//
+// Muestra un reloj (SVG) con las agujas en cierta hora y el chico elige la hora
+// correcta entre 4 opciones "H:MM". Escala por nivel (F8) en PRECISIÓN de lectura:
+// de "en punto" en 2° a "cualquier minuto" en secundaria.
+//
+// Reproducible desde (seed, idx, grade): el server re-deriva el mismo reloj y las
+// mismas opciones. El RandGen `g` es LOCAL (regla FITZ-01), nunca se pasa a otra fn.
+
+from gen_arith import sub_seed, nivel_por_idx
+
+type HoraItem {
+    hh: Int = 12               // hora mostrada (1..12)
+    mm: Int = 0                // minutos mostrados (0..59)
+    options: List<Str> = []    // 4 opciones "H:MM", una correcta, barajadas
+    correct: Str = ""          // "H:MM" de la respuesta
+    skill_code: Str = "reloj"
+    difficulty: Int = 1        // 1..5 (nivel)
+}
+
+// Piso/techo del nivel por grado. min_grade del juego es 2°.
+fn nivel_piso_hora(grade: Int) -> Int {
+    if (grade <= 3) {
+        return 1
+    }
+    if (grade <= 6) {
+        return 2
+    }
+    return 3
+}
+
+fn nivel_techo_hora(grade: Int) -> Int {
+    if (grade <= 2) {
+        return 2
+    }
+    if (grade <= 4) {
+        return 3
+    }
+    if (grade <= 6) {
+        return 4
+    }
+    return 5
+}
+
+// Envuelve una hora cualquiera al rango 1..12 del reloj.
+fn wrap12(h: Int) -> Int {
+    let w = h % 12
+    if (w == 0) {
+        return 12
+    }
+    return w
+}
+
+// "H:MM" con minutos a dos dígitos.
+fn hhmm(hh: Int, mm: Int) -> Str {
+    let mms = match mm < 10 {
+        true => "0{mm}",
+        false => "{mm}",
+    }
+    return "{hh}:{mms}"
+}
+
+// ¿La lista de strings contiene `s`?
+fn contiene_hora(xs: List<Str>, s: Str) -> Bool {
+    for x in xs {
+        if (x == s) {
+            return true
+        }
+    }
+    return false
+}
+
+fn gen_hora(seed: Int, idx: Int, grade: Int) -> HoraItem {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let piso = nivel_piso_hora(grade)
+    let techo = nivel_techo_hora(grade)
+    let nivel = nivel_por_idx(piso, techo, idx)
+
+    let hh = g.int(1, 12)
+    // Minutos según la PRECISIÓN del nivel.
+    let mm = 0
+    if (nivel == 2) {
+        let o2 = [0, 30]
+        mm = o2[g.int(0, 1)]
+    }
+    if (nivel == 3) {
+        let o3 = [0, 15, 30, 45]
+        mm = o3[g.int(0, 3)]
+    }
+    if (nivel == 4) {
+        mm = g.int(0, 11) * 5
+    }
+    if (nivel >= 5) {
+        mm = g.int(0, 59)
+    }
+
+    let correct = hhmm(hh, mm)
+
+    // Pool de distractores: variar la HORA (misma mm) + variar los MINUTOS.
+    let cand: List<Str> = []
+    for dh in [1, 2, 11, 10, 3] {
+        cand.push(hhmm(wrap12(hh + dh), mm))
+    }
+    let mpool: List<Int> = []
+    if (nivel == 2) {
+        mpool = [0, 30]
+    }
+    if (nivel == 3) {
+        mpool = [0, 15, 30, 45]
+    }
+    if (nivel == 4) {
+        mpool = [0, 20, 40, 5, 55]
+    }
+    if (nivel >= 5) {
+        mpool = [(mm + 13) % 60, (mm + 29) % 60, (mm + 43) % 60]
+    }
+    for m2 in mpool {
+        if (m2 != mm) {
+            cand.push(hhmm(hh, m2))
+        }
+    }
+
+    // Barajar, tomar 3 distintos != correcto.
+    let seen: List<Str> = [correct]
+    let dist: List<Str> = []
+    let shuf = g.shuffle(cand)
+    for c in shuf {
+        if (dist.len() < 3) {
+            if (not contiene_hora(seen, c)) {
+                dist.push(c)
+                seen.push(c)
+            }
+        }
+    }
+
+    let raw = [correct]
+    for x in dist {
+        raw.push(x)
+    }
+    let options = g.shuffle(raw)
+
+    return HoraItem {
+        hh: hh,
+        mm: mm,
+        options: options,
+        correct: correct,
+        skill_code: "reloj",
+        difficulty: nivel,
+    }
+}

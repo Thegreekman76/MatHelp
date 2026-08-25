@@ -1,0 +1,70 @@
+// Hora.fitzv — "¿Qué hora es?" como LiveComponent SSR.
+//
+// Muestra un reloj analógico (SVG) y el chico elige la hora correcta entre 4
+// opciones "H:MM". Ronda fija de N, sin reloj. El item se deriva de (seed, idx,
+// grade) — el server re-deriva el mismo y compara given == it.correct.
+//
+// Un solo evento answer(): el payload trae la opción elegida (v) y el índice (ei).
+// La persistencia (Attempt + mastery + racha) la hace el loop del @ws en
+// live_hora.fitz.
+
+from gen_hora import gen_hora
+from engine import a_int
+from hora_view import hora_screen
+
+component hora {
+  state {
+    seed: Int = 0
+    idx: Int = 0
+    grade: Int = 2
+    locale: Str = "es-AR"
+    correct: Int = 0
+    total: Int = 0
+    racha: Int = 0
+    racha_max: Int = 0
+    record_prev: Int = 999999
+    phase: Str = "playing"         // "playing" | "done"
+    feedback: Str = ""             // "" | "ok" | "bad"
+    last_answer: Str = ""          // la hora correcta del item recién fallado
+    limit: Int = 10                // items por ronda
+  }
+
+  event answer() {
+    if (phase == "playing") {
+      if (payload.has("v")) {
+        if (payload.has("ei")) {
+          let ei = a_int(payload["ei"])
+          if (ei == idx) {
+            let elegida = payload["v"]
+            let it = gen_hora(seed, idx, grade)
+            let acierto = elegida == it.correct
+            total = total + 1
+            if (acierto) {
+              correct = correct + 1
+              feedback = "ok"
+              racha = racha + 1
+              if (racha > racha_max) {
+                racha_max = racha
+              }
+            }
+            if (not acierto) {
+              feedback = "bad"
+              racha = 0
+              last_answer = it.correct
+            }
+            idx = idx + 1
+            if (total >= limit) {
+              phase = "done"
+            }
+          }
+        }
+      }
+    }
+  }
+
+  <template>
+    <div id="hora-app" class="mh-quiz">
+      {hora_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, racha, racha_max, record_prev).raw}
+    </div>
+  </template>
+}

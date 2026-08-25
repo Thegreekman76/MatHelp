@@ -226,5 +226,8 @@
   "juego.series": "Sequences",
   "tema.series": "Patterns",
   "series.pregunta": "What number comes next?",
-  "juego.nuevo_record": "New record: {0}!"
+  "juego.nuevo_record": "New record: {0}!",
+  "hora.pregunta": "What time is it?",
+  "hora.era": "Almost. It was {0}.",
+  "tema.hora": "Time"
 }

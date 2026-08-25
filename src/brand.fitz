@@ -382,6 +382,16 @@ main:focus \{ outline:none; \}
 .frac-preg \{ text-align:center; font-size:1.15rem; font-weight:800; color:var(--mh-tinta); margin:.3rem 0 .1rem; \}
 .series-preg \{ text-align:center; font-size:1.1rem; font-weight:800; color:var(--mh-tinta); margin:.3rem 0 .1rem; \}
 .series-eq \{ font-size:1.55rem; font-weight:800; letter-spacing:.03em; \}
+.hora-preg \{ text-align:center; font-size:1.1rem; font-weight:800; color:var(--mh-tinta); margin:.3rem 0 .2rem; \}
+.hora-clock-wrap \{ display:flex; justify-content:center; margin:.2rem 0 .5rem; \}
+.rl-clock \{ width:min(62vw, 220px); height:auto; \}
+.rl-face \{ fill:var(--mh-panel); stroke:var(--mh-borde); stroke-width:3; \}
+.rl-tick \{ stroke:var(--mh-suave); stroke-width:2.5; stroke-linecap:round; \}
+.rl-num \{ fill:var(--mh-tinta); font-size:15px; font-weight:800; text-anchor:middle; dominant-baseline:central; \}
+.rl-hour \{ stroke:var(--mh-tinta); stroke-width:6; stroke-linecap:round; \}
+.rl-min \{ stroke:var(--mh-naranja); stroke-width:4; stroke-linecap:round; \}
+.rl-center \{ fill:var(--mh-tinta); \}
+.hora-opts .hora-opt \{ font-size:1.35rem; font-weight:800; letter-spacing:.02em; \}
 .frac-opts .q-opt \{ min-height:88px; \}
 .frac \{ display:inline-flex; flex-direction:column; align-items:center; line-height:1; \}
 .frac .fnum \{ padding-bottom:3px; \}
