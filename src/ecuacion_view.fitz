@@ -8,7 +8,7 @@
 // corrección (given resuelve la ecuación) la hace ecuacion_correcta.
 
 from fitz_liveviews import Html, html, flv
-from game_ui import resumen_estrellas, correcto_msg
+from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar
 from gen_arith import gen_ecuacion
 from i18n import t, t1
 from fmt import fmt_int, fmt_operando
@@ -53,7 +53,7 @@ fn prompt_ecuacion(locale: Str, a: Int, b: Int, a2: Int, b2: Int, answer: Int, a
     return s + " = " + fmt_int(locale, c)
 }
 
-fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, con_signo: Bool) -> Html {
+fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, con_signo: Bool, racha: Int) -> Html {
     if (phase == "done") {
         return ecuacion_resumen(locale, correct, total)
     }
@@ -76,10 +76,13 @@ fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
     let vas_lbl = flv(t(locale, "juego.aciertos"))
     let co = flv(fmt_int(locale, correct))
     let teclado = keypad_html(locale, entrada, idx, touched, con_signo)
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(total, limit)
     return html("""<div class="q-hud">
 <div class="q-mode">🟰 {hecho} {de_lbl} {de_total}</div>
-<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
 </div>
+{progb}
 <div class="q-prompt {eq_class}">{ecua}</div>
 <div class="q-prompt cg-eq ec-x">x = {valor}</div>
 <div class="q-fbwrap">{banner}</div>

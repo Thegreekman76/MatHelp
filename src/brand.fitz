@@ -402,6 +402,10 @@ main:focus \{ outline:none; \}
 .mh-estrellas .star.on:nth-child(3) \{ animation-delay:.26s; \}
 @keyframes star-glow \{ 0%,100% \{ transform:scale(1); filter:none \} 50% \{ transform:scale(1.12); filter:drop-shadow(0 0 6px var(--mh-amarillo)) \} \}
 .mh-estrellas.perfect .star.on \{ animation:star-in .4s ease-out both, star-glow 1.3s ease-in-out .5s infinite; \}
+.q-racha \{ margin-left:.45em; font-size:.85em; font-weight:800; color:var(--mh-naranja); white-space:nowrap; animation:fb-pop .3s ease-out; \}
+.q-racha.hot \{ animation:fb-pop .3s ease-out, star-glow 1s ease-in-out infinite; \}
+.q-progress \{ height:6px; background:var(--mh-borde); border-radius:99px; overflow:hidden; margin:.1rem 0 .6rem; \}
+.q-progress-fill \{ display:block; height:100%; background:var(--mh-verde); border-radius:99px; transition:width .3s ease; \}
 .mh-aliento \{ text-align:center; font-weight:800; font-size:1.1rem; color:var(--mh-tinta); margin:.1rem 0 .4rem; \}
 @media (prefers-reduced-motion:reduce) \{ * \{ transition:none !important; animation:none !important; \} \}
 """

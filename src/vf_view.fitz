@@ -13,25 +13,25 @@
 from fitz_liveviews import Html, html, flv
 from gen_arith import gen_for, vf_shown, op_symbol
 from i18n import t, t1
-from game_ui import resumen_estrellas, correcto_msg
+from game_ui import resumen_estrellas, correcto_msg, racha_badge
 from fmt import fmt_int, fmt_operando
 
 // Punto de entrada. `mode` == "adaptive" (contrarreloj V/F) | "desafio" (N fijo).
 // `correct_last` es la verdad del ejercicio recién fallado (para el feedback).
-fn vf_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, correct_last: Bool, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, limit: Int) -> Html {
+fn vf_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: Int, total: Int, time_left: Int, phase: Str, feedback: Str, correct_last: Bool, mode: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, limit: Int, racha: Int) -> Html {
     if (phase == "done") {
         return vf_resumen(locale, score, correct, total, mode)
     }
     if (mode == "desafio") {
-        return vf_jugando(mode, seed, idx, grade, locale, correct, total, limit, feedback, correct_last, r_add, r_sub, r_mul, r_div, true)
+        return vf_jugando(mode, seed, idx, grade, locale, correct, total, limit, feedback, correct_last, r_add, r_sub, r_mul, r_div, true, racha)
     }
-    return vf_jugando(mode, seed, idx, grade, locale, score, time_left, 0, feedback, correct_last, r_add, r_sub, r_mul, r_div, false)
+    return vf_jugando(mode, seed, idx, grade, locale, score, time_left, 0, feedback, correct_last, r_add, r_sub, r_mul, r_div, false, racha)
 }
 
 // Pantalla de juego. `es_desafio` decide el HUD (progreso X/N vs reloj+puntaje).
 // En desafío, `hud_a` = correctas y `hud_b` = límite; en contrarreloj, `hud_a` =
 // tiempo restante y `hud_b` = puntaje.
-fn vf_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, hud_a: Int, hud_b: Int, hud_c: Int, feedback: Str, correct_last: Bool, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, es_desafio: Bool) -> Html {
+fn vf_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, hud_a: Int, hud_b: Int, hud_c: Int, feedback: Str, correct_last: Bool, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float, es_desafio: Bool, racha: Int) -> Html {
     let ex = gen_for(mode, "mix", 2, seed, idx, grade, r_add, r_sub, r_mul, r_div)
     let shown = vf_shown(ex, seed, idx)
     let a = flv(fmt_operando(locale, ex.a))
@@ -39,7 +39,7 @@ fn vf_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, hud_a: In
     let sym = flv(op_symbol(ex.op))
     let res = flv(fmt_int(locale, shown))
     let banner = vf_feedback(locale, feedback, correct_last, idx)
-    let hud = vf_hud(locale, es_desafio, hud_a, hud_b, hud_c)
+    let hud = vf_hud(locale, es_desafio, hud_a, hud_b, hud_c, racha)
     let btn_v = flv(t(locale, "vf.verdadero"))
     let btn_f = flv(t(locale, "vf.falso"))
     return html("""{hud}
@@ -52,7 +52,8 @@ fn vf_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, hud_a: In
 }
 
 // HUD del contrarreloj (reloj + puntaje) o del desafío (progreso X/N + aciertos).
-fn vf_hud(locale: Str, es_desafio: Bool, a: Int, b: Int, c: Int) -> Str {
+fn vf_hud(locale: Str, es_desafio: Bool, a: Int, b: Int, c: Int, racha: Int) -> Str {
+    let rachab = racha_badge(racha)
     if (es_desafio) {
         let hecho = flv(fmt_int(locale, b))            // total hecho
         let de_lbl = flv(t(locale, "juego.de"))
@@ -61,7 +62,7 @@ fn vf_hud(locale: Str, es_desafio: Bool, a: Int, b: Int, c: Int) -> Str {
         let co = flv(fmt_int(locale, a))               // correctas
         return html("""<div class="q-hud">
 <div class="q-mode">🎯 {hecho} {de_lbl} {de_total}</div>
-<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
 </div>""").raw
     }
     let t_lbl = flv(t(locale, "juego.tiempo"))
@@ -71,7 +72,7 @@ fn vf_hud(locale: Str, es_desafio: Bool, a: Int, b: Int, c: Int) -> Str {
     let pts = flv(fmt_int(locale, b))                  // score
     return html("""<div class="q-hud">
 <div class="q-timer" aria-label="{t_lbl}"><span class="q-tnum">{tiempo}</span><span class="q-unit">{seg}</span></div>
-<div class="q-score">{pts_lbl}<span class="q-snum">{pts}</span></div>
+<div class="q-score">{pts_lbl}<span class="q-snum">{pts}</span>{rachab}</div>
 </div>""").raw
 }
 

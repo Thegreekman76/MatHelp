@@ -7,7 +7,7 @@
 // contexto se localiza, §4); la plata por fmt_money, las cuentas por fmt_int.
 
 from fitz_liveviews import Html, html, flv
-from game_ui import resumen_estrellas, correcto_msg
+from game_ui import resumen_estrellas, correcto_msg, racha_badge, progreso_bar
 from gen_kiosco import gen_kiosco, KioscoItem
 from keypad_view import keypad_html
 from i18n import t, t1, t2, t3, t4
@@ -66,7 +66,7 @@ fn kiosco_enunciado(locale: Str, it: KioscoItem) -> Str {
     return t4(locale, "kiosco.p_combo", fmt_int(locale, it.a), prod, fmt_money(locale, it.b), fmt_money(locale, it.c))
 }
 
-fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_money: Bool, entrada: Int) -> Html {
+fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_money: Bool, entrada: Int, racha: Int) -> Html {
     if (phase == "done") {
         return kiosco_resumen(locale, correct, total)
     }
@@ -92,10 +92,13 @@ fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, tot
     let vas_lbl = flv(t(locale, "juego.aciertos"))
     let co = flv(fmt_int(locale, correct))
     let teclado = keypad_html(locale, entrada, idx, entrada > 0, false)
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(total, limit)
     return html("""<div class="q-hud">
 <div class="q-mode">🧮 {hecho} {de_lbl} {de_total}</div>
-<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span></div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
 </div>
+{progb}
 <div class="ki-enun">
 <p class="ki-preg">{enun}</p>
 </div>

@@ -6,6 +6,33 @@
 from fitz_liveviews import html, flv
 from i18n import t
 
+// Insignia de RACHA (aciertos seguidos en la ronda). Vacía si < 2 (no distrae con
+// rachas triviales); a partir de 2 muestra 🔥N, y a partir de 5 "arde" (pulso).
+fn racha_badge(racha: Int) -> Str {
+    if (racha < 2) {
+        return ""
+    }
+    let hot = match racha >= 5 {
+        true => " hot",
+        false => "",
+    }
+    return html("""<span class="q-racha{hot}" aria-label="racha {racha}">🔥{racha}</span>""").raw
+}
+
+// Barra de progreso de la ronda (cuántos de `limit`). `limit` <= 0 → vacía (los
+// juegos por reloj no tienen meta fija).
+fn progreso_bar(total: Int, limit: Int) -> Str {
+    if (limit <= 0) {
+        return ""
+    }
+    let pct = total * 100 / limit
+    let pct2 = match pct > 100 {
+        true => 100,
+        false => pct,
+    }
+    return html("""<div class="q-progress" aria-hidden="true"><span class="q-progress-fill" style="width:{pct2}%"></span></div>""").raw
+}
+
 // Mensaje de acierto VARIADO: rota entre cuatro frases positivas según `seq` (el
 // nº de respuesta), para que el elogio no sea siempre el mismo.
 fn correcto_msg(locale: Str, seq: Int) -> Str {

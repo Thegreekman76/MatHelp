@@ -160,6 +160,7 @@ def jugar_ronda(grado):
     ws, cid, html = open_ws(s)
     enunciados = []
     fb_con_seq = False
+    vio_racha = False
     for ei in range(LIMIT):
         enun = extraer_enun(html)
         enunciados.append(enun)
@@ -168,8 +169,15 @@ def jugar_ronda(grado):
         # el banner de feedback debe emitir data-fb-seq (trigger del sonido).
         if 'class="q-fb' in html and "data-fb-seq" in html:
             fb_con_seq = True
+        # con varios aciertos seguidos aparece la insignia de racha + la barra.
+        if "q-racha" in html:
+            vio_racha = True
+        # la barra de progreso está mientras se juega (la última respuesta ya lleva a la pantalla final).
+        if "q-done" not in html:
+            assert "q-progress" in html, f"grade {grado} turno {ei}: falta la barra de progreso"
         time.sleep(0.05)
     assert fb_con_seq, f"grade {grado}: el feedback no emite data-fb-seq (sonido muerto)"
+    assert vio_racha, f"grade {grado}: nunca apareció la insignia de racha (10 aciertos seguidos)"
     time.sleep(0.4)
     ws.close()
     time.sleep(0.4)
