@@ -243,5 +243,10 @@
   "juego.ordenar": "Ordenar",
   "ordenar.pregunta": "Tocá de menor a mayor",
   "ordenar.no_orden": "Ese no es el más chico. ¡Fijate bien!",
-  "tema.ordenar": "Ordenar"
+  "tema.ordenar": "Ordenar",
+  "juego.estimar": "Estimación",
+  "estimar.decena": "Redondeá a la decena",
+  "estimar.centena": "Redondeá a la centena",
+  "estimar.cerca": "¿Cuánto es, más o menos?",
+  "tema.estimar": "Estimación"
 }

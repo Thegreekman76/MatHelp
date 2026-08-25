@@ -25,6 +25,7 @@ import live_geo
 import live_memoria
 import live_enteros
 import live_ordenar
+import live_estimar
 import live_potencias
 import live_ecuaciones
 import live_finanzas
@@ -53,6 +54,7 @@ from Geometria import geometria, geometria_render, geometria_answer, geometria_d
 from Memoria import memoria, memoria_render, memoria_pick
 from Enteros import enteros, enteros_render, enteros_answer, enteros_digito, enteros_borrar, enteros_signo
 from Ordenar import ordenar, ordenar_render, ordenar_place
+from Estimar import estimar, estimar_render, estimar_answer, estimar_digito, estimar_borrar
 // F5 — componentes presentacionales del panel del padre. Se importan en el
 // entry (además de en parent.fitz) para el auto-registro + la resolución de la
 // firma cross-módulo a Html (igual que el dashboard del admin de liveviews).

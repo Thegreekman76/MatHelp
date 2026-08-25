@@ -1,0 +1,142 @@
+// gen_estimar.fitz — generador del juego "Estimación" (redondeo + "¿está cerca?").
+//
+// Dos modos según el nivel: REDONDEAR a la decena/centena (respuesta EXACTA, tol=0)
+// y ESTIMAR el resultado de una cuenta grande (se acepta un RANGO, tol ≈ 10%). Es
+// el sentido numérico: la habilidad que más falta en cálculo mental. Escala por
+// nivel (F8): redondeo a la decena → estimar productos/porcentajes.
+//
+// Reproducible desde (seed, idx, grade); el RandGen `g` es LOCAL (regla FITZ-01).
+
+from gen_arith import sub_seed, nivel_por_idx
+
+type EstItem {
+    kind: Str = "redondeo"     // "redondeo" | "estimar"
+    a: Int = 0                 // el número (redondeo) o el 1er operando (estimar)
+    b: Int = 0                 // la base 10/100 (redondeo) o el 2do operando (estimar)
+    op: Str = "R"              // "R" (redondeo) | "+" | "×" | "%"
+    answer: Int = 0            // valor exacto (redondeado) o resultado real (estimar)
+    tol: Int = 0               // tolerancia aceptada (0 = exacto)
+    skill_code: Str = "estimar"
+    difficulty: Int = 1        // 1..5 (nivel)
+}
+
+// Piso/techo del nivel por grado. min_grade del juego es 3°.
+fn nivel_piso_estimar(grade: Int) -> Int {
+    if (grade <= 4) {
+        return 1
+    }
+    if (grade <= 6) {
+        return 2
+    }
+    if (grade <= 8) {
+        return 3
+    }
+    return 4
+}
+
+fn nivel_techo_estimar(grade: Int) -> Int {
+    if (grade <= 3) {
+        return 2
+    }
+    if (grade <= 5) {
+        return 3
+    }
+    if (grade <= 7) {
+        return 4
+    }
+    return 5
+}
+
+// Redondea `n` al múltiplo de `base` más cercano (redondeo hacia arriba en el .5).
+fn redondear(n: Int, base: Int) -> Int {
+    let mitad = base / 2
+    return ((n + mitad) / base) * base
+}
+
+fn imax_local(a: Int, b: Int) -> Int {
+    if (a > b) {
+        return a
+    }
+    return b
+}
+
+fn gen_estimar(seed: Int, idx: Int, grade: Int) -> EstItem {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let piso = nivel_piso_estimar(grade)
+    let techo = nivel_techo_estimar(grade)
+    let nivel = nivel_por_idx(piso, techo, idx)
+
+    let kind = "redondeo"
+    let a = 0
+    let b = 0
+    let op = "R"
+    let answer = 0
+    let tol = 0
+
+    if (nivel == 1) {
+        // Redondear a la decena (exacto).
+        kind = "redondeo"
+        a = g.int(11, 99)
+        b = 10
+        op = "R"
+        answer = redondear(a, 10)
+        tol = 0
+    }
+    if (nivel == 2) {
+        // Redondear a la centena (exacto).
+        kind = "redondeo"
+        a = g.int(101, 999)
+        b = 100
+        op = "R"
+        answer = redondear(a, 100)
+        tol = 0
+    }
+    if (nivel == 3) {
+        // Estimar una suma grande (rango).
+        kind = "estimar"
+        a = g.int(120, 880)
+        b = g.int(120, 880)
+        op = "+"
+        answer = a + b
+        tol = imax_local(1, answer / 10)
+    }
+    if (nivel == 4) {
+        // Estimar un producto (rango).
+        kind = "estimar"
+        a = g.int(11, 49)
+        b = g.int(11, 49)
+        op = "×"
+        answer = a * b
+        tol = imax_local(1, answer / 10)
+    }
+    if (nivel >= 5) {
+        // Estimar: producto grande o porcentaje.
+        kind = "estimar"
+        let modo = g.int(0, 1)
+        if (modo == 0) {
+            a = g.int(21, 99)
+            b = g.int(21, 99)
+            op = "×"
+            answer = a * b
+        }
+        if (modo == 1) {
+            let ps = [10, 25, 50]
+            a = g.int(40, 400)
+            b = ps[g.int(0, 2)]
+            op = "%"
+            answer = a * b / 100
+        }
+        tol = imax_local(1, answer / 10)
+    }
+
+    return EstItem {
+        kind: kind,
+        a: a,
+        b: b,
+        op: op,
+        answer: answer,
+        tol: tol,
+        skill_code: "estimar",
+        difficulty: nivel,
+    }
+}

@@ -243,5 +243,10 @@
   "juego.ordenar": "Order",
   "ordenar.pregunta": "Tap from smallest to largest",
   "ordenar.no_orden": "That's not the smallest. Look again!",
-  "tema.ordenar": "Ordering"
+  "tema.ordenar": "Ordering",
+  "juego.estimar": "Estimation",
+  "estimar.decena": "Round to the nearest ten",
+  "estimar.centena": "Round to the nearest hundred",
+  "estimar.cerca": "About how much?",
+  "tema.estimar": "Estimation"
 }

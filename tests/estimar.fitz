@@ -1,0 +1,66 @@
+// tests/estimar.fitz — el generador de "Estimación" (gen_estimar.fitz).
+//
+// (Nombre distinto del módulo importado → sin ciclo, FITZ-21.)
+//
+// Invariantes: reproducibilidad, el redondeo (exacto, tol=0) y la estimación (banda,
+// tol>0), y que la respuesta coincide con la operación.
+
+from gen_estimar import gen_estimar, EstItem, redondear
+
+@test fn estimar_reproducible() {
+    let idx = 0
+    while (idx < 60) {
+        let a = gen_estimar(1234, idx, 6)
+        let b = gen_estimar(1234, idx, 6)
+        assert_eq(a.answer, b.answer)
+        assert_eq(a.op, b.op)
+        idx = idx + 1
+    }
+}
+
+@test fn estimar_redondear_helper() {
+    assert_eq(redondear(68, 10), 70)
+    assert_eq(redondear(64, 10), 60)
+    assert_eq(redondear(65, 10), 70)
+    assert_eq(redondear(349, 100), 300)
+    assert_eq(redondear(350, 100), 400)
+}
+
+@test fn estimar_answer_y_tolerancia() {
+    let grades = [3, 5, 7, 9, 13]
+    for gr in grades {
+        let idx = 0
+        while (idx < 30) {
+            let it = gen_estimar(555, idx, gr)
+            let esperado = 0
+            if (it.op == "R") {
+                esperado = redondear(it.a, it.b)
+            }
+            if (it.op == "+") {
+                esperado = it.a + it.b
+            }
+            if (it.op == "×") {
+                esperado = it.a * it.b
+            }
+            if (it.op == "%") {
+                esperado = it.a * it.b / 100
+            }
+            assert_eq(it.answer, esperado)
+            assert(it.difficulty >= 1)
+            assert(it.difficulty <= 5)
+            if (it.kind == "redondeo") {
+                assert_eq(it.tol, 0)
+            }
+            if (it.kind == "estimar") {
+                assert(it.tol > 0)
+            }
+            idx = idx + 1
+        }
+    }
+}
+
+@test fn estimar_grado3_redondeo() {
+    let it = gen_estimar(8, 0, 3)
+    assert_eq(it.kind, "redondeo")
+    assert_eq(it.difficulty, 1)
+}

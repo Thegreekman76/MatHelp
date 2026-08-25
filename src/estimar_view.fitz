@@ -1,0 +1,91 @@
+// estimar_view.fitz — el render de "Estimación" (redondeo + "¿está cerca?").
+//
+// Redondeo: muestra el número + "Redondeá a la decena/centena", el chico tipea el
+// exacto (= hueco). Estimar: muestra la cuenta grande + "¿Cuánto es, más o menos?",
+// el chico tipea un valor cercano (≈ hueco), aceptado con tolerancia. El item se
+// DERIVA de (seed, idx, grade). La cuenta se envuelve en `.est-eq` con data-attrs
+// (kind/a/op/b) que el E2E lee para recomputar la respuesta.
+
+from fitz_liveviews import Html, html, flv
+from game_ui import resumen_estrellas, correcto_msg, progreso_bar, racha_badge, incorrecto_msg, mejor_racha_html
+from gen_estimar import gen_estimar
+from i18n import t, t1
+from fmt import fmt_int
+from keypad_view import keypad_html
+
+fn estimar_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+    if (phase == "done") {
+        return estimar_resumen(locale, correct, total, racha_max, record_prev)
+    }
+    let it = gen_estimar(seed, idx, grade)
+    let a = flv(fmt_int(locale, it.a))
+    let b = flv(fmt_int(locale, it.b))
+    let cuenta = match it.op {
+        "R" => a,
+        "%" => flv("{it.b}% de {it.a}"),
+        _ => html("""{a} {flv(it.op)} {b}""").raw,
+    }
+    let eq = match it.kind {
+        "redondeo" => "=",
+        _ => "≈",
+    }
+    let hint = match it.kind {
+        "redondeo" => match it.b {
+            10 => flv(t(locale, "estimar.decena")),
+            _ => flv(t(locale, "estimar.centena")),
+        },
+        _ => flv(t(locale, "estimar.cerca")),
+    }
+    let hueco = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = estimar_feedback(locale, feedback, last_answer, total)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let teclado = keypad_html(locale, entrada, idx, touched, false)
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(total, limit)
+    return html("""<div class="q-hud">
+<div class="q-mode">🎯 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
+</div>
+{progb}
+<p class="est-hint">{hint}</p>
+<div class="q-prompt cg-eq est-eq" data-kind="{it.kind}" data-a="{it.a}" data-op="{it.op}" data-b="{it.b}">{cuenta} {eq} {hueco}</div>
+<div class="q-fbwrap">{banner}</div>
+{teclado}""")
+}
+
+fn estimar_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_int(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn estimar_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
+{mejor}
+<div class="q-actions">
+<a class="mh-btn" href="/estimar">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

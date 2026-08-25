@@ -1257,7 +1257,7 @@ Requieren mecánica de input distinta al teclado → primer candidato a definir 
 |---|---|---|---|---|
 | Memoria / Parejas ✅ | 🃏 | **HECHO (2026-08-25)** — grilla de cartas (matching abierto): unir cada expresión con su resultado (`3×4` ↔ `12`). Estado bitmask, persistencia por delta. | Otro modo cognitivo (cálculo + emparejar), no "resolvé y tipeá" | N1 sumas → N2 restas → N3 tablas × → N4 división → N5 mixto; K=4..6 pares |
 | Ordenar / Comparar ✅ | 📊 | **HECHO (2026-08-25)** — tocar cartas en orden de menor a mayor. Clave de orden entera exacta (×120) para comparar naturales/decimales/fracciones/enteros. | Sentido de orden y magnitud; sin él, fracciones/enteros quedan abstractos | N1 naturales → N2 decimales → N3 fracciones → N4 enteros → N5 mezcla |
-| Estimación | 🎯 | "¿Está cerca?" — redondear, estimar el resultado sin calcular exacto; se acepta un rango. | Sentido numérico (number sense), la habilidad que más falta en cálculo mental | N1 redondeo a la decena → N5 estimar productos/porcentajes |
+| Estimación ✅ | 🎯 | **HECHO (2026-08-25)** — redondeo (exacto) + "¿está cerca?" (estimar con tolerancia ~10%); teclado. | Sentido numérico (number sense), la habilidad que más falta en cálculo mental | N1 redondeo a la decena → N2 centena → N3 estimar suma → N4 producto → N5 producto grande/porcentaje |
 
 ### Orden recomendado
 
@@ -1266,15 +1266,16 @@ Requieren mecánica de input distinta al teclado → primer candidato a definir 
 3. ~~**🃏 Memoria (transversal)**~~ — ✅ **HECHO (2026-08-25)**: grilla de cartas (matching abierto), estado bitmask, persistencia por delta. Definió el patrón de input-nuevo para Ordenar/Estimación.
 4. ~~**± Enteros (7°)**~~ — ✅ **HECHO (2026-08-25)**: operaciones con signo + recta numérica SVG, teclado con ±, E2E que recomputa con signo.
 5. ~~**📊 Ordenar / Comparar (transversal)**~~ — ✅ **HECHO (2026-08-25)**: tocar cartas en orden de menor a mayor, clave entera exacta (×120), E2E que ordena por valor.
-6. **🎯 Estimación (transversal)** — redondeo / "¿está cerca?" con rango de tolerancia; sentido numérico. **← próximo sugerido**
-7. **📖 Historia (1°)** — depende de Web Speech API (pre-lectores); más UX que matemática.
-8. Resto (Porcentaje, Volumen) según demanda/feedback.
+6. ~~**🎯 Estimación (transversal)**~~ — ✅ **HECHO (2026-08-25)**: redondeo (exacto) + estimar con tolerancia, E2E que recomputa.
+7. **％ Porcentaje (6°)** — descuentos/IVA/recargo con historia (comercial); reusa el teclado. **← próximo sugerido**
+8. **📖 Historia (1°)** — depende de Web Speech API (pre-lectores); más UX que matemática.
+9. **📦 Volumen (6°)** — cuerpos 3D en SVG, según demanda/feedback.
 
 > **Nota de estado (2026-08-25):** con 🧩 Series, 🕐 Hora, 📐 Geometría, 🃏 Memoria,
-> ± Enteros y 📊 Ordenar construidos, el catálogo activo es de **17 juegos** (contrarreloj,
-> V/F, series, memoria, ordenar, completá, escalera, problemas, fracciones, hora, geometría,
-> enteros, potencias, ecuaciones, finanzas, trigonometría, funciones). Quedan del backlog:
-> 🎯 Estimación, 📖 Historia, ％ Porcentaje, 📦 Volumen (~21 al completarlo).
+> ± Enteros, 📊 Ordenar y 🎯 Estimación construidos, el catálogo activo es de **18 juegos**
+> (contrarreloj, V/F, series, memoria, ordenar, estimar, completá, escalera, problemas,
+> fracciones, hora, geometría, enteros, potencias, ecuaciones, finanzas, trigonometría,
+> funciones). Quedan del backlog: ％ Porcentaje, 📖 Historia, 📦 Volumen (~21 al completarlo).
 
 ---
 
