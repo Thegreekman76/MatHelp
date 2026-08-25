@@ -1215,6 +1215,66 @@ para persistir (paridad run↔build por construcción). El `nivel` setea además
 
 ---
 
+## 11.d Backlog de juegos futuros (F9)
+
+Sumar un juego es un patrón **mecánico de ~9 archivos** (probado con Series,
+2026-08-25): `gen_<x>.fitz` (generador reproducible por nivel) + `<X>.fitzv`
+(componente) + `<x>_view.fitz` (render) + `live_<x>.fitz` (ruta `@get` + `@ws` +
+persistencia) + fila en `juegos.fitz` (con `min_grade`/`icon`/`route`/`modalidad`)
++ migración del `CHECK sessions_mode_valido` (si estrena `mode`) + claves i18n
+(ES/EN) + `tests/<x>.fitz` (invariantes del generador) + registro en `main.fitz`
+(import de `live_<x>` + símbolos del componente). Dos cosas lo hacen escalable:
+el menú ya **filtra por grado** (`min_grade`) y **modalidad** (común/comercial), y
+el modelo de niveles de F8 (`nivel_piso_*`/`nivel_techo_*` + `nivel_por_idx`) hace
+que **un mismo juego cubra de 1° a 6° secundaria** graduando dificultad — no hace
+falta un juego por grado.
+
+Cada juego nuevo debe: alimentar mastery/racha (persistir Attempt + `actualizar_mastery`
+con su `skill_code`), sumar récord por juego (`leer_record`/`guardar_record` en el
+`live_*`), emitir `data-fb-seq` (sonido) + `racha_badge` + `progreso_bar` (ronda
+fija), y cerrar con `resumen_estrellas` + `mejor_racha_html`. Paridad `fitz run` ↔
+binario + E2E dedicado (`tools/e2e_<x>.py`) obligatorios antes de cerrar.
+
+### A — Cartas ya reservadas en el menú (`built: false` → "Próximamente")
+
+Estas seis ya tienen su fila en `juegos.fitz` con `min_grade`; sólo falta construirlas.
+
+| Carta | `min_grade` | Modalidad | Mecánica | Escalado por nivel |
+|---|---|---|---|---|
+| 📖 Historia | 1° | común | Problemas narrados cortos leídos en voz (Web Speech API, pre-lectores); elegir la operación/resultado | N1 suma/resta 1 paso → N5 varios pasos + fracciones/% |
+| 🕐 Hora | 2° | común | Leer el reloj — **reloj analógico SVG** (reusa la técnica de Trigonometría/Funciones); tipear la hora o elegir | N1 horas en punto → N2 y media/cuarto → N3 minutos exactos → N4 24h → N5 intervalos ("¿cuánto falta para…?") |
+| 📐 Geometría | 5° | común | Área/perímetro con **figura SVG** (rectángulo, triángulo, círculo); tipear el resultado | N1 perímetro rect → N2 área rect → N3 triángulo → N4 círculo (π) → N5 figuras compuestas |
+| ％ Porcentaje | 6° | común (útil comercial) | Descuentos, IVA, recargo; enunciado con historia | N1 % simple → N2 descuento → N3 IVA 21% → N4 recargo/cuotas → N5 % sucesivos |
+| 📦 Volumen | 6° | común | Volumen de cuerpos con **figura SVG 3D** (prisma, cubo, cilindro) | N1 cubo → N2 prisma → N3 cilindro → N4 con conversión de unidades → N5 compuestos |
+| ± Enteros | 7° | común | **Recta numérica SVG** interactiva; suma/resta con signo (teclado con ±) | N1 recta hasta ±10 → N2 suma signos → N3 resta signos → N4 multiplicación de signos → N5 varias operaciones |
+
+### B — Modos nuevos que cubren huecos pedagógicos (transversales, todos los grados)
+
+No son "un tema" sino **otra forma de pensar** (como Series suma razonamiento inductivo).
+Requieren mecánica de input distinta al teclado → primer candidato a definir bien.
+
+| Modo | Ícono | Mecánica | Por qué suma | Escalado |
+|---|---|---|---|---|
+| Memoria / Parejas | 🃏 | Grilla de cartas; unir expresión ↔ resultado (`3×4` ↔ `12`), fracción ↔ decimal, etc. Memoria espacial + cálculo. | Otro modo cognitivo (memoria de trabajo), no "resolvé y tipeá" | N1 sumas 1 dígito → N5 fracciones/potencias; más pares por nivel |
+| Ordenar / Comparar | 📊 | Arrastrar (o tocar en orden) de menor a mayor: números, fracciones, decimales, enteros con signo. | Sentido de orden y magnitud; sin él, fracciones/enteros quedan abstractos | N1 naturales → N2 decimales → N3 fracciones → N4 enteros → N5 mezcla |
+| Estimación | 🎯 | "¿Está cerca?" — redondear, estimar el resultado sin calcular exacto; se acepta un rango. | Sentido numérico (number sense), la habilidad que más falta en cálculo mental | N1 redondeo a la decena → N5 estimar productos/porcentajes |
+
+### Orden recomendado
+
+1. **🕐 Hora (2°)** — alto impacto, reusa el SVG que ya domino (trig/funciones); teclado o multiple-choice.
+2. **📐 Geometría (5°)** — misma técnica SVG, cubre un hueco grande de primaria alta.
+3. **🃏 Memoria (transversal)** — el primer modo de input nuevo (grilla de cartas); define el patrón para Ordenar/Estimación.
+4. **± Enteros (7°)** — recta numérica SVG, refuerza el signo (que hoy sólo aparece incidental en secundaria).
+5. **📖 Historia (1°)** — depende de Web Speech API (pre-lectores); más UX que matemática.
+6. Resto (Porcentaje, Volumen, Ordenar, Estimación) según demanda/feedback.
+
+> **Nota de estado (2026-08-25):** con 🧩 Series construido, el catálogo activo es de
+> **12 juegos** (contrarreloj, V/F, series, completá, escalera, problemas, fracciones,
+> potencias, ecuaciones, finanzas, trigonometría, funciones). Este backlog llevaría el
+> catálogo a ~21 con cobertura de 1° a 6° secundaria en varios modos cognitivos.
+
+---
+
 ## 12. Lo que necesito de tu lado
 
 1. **Versión de Fitz instalada** — `fitz --version`. El plan asume ≥ v0.42.1 (`@every` y `ws_broadcast` desde el scheduler). Si tenés menos, el cronómetro va con `@background`+`spawn`, que anda desde antes.
