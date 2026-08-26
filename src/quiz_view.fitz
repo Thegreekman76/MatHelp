@@ -147,13 +147,8 @@ fn quiz_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, score: 
     let pts_lbl = flv(t(locale, "juego.puntaje"))
     let pts = flv(fmt_int(locale, score))
     let rachab = racha_badge(racha)
-    // El reloj se cuenta del lado del cliente (public/sound.js lee data-q-total y
-    // baja el número en el DOM): así el server NO re-renderiza el componente entero
-    // cada segundo — eso hacía parpadear las opciones y el resto. El server sigue
-    // siendo autoritativo del fin (dispara `timeup` al agotarse). El HTML del reloj
-    // es byte-idéntico entre frames, no aporta diff.
     return html("""<div class="q-hud">
-<div class="q-timer" aria-label="{t_lbl}" data-q-total="{time_left}"><span class="q-tnum">{tiempo}</span><span class="q-unit">{seg}</span></div>
+<div class="q-timer" aria-label="{t_lbl}"><span class="q-tnum">{tiempo}</span><span class="q-unit">{seg}</span></div>
 <div class="q-score">{pts_lbl}<span class="q-snum">{pts}</span>{rachab}</div>
 </div>
 <div class="q-prompt">{a} {sym} {b}</div>

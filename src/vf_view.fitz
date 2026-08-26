@@ -71,7 +71,7 @@ fn vf_hud(locale: Str, es_desafio: Bool, a: Int, b: Int, c: Int, racha: Int) -> 
     let pts_lbl = flv(t(locale, "juego.puntaje"))
     let pts = flv(fmt_int(locale, b))                  // score
     return html("""<div class="q-hud">
-<div class="q-timer" aria-label="{t_lbl}" data-q-total="{a}"><span class="q-tnum">{tiempo}</span><span class="q-unit">{seg}</span></div>
+<div class="q-timer" aria-label="{t_lbl}"><span class="q-tnum">{tiempo}</span><span class="q-unit">{seg}</span></div>
 <div class="q-score">{pts_lbl}<span class="q-snum">{pts}</span>{rachab}</div>
 </div>""").raw
 }

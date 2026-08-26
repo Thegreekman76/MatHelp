@@ -169,19 +169,14 @@ async fn vf_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
 // el resumen. El `?` sobre ws.send es también la limpieza al cerrarse la pestaña.
 @background
 async fn vf_timer(ws: WsConn<LiveFrame>, cid: Str, sess_id: Int, profile_id: Int) -> Result<Null> {
-    // Conteo visible client-side (public/sound.js lee data-q-total): NO empujamos
-    // un frame por segundo (re-renderizar el componente cada segundo parpadeaba).
-    // El server cuenta local y, al agotarse, marca `timeup` y empuja el resumen.
-    let secs = duracion_default()
     loop {
         let _ = sleep(1000).await
-        secs = secs - 1
-        if (secs <= 0) {
-            let _ = dispatch_to("verdadero_falso", cid, "timeup", { })
-            let st: verdadero_falso = component_state("verdadero_falso", cid)
+        let _ = dispatch_to("verdadero_falso", cid, "tick", { })
+        ws.send(flv_frame("verdadero_falso", cid))?
+        let st: verdadero_falso = component_state("verdadero_falso", cid)
+        if (st.phase == "done") {
             let _ = guardar_record(profile_id, "verdadero_falso", st.racha_max).await
             let _ = finalizar_vf(sess_id, st.total, st.correct, st.score).await
-            ws.send(flv_frame("verdadero_falso", cid))?
             break
         }
     }

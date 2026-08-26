@@ -250,21 +250,14 @@ async fn quiz_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
 // cierra la partida con el resumen y corta.
 @background
 async fn timer(ws: WsConn<LiveFrame>, cid: Str, sess_id: Int, profile_id: Int) -> Result<Null> {
-    // El conteo VISIBLE es client-side (public/sound.js baja el número leyendo
-    // data-q-total): NO empujamos un frame por segundo, porque re-renderizar el
-    // componente entero cada segundo hacía parpadear las opciones y demás (el diff
-    // reemplazaba subárboles y re-disparaba sus animaciones). El server solo cuenta
-    // el tiempo local y, al agotarse, marca `timeup` y empuja UN frame (el resumen).
-    let secs = duracion_default()
     loop {
         let _ = sleep(1000).await
-        secs = secs - 1
-        if (secs <= 0) {
-            let _ = dispatch_to("quiz", cid, "timeup", { })
-            let st: quiz = component_state("quiz", cid)
+        let _ = dispatch_to("quiz", cid, "tick", { })
+        ws.send(flv_frame("quiz", cid))?
+        let st: quiz = component_state("quiz", cid)
+        if (st.phase == "done") {
             let _ = guardar_record(profile_id, "contrarreloj", st.racha_max).await
             let _ = finalizar_sesion(sess_id, st.total, st.correct, st.score).await
-            ws.send(flv_frame("quiz", cid))?
             break
         }
     }
