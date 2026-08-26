@@ -178,3 +178,48 @@ if ("serviceWorker" in navigator) {
     if (btn) { e.preventDefault(); btn.click(); }
   });
 })();
+
+// --- narración de "Historia" (Web Speech API): lee el cuento en voz alta para
+// pre-lectores. El primer cuento no se auto-lee (política de autoplay: falta gesto);
+// el chico toca "🔊 Escuchar". Tras responder (gesto), los siguientes se leen solos. ---
+(function () {
+  "use strict";
+  if (!("speechSynthesis" in window)) return;
+  var lastSeq = null;
+
+  function speakStory(force) {
+    var el = document.querySelector(".hist-text[data-hist-seq]");
+    if (!el) return;
+    var seq = el.getAttribute("data-hist-seq");
+    if (!force && seq === lastSeq) return;
+    lastSeq = seq;
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance((el.textContent || "").trim());
+      u.lang = el.getAttribute("data-hist-lang") || "es-AR";
+      u.rate = 0.95;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("[data-hist-replay]") : null;
+    if (b) { e.preventDefault(); speakStory(true); }
+  });
+
+  function start() {
+    // Cebá con el cuento en pantalla: no lo leemos al cargar (falta gesto del usuario).
+    var el = document.querySelector(".hist-text[data-hist-seq]");
+    if (el) lastSeq = el.getAttribute("data-hist-seq");
+    try {
+      var mo = new MutationObserver(function () { speakStory(false); });
+      mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-hist-seq"] });
+    } catch (e) {}
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
+})();

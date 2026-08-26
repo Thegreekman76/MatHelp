@@ -1,0 +1,152 @@
+// gen_historia.fitz — generador del juego "Historia" (problemas narrados).
+//
+// Cuentos cortos de la vida real, pensados para PRE-LECTORES (1°): el enunciado se
+// lee en voz alta (Web Speech API) y el chico elige la respuesta entre 4 botones
+// grandes. Escala por nivel (F8): suma de un paso en 1° → multiplicación en grados
+// mayores. Respuestas enteras chicas.
+//
+// Reproducible desde (seed, idx, grade); el RandGen `g` es LOCAL (regla FITZ-01). El
+// generador arma nombre/objeto/números y las opciones; la VISTA arma el texto (con
+// i18n) para mostrarlo y narrarlo.
+
+from gen_arith import sub_seed, nivel_por_idx
+
+type HistItem {
+    kind: Str = "suma"         // "suma" | "resta" | "comparar" | "mult"
+    nombre: Str = "Ana"        // personaje (nombre propio, igual en es/en)
+    obj: Str = "hist.globos"   // clave i18n del objeto
+    a: Int = 0
+    b: Int = 0
+    answer: Int = 0
+    options: List<Int> = []    // 4 opciones, una correcta, barajadas
+    skill_code: Str = "historia"
+    difficulty: Int = 1        // 1..5 (nivel)
+}
+
+fn lista_tiene(xs: List<Int>, n: Int) -> Bool {
+    for x in xs {
+        if (x == n) {
+            return true
+        }
+    }
+    return false
+}
+
+// min_grade del juego es 1° (pre-lectores).
+fn nivel_piso_hist(grade: Int) -> Int {
+    if (grade <= 2) {
+        return 1
+    }
+    if (grade <= 4) {
+        return 2
+    }
+    return 3
+}
+
+fn nivel_techo_hist(grade: Int) -> Int {
+    if (grade <= 1) {
+        return 2
+    }
+    if (grade <= 3) {
+        return 3
+    }
+    if (grade <= 5) {
+        return 4
+    }
+    return 5
+}
+
+fn gen_historia(seed: Int, idx: Int, grade: Int) -> HistItem {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let piso = nivel_piso_hist(grade)
+    let techo = nivel_techo_hist(grade)
+    let nivel = nivel_por_idx(piso, techo, idx)
+
+    let nombres = ["Ana", "Beto", "Caro", "Diego", "Emi", "Feli", "Gabi", "Ines"]
+    let objs = ["hist.globos", "hist.autitos", "hist.flores", "hist.galletitas", "hist.estrellas", "hist.pelotas"]
+    let nombre = nombres[g.int(0, 7)]
+    let obj = objs[g.int(0, 5)]
+
+    let kind = "suma"
+    let a = 0
+    let b = 0
+    let answer = 0
+
+    if (nivel == 1) {
+        // Suma de un paso (resultado ≤ 10).
+        kind = "suma"
+        a = g.int(1, 6)
+        b = g.int(1, 10 - a)
+        answer = a + b
+    }
+    if (nivel == 2) {
+        // Resta de un paso.
+        kind = "resta"
+        a = g.int(3, 12)
+        b = g.int(1, a - 1)
+        answer = a - b
+    }
+    if (nivel == 3) {
+        // Suma o resta con números más grandes (≤ 20).
+        let k = g.int(0, 1)
+        if (k == 0) {
+            kind = "suma"
+            a = g.int(4, 12)
+            b = g.int(2, 20 - a)
+            answer = a + b
+        }
+        if (k == 1) {
+            kind = "resta"
+            a = g.int(8, 20)
+            b = g.int(2, a - 2)
+            answer = a - b
+        }
+    }
+    if (nivel == 4) {
+        // Comparar: ¿cuántos más? (a > b).
+        kind = "comparar"
+        b = g.int(2, 12)
+        a = g.int(b + 1, b + 10)
+        answer = a - b
+    }
+    if (nivel >= 5) {
+        // Multiplicación simple.
+        kind = "mult"
+        a = g.int(2, 6)
+        b = g.int(2, 6)
+        answer = a * b
+    }
+
+    // Opciones: correcta + 3 distractores cercanos, distintos y ≥ 0.
+    let cands = [answer - 2, answer - 1, answer + 1, answer + 2, answer + 3]
+    let seen = [answer]
+    let dist: List<Int> = []
+    let shuf = g.shuffle(cands)
+    for c in shuf {
+        if (dist.len() < 3) {
+            if (c >= 0) {
+                if (not lista_tiene(seen, c)) {
+                    dist.push(c)
+                    seen.push(c)
+                }
+            }
+        }
+    }
+    let raw = [answer]
+    for x in dist {
+        raw.push(x)
+    }
+    let options = g.shuffle(raw)
+
+    return HistItem {
+        kind: kind,
+        nombre: nombre,
+        obj: obj,
+        a: a,
+        b: b,
+        answer: answer,
+        options: options,
+        skill_code: "historia",
+        difficulty: nivel,
+    }
+}

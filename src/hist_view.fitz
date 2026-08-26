@@ -1,0 +1,94 @@
+// hist_view.fitz — el render de "Historia" (cuentos narrados).
+//
+// Arma el enunciado (localizado) con nombre/números/objeto, lo muestra en un `<p>`
+// con data-attrs para que el cliente lo LEA EN VOZ ALTA (Web Speech API, ver
+// public/sound.js), un botón "🔊 Escuchar" para repetir, y 4 botones grandes con las
+// opciones. El item se DERIVA de (seed, idx, grade); el server re-deriva el mismo y
+// compara la opción elegida con it.answer. El `<p>` lleva data-kind/a/b que el E2E
+// usa para recomputar la respuesta.
+
+from fitz_liveviews import Html, html, flv, h_join
+from game_ui import resumen_estrellas, correcto_msg, progreso_bar, racha_badge, mejor_racha_html
+from gen_historia import gen_historia, HistItem
+from i18n import t, t1, t3, t4
+from fmt import fmt_int
+
+fn hist_enunciado(locale: Str, it: HistItem) -> Str {
+    let a_str = "{it.a}"
+    let b_str = "{it.b}"
+    let obj = t(locale, it.obj)
+    if (it.kind == "suma") {
+        return t4(locale, "hist.suma", it.nombre, a_str, b_str, obj)
+    }
+    if (it.kind == "resta") {
+        return t4(locale, "hist.resta", it.nombre, a_str, b_str, obj)
+    }
+    if (it.kind == "comparar") {
+        return t4(locale, "hist.comparar", it.nombre, a_str, b_str, obj)
+    }
+    return t3(locale, "hist.mult", a_str, b_str, obj)
+}
+
+fn hist_opt(o: Int, idx: Int) -> Html {
+    return html("""<button class="q-opt hist-opt" type="button" data-flv-click="answer" data-flv-value-v="{o}" data-flv-value-ei="{idx}">{o}</button>""")
+}
+
+fn hist_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+    if (phase == "done") {
+        return hist_resumen(locale, correct, total, racha_max, record_prev)
+    }
+    let it = gen_historia(seed, idx, grade)
+    let enun = flv(hist_enunciado(locale, it))
+    let opciones = h_join(it.options.map(fn(o) => hist_opt(o, idx)))
+    let banner = hist_feedback(locale, feedback, total)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(total, limit)
+    let speechlang = match locale {
+        "en" => "en-US",
+        _ => "es-AR",
+    }
+    let escuchar = flv(t(locale, "hist.escuchar"))
+    return html("""<div class="q-hud">
+<div class="q-mode">📖 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
+</div>
+{progb}
+<p class="hist-text" data-hist-seq="{idx}" data-hist-lang="{speechlang}" data-kind="{it.kind}" data-a="{it.a}" data-b="{it.b}">{enun}</p>
+<button class="hist-replay" type="button" data-hist-replay>🔊 {escuchar}</button>
+<div class="q-options hist-opts">{opciones}</div>
+<div class="q-fbwrap">{banner}</div>""")
+}
+
+fn hist_feedback(locale: Str, feedback: Str, seq: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(t(locale, "hist.probaotra"))}</div>""").raw
+    }
+    return ""
+}
+
+fn hist_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
+{mejor}
+<div class="q-actions">
+<a class="mh-btn" href="/historia">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

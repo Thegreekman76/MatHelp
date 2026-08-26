@@ -1,0 +1,70 @@
+// Historia.fitzv — "Cuentos con números" como LiveComponent SSR.
+//
+// Problema narrado (leído en voz alta para pre-lectores) + 4 botones grandes con
+// números. Un solo evento answer(): el payload trae la opción elegida (v) y el
+// índice (ei). Ronda fija de N, sin reloj. El item se deriva de (seed, idx, grade) —
+// el server re-deriva el mismo y compara given == it.answer.
+//
+// La persistencia (Attempt + mastery + racha) la hace el loop del @ws en
+// live_historia.fitz.
+
+from gen_historia import gen_historia
+from engine import a_int
+from hist_view import hist_screen
+
+component historia {
+  state {
+    seed: Int = 0
+    idx: Int = 0
+    grade: Int = 1
+    locale: Str = "es-AR"
+    correct: Int = 0
+    total: Int = 0
+    racha: Int = 0
+    racha_max: Int = 0
+    record_prev: Int = 999999
+    phase: Str = "playing"         // "playing" | "done"
+    feedback: Str = ""             // "" | "ok" | "bad"
+    last_answer: Int = 0           // la respuesta correcta del item recién fallado
+    limit: Int = 10                // items por ronda
+  }
+
+  event answer() {
+    if (phase == "playing") {
+      if (payload.has("v")) {
+        if (payload.has("ei")) {
+          let ei = a_int(payload["ei"])
+          if (ei == idx) {
+            let given = a_int(payload["v"])
+            let it = gen_historia(seed, idx, grade)
+            let acierto = given == it.answer
+            total = total + 1
+            if (acierto) {
+              correct = correct + 1
+              feedback = "ok"
+              racha = racha + 1
+              if (racha > racha_max) {
+                racha_max = racha
+              }
+            }
+            if (not acierto) {
+              feedback = "bad"
+              racha = 0
+              last_answer = it.answer
+            }
+            idx = idx + 1
+            if (total >= limit) {
+              phase = "done"
+            }
+          }
+        }
+      }
+    }
+  }
+
+  <template>
+    <div id="historia-app" class="mh-quiz">
+      {hist_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, racha, racha_max, record_prev).raw}
+    </div>
+  </template>
+}

@@ -257,5 +257,18 @@
   "vol.pregunta": "¿Cuál es el volumen?",
   "vol.pregunta_pi": "¿Cuál es el volumen? (usá π ≈ 3)",
   "vol.era": "Casi. Era {0}.",
-  "tema.volumen": "Volumen"
+  "tema.volumen": "Volumen",
+  "hist.suma": "{0} tiene {1} {3}. Le regalan {2} más. ¿Cuántos tiene?",
+  "hist.resta": "{0} tiene {1} {3}. Regala {2}. ¿Cuántos le quedan?",
+  "hist.comparar": "{0} tiene {1} {3}. Un amigo tiene solo {2}. ¿Cuántos más tiene {0}?",
+  "hist.mult": "Hay {0} cajas de {1} {2}. ¿Cuántos hay?",
+  "hist.globos": "globos",
+  "hist.autitos": "autitos",
+  "hist.flores": "flores",
+  "hist.galletitas": "galletitas",
+  "hist.estrellas": "estrellas",
+  "hist.pelotas": "pelotas",
+  "hist.escuchar": "Escuchar",
+  "hist.probaotra": "No era esa. ¡Probá otra!",
+  "tema.historia": "Cuentos"
 }

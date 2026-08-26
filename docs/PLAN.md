@@ -1241,7 +1241,7 @@ Estas seis ya tienen su fila en `juegos.fitz` con `min_grade`; sólo falta const
 
 | Carta | `min_grade` | Modalidad | Mecánica | Escalado por nivel |
 |---|---|---|---|---|
-| 📖 Historia | 1° | común | Problemas narrados cortos leídos en voz (Web Speech API, pre-lectores); elegir la operación/resultado | N1 suma/resta 1 paso → N5 varios pasos + fracciones/% |
+| 📖 Historia ✅ | 1° | común | **HECHO (2026-08-26)** — cuentos narrados leídos en voz alta (Web Speech API, pre-lectores); opción múltiple con botones grandes | N1 suma 1 paso → N2 resta → N3 suma/resta ≤20 → N4 comparar → N5 multiplicación |
 | 🕐 Hora ✅ | 2° | común | **HECHO (2026-08-25)** — leer el **reloj analógico SVG** (agujas por `transform="rotate"`, sin trig); opción múltiple "H:MM" | N1 en punto → N2 y media → N3 cuartos → N4 de a 5 → N5 minuto exacto (los intervalos "¿cuánto falta para…?" quedan como Hora v2) |
 | 📐 Geometría ✅ | 5° | común | **HECHO (2026-08-25)** — área/perímetro con **figura SVG** (cuadrado/rectángulo/triángulo/L); teclado, respuestas enteras | N1 perímetro cuadrado → N2 perímetro rect → N3 área rect → N4 área triángulo → N5 área L compuesta (el círculo con π queda como Geometría v2) |
 | ％ Porcentaje ✅ | 6° | común (útil comercial) | **HECHO (2026-08-25)** — descuentos, IVA, recargo con enunciados; teclado, respuestas enteras | N1 % simple → N2 descuento → N3 IVA 21% → N4 recargo/cuotas → N5 % sucesivos |
@@ -1269,14 +1269,18 @@ Requieren mecánica de input distinta al teclado → primer candidato a definir 
 6. ~~**🎯 Estimación (transversal)**~~ — ✅ **HECHO (2026-08-25)**: redondeo (exacto) + estimar con tolerancia, E2E que recomputa.
 7. ~~**％ Porcentaje (6°)**~~ — ✅ **HECHO (2026-08-25)**: descuentos/IVA/recargo con enunciados, E2E que recomputa los 5 tipos.
 8. ~~**📦 Volumen (6°)**~~ — ✅ **HECHO (2026-08-26)**: cuerpos 3D en SVG (cubo/prisma/cilindro/compuesto), E2E que recomputa las 4 fórmulas.
-9. **📖 Historia (1°)** — depende de Web Speech API (pre-lectores); más UX que matemática (el ÚLTIMO del backlog, distinto a todos). **← próximo sugerido**
+9. ~~**📖 Historia (1°)**~~ — ✅ **HECHO (2026-08-26)**: cuentos narrados en voz alta (Web Speech API) + opción múltiple, E2E que recomputa el cuento.
 
-> **Nota de estado (2026-08-26):** con 🧩 Series, 🕐 Hora, 📐 Geometría, 🃏 Memoria,
-> ± Enteros, 📊 Ordenar, 🎯 Estimación, ％ Porcentaje y 📦 Volumen construidos, el catálogo
-> activo es de **20 juegos** (contrarreloj, V/F, series, memoria, ordenar, estimar, completá,
+**✅ BACKLOG F9 COMPLETO (2026-08-26): las 6 cartas del Grupo A + los 3 modos cognitivos del Grupo B construidos y verificados end-to-end (run↔binario). Catálogo de 21 juegos.**
+
+> **Nota de estado (2026-08-26) — BACKLOG COMPLETO:** con los 9 juegos del backlog F9
+> construidos (🧩 Series, 🕐 Hora, 📐 Geometría, 🃏 Memoria, ± Enteros, 📊 Ordenar,
+> 🎯 Estimación, ％ Porcentaje, 📦 Volumen, 📖 Historia), el catálogo activo es de
+> **21 juegos** (contrarreloj, V/F, series, memoria, ordenar, estimar, historia, completá,
 > escalera, problemas, fracciones, hora, geometría, porcentaje, volumen, enteros, potencias,
-> ecuaciones, finanzas, trigonometría, funciones). Queda SÓLO 📖 Historia del backlog (21 al
-> completarlo).
+> ecuaciones, finanzas, trigonometría, funciones). Cobertura de 1° primaria a 6° secundaria
+> en varios modos cognitivos (cálculo, patrones, memoria, orden, estimación, geometría, 3D,
+> narración por voz). Backlog F9 cerrado.
 
 ---
 
