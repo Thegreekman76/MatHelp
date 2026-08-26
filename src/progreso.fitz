@@ -186,7 +186,10 @@ async fn render_progreso(profile_id: Int, locale: Str) -> Result<Html> {
         let hits = r.get_int("hits")?
         barras.push(barra_destreza(locale, sc, rating, seen, hits))
     }
-    let barras_html = h_join(barras)
+    let barras_html = match barras.len() > 0 {
+        true => h_join(barras),
+        false => html("""<p style="text-align:center;color:var(--mh-suave)">{flv(t(locale, "progreso.sin_temas"))}</p>""").raw,
+    }
 
     // Medallas (o mensaje si todavía no tiene ninguna).
     let medallas_html = match arows.len() > 0 {

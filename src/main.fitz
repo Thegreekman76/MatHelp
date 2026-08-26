@@ -86,8 +86,8 @@ async fn home(session: Str?, lang: Str?) -> Response {
                 return redirect_a("/perfiles")
             }
             let pid = a_int(pid_from_token(session))
-            let ultimo = ultimo_juego_html(locale, pid).await
-            return home_jugar(locale, ultimo)
+            let intro = home_intro_html(locale, pid).await
+            return home_jugar(locale, intro)
         }
         Err(_) => return home_publica(locale).await,
     }
@@ -206,9 +206,16 @@ fn topic_a_route(topic: Str) -> Str {
     }
 }
 
-// Botón "Seguir con <juego>" a partir de la última sesión del perfil. Vacío si no
-// jugó nunca o si falla la DB (best-effort — no puede tumbar el home).
-async fn ultimo_juego_html(locale: Str, pid: Int) -> Html {
+// Intro del home de juego: si el chico NUNCA jugó, un cartel de bienvenida
+// (onboarding del primer uso); si ya jugó, el botón "Seguir con <juego>" (último
+// juego, por el topic_code de la sesión más reciente). Best-effort: ante error de
+// DB devuelve vacío (no puede tumbar el home).
+async fn home_intro_html(locale: Str, pid: Int) -> Html {
+    let vacio = html("""<div class="mh-onboard">
+<span class="mh-onboard-ico" aria-hidden="true">👋</span>
+<p class="mh-onboard-hola">{flv(t(locale, "onboard.hola"))}</p>
+<p class="mh-onboard-tip">{flv(t(locale, "onboard.tip"))}</p>
+</div>""")
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(_) => { return html("") },
@@ -218,7 +225,7 @@ async fn ultimo_juego_html(locale: Str, pid: Int) -> Html {
         Err(_) => { return html("") },
     }
     if (rows.len() == 0) {
-        return html("")
+        return vacio
     }
     let topic = match rows[0].get_str("topic_code") {
         Ok(t) => t,

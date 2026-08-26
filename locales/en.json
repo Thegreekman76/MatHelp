@@ -283,5 +283,8 @@
   "tema.potencias": "Powers",
   "tema.trigonometria": "Trigonometry",
   "juegos.nuevo": "new",
-  "home.seguir": "Continue with {0}"
+  "home.seguir": "Continue with {0}",
+  "onboard.hola": "Hi! Welcome 👋",
+  "onboard.tip": "Tap ▶️ Play now to start, or 🎮 Choose a game to see them all.",
+  "progreso.sin_temas": "You haven't played yet. Pick a game and start! 🎮"
 }
