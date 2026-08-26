@@ -298,5 +298,14 @@
   "tema_color.oceano": "Océano",
   "tema_color.bosque": "Bosque",
   "tema_color.rosa": "Frutilla",
-  "tema_color.lavanda": "Lavanda"
+  "tema_color.lavanda": "Lavanda",
+  "avatar.titulo": "Tu avatar",
+  "avatar.sub": "Elegí quién sos en MatHelp.",
+  "progreso.medallas_conteo": "{0} de {1}",
+  "award.hint.primer_mate": "Jugá tu primera partida",
+  "award.hint.racha7": "7 días seguidos",
+  "award.hint.racha30": "30 días seguidos",
+  "award.hint.maestro": "Dominá una destreza",
+  "award.hint.explorador": "Probá 5 juegos distintos",
+  "award.hint.generico": "Seguí jugando"
 }

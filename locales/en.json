@@ -298,5 +298,14 @@
   "tema_color.oceano": "Ocean",
   "tema_color.bosque": "Forest",
   "tema_color.rosa": "Strawberry",
-  "tema_color.lavanda": "Lavender"
+  "tema_color.lavanda": "Lavender",
+  "avatar.titulo": "Your avatar",
+  "avatar.sub": "Pick who you are in MatHelp.",
+  "progreso.medallas_conteo": "{0} of {1}",
+  "award.hint.primer_mate": "Play your first game",
+  "award.hint.racha7": "7 days in a row",
+  "award.hint.racha30": "30 days in a row",
+  "award.hint.maestro": "Master a skill",
+  "award.hint.explorador": "Try 5 different games",
+  "award.hint.generico": "Keep playing"
 }

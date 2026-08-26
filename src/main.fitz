@@ -37,6 +37,8 @@ import live_finanzas
 import live_trigonometria
 import live_funciones
 import tema
+import avatares
+from avatares import avatar_emoji
 import menu
 import progreso
 import parent
@@ -88,9 +90,10 @@ async fn home(session: Str?, lang: Str?) -> Response {
                 return redirect_a("/perfiles")
             }
             let pid = a_int(pid_from_token(session))
+            let saludo = saludo_html(locale, pid).await
             let resumen = resumen_hoy_html(locale, pid).await
             let intro = home_intro_html(locale, pid).await
-            return home_jugar(locale, resumen, intro)
+            return home_jugar(locale, saludo, resumen, intro)
         }
         Err(_) => return home_publica(locale).await,
     }
@@ -126,13 +129,14 @@ async fn home_publica(locale: Str) -> Response {
 // adaptativo, F3), Elegir juego (grilla por grado) y Práctica libre (tema →
 // dificultad). El grado sale del perfil y el nivel es adaptativo: acá no se
 // elige ninguno de los dos (salvo en Práctica libre).
-fn home_jugar(locale: Str, resumen: Html, ultimo: Html) -> Response {
+fn home_jugar(locale: Str, saludo: Html, resumen: Html, ultimo: Html) -> Response {
     let marca = logo_lockup(56, locale).raw
     let tagline = flv(t(locale, "app.tagline"))
 
     let body = html("""<div class="mh-hero">
 {marca}
 <div class="mh-tagline">{tagline}</div>
+{saludo}
 </div>
 {resumen}
 
@@ -148,6 +152,7 @@ fn home_jugar(locale: Str, resumen: Html, ultimo: Html) -> Response {
 
 <div class="mh-card">
 <a class="mh-btn sec" href="/panel"><span aria-hidden="true">📊</span>{flv(t(locale, "nav.panel"))}</a>
+<a class="mh-btn sec" href="/avatar"><span aria-hidden="true">🙂</span>{flv(t(locale, "avatar.titulo"))}</a>
 <a class="mh-btn sec" href="/tema"><span aria-hidden="true">🎨</span>{flv(t(locale, "tema_color.titulo"))}</a>
 <a class="mh-btn sec" href="/perfiles">{flv(t(locale, "perfiles.titulo"))}</a>
 <form method="POST" action="/logout">
@@ -277,6 +282,35 @@ async fn resumen_hoy_html(locale: Str, pid: Int) -> Html {
 <span class="mh-chip">🔥 {chip_racha}</span>
 <span class="mh-chip">✏️ {chip_hoy}</span>
 </div>""")
+}
+
+// Saludo del home con el avatar del perfil ("🧉 ¡Hola, Ada!"). Best-effort.
+async fn saludo_html(locale: Str, pid: Int) -> Html {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return html("") },
+    }
+    let rows = match conn.query("SELECT name, avatar FROM profiles WHERE id = $1", [pid]).await {
+        Ok(r) => r,
+        Err(_) => { return html("") },
+    }
+    if (rows.len() == 0) {
+        return html("")
+    }
+    let nombre = match rows[0].get_str("name") {
+        Ok(n) => n,
+        Err(_) => "",
+    }
+    let av = match rows[0].get_str("avatar") {
+        Ok(a) => a,
+        Err(_) => "mate",
+    }
+    if (nombre == "") {
+        return html("")
+    }
+    let em = flv(avatar_emoji(av))
+    let hola = flv(t1(locale, "home.hola", nombre))
+    return html("""<a class="mh-saludo" href="/avatar"><span class="mh-saludo-av">{em}</span><span>{hola}</span></a>""")
 }
 
 // Chequeo real de Postgres, para que `docker compose up` diga la verdad.

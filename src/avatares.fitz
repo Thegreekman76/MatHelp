@@ -1,0 +1,123 @@
+// avatares.fitz — selector de avatar por perfil (F9 pulido).
+//
+// A diferencia del tema (que necesita cookie porque el color se aplica en TODAS
+// las páginas, incluso pre-login), el avatar solo se muestra donde ya cargamos el
+// perfil desde la DB (tarjetas de /perfiles, saludo del home, panel del padre) →
+// alcanza con guardarlo en profiles.avatar, sin cookie.
+//
+// /avatar muestra la grilla de avatares (el activo marcado); /avatar/{code} valida,
+// guarda en el perfil y vuelve a /avatar.
+
+from fitz_liveviews import Html, html, flv, h_join
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session, pid_from_token
+from engine import a_int
+
+fn avatares() -> List<Str> {
+    return ["mate", "zorro", "gato", "robot", "cohete", "dino", "estrella", "unicornio", "panda", "pulpo", "rana", "buho"]
+}
+
+fn avatar_emoji(code: Str) -> Str {
+    return match code {
+        "zorro" => "🦊",
+        "gato" => "🐱",
+        "robot" => "🤖",
+        "cohete" => "🚀",
+        "dino" => "🦖",
+        "estrella" => "⭐",
+        "unicornio" => "🦄",
+        "panda" => "🐼",
+        "pulpo" => "🐙",
+        "rana" => "🐸",
+        "buho" => "🦉",
+        _ => "🧉",
+    }
+}
+
+fn es_avatar_valido(c: Str) -> Bool {
+    for x in avatares() {
+        if (x == c) {
+            return true
+        }
+    }
+    return false
+}
+
+// Lee el avatar del perfil (best-effort → "mate" si falla).
+async fn leer_avatar(pid: Int) -> Str {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => return "mate",
+    }
+    let rows = match conn.query("SELECT avatar FROM profiles WHERE id = $1", [pid]).await {
+        Ok(r) => r,
+        Err(_) => return "mate",
+    }
+    if (rows.len() == 0) {
+        return "mate"
+    }
+    return match rows[0].get_str("avatar") {
+        Ok(a) => a,
+        Err(_) => "mate",
+    }
+}
+
+async fn guardar_avatar(pid: Int, code: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("UPDATE profiles SET avatar = $2 WHERE id = $1", [pid, code]).await
+}
+
+fn carta_avatar(c: Str, activo: Str) -> Html {
+    let em = flv(avatar_emoji(c))
+    let sel = match c == activo {
+        true => " sel",
+        false => "",
+    }
+    return html("""<a class="mh-avpick{sel}" href="/avatar/{c}" aria-label="{c}"><span class="mh-avpick-em">{em}</span></a>""")
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/avatar")
+async fn avatar_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    let pid = a_int(pid_from_token(session))
+    if (pid <= 0) {
+        return redirect_a("/perfiles")
+    }
+    let activo = leer_avatar(pid).await
+    let cartas = h_join(avatares().map(fn(c) => carta_avatar(c, activo)))
+    let body = html("""<div class="mh-card">
+<h2>{flv(t(locale, "avatar.titulo"))}</h2>
+<p style="text-align:center;color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "avatar.sub"))}</p>
+<div class="mh-avgrid">
+{cartas}
+</div>
+</div>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+    let titulo = t(locale, "avatar.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@get("/avatar/{code}")
+async fn avatar_set(session: Str?, code: Str) -> Response {
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_avatar_valido(code)) {
+        return redirect_a("/avatar")
+    }
+    let pid = a_int(pid_from_token(session))
+    if (pid > 0) {
+        let _ = guardar_avatar(pid, code).await
+    }
+    return redirect_a("/avatar")
+}

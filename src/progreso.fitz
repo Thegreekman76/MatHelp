@@ -10,7 +10,7 @@
 
 from fitz_liveviews import Html, html, flv, h_join
 from config import db_url
-from i18n import t, t1, locale_from_cookie
+from i18n import t, t1, t2, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from fmt import fmt_int
 from engine import progreso_pct
@@ -121,6 +121,32 @@ fn award_label_key(code: Str) -> Str {
     }
 }
 
+// Pista de cómo se consigue cada medalla (se muestra en las bloqueadas).
+fn award_hint_key(code: Str) -> Str {
+    return match code {
+        "primer_mate" => "award.hint.primer_mate",
+        "racha7" => "award.hint.racha7",
+        "racha30" => "award.hint.racha30",
+        "maestro" => "award.hint.maestro",
+        "explorador" => "award.hint.explorador",
+        _ => "award.hint.generico",
+    }
+}
+
+// Catálogo completo de medallas, en orden de dificultad (para la galería).
+fn award_codes() -> List<Str> {
+    return ["primer_mate", "racha7", "racha30", "maestro", "explorador"]
+}
+
+fn tiene_medalla(ganadas: List<Str>, code: Str) -> Bool {
+    for g in ganadas {
+        if (g == code) {
+            return true
+        }
+    }
+    return false
+}
+
 // --- render ------------------------------------------------------------------
 
 // Una barra "mate que se llena" por destreza: nombre + % + aciertos.
@@ -143,12 +169,20 @@ fn barra_destreza(locale: Str, sc: Str, rating: Float, seen: Int, hits: Int) -> 
 </div>""")
 }
 
-fn medalla(locale: Str, code: Str) -> Html {
+fn medalla(locale: Str, code: Str, ganada: Bool) -> Html {
     let em = flv(award_emoji(code))
     let nombre = flv(t(locale, award_label_key(code)))
-    return html("""<div style="text-align:center;min-width:88px">
-<div style="font-size:2.4rem;line-height:1">{em}</div>
-<div style="font-size:.85rem;font-weight:700;margin-top:.2rem">{nombre}</div>
+    if (ganada) {
+        return html("""<div class="mh-medalla ganada">
+<div class="mh-medalla-em">{em}</div>
+<div class="mh-medalla-nom">{nombre}</div>
+</div>""")
+    }
+    let hint = flv(t(locale, award_hint_key(code)))
+    return html("""<div class="mh-medalla bloq">
+<div class="mh-medalla-em">🔒</div>
+<div class="mh-medalla-nom">{nombre}</div>
+<div class="mh-medalla-hint">{hint}</div>
 </div>""")
 }
 
@@ -197,16 +231,20 @@ async fn render_progreso(profile_id: Int, locale: Str) -> Result<Html> {
         false => html("""<p style="text-align:center;color:var(--mh-suave)">{flv(t(locale, "progreso.sin_temas"))}</p>""").raw,
     }
 
-    // Medallas (o mensaje si todavía no tiene ninguna).
-    let medallas_html = match arows.len() > 0 {
-        true => "",
-        false => html("""<p style="color:var(--mh-suave);text-align:center;margin:.2rem 0">{flv(t(locale, "progreso.sin_medallas"))}</p>""").raw,
+    // Galería de medallas: TODAS las conocidas, las ganadas a color y las que
+    // faltan en gris con la pista de cómo conseguirlas.
+    let ganadas: List<Str> = []
+    for r in arows {
+        ganadas.push(r.get_str("code")?)
     }
     let medallas: List<Html> = []
-    for r in arows {
-        medallas.push(medalla(locale, r.get_str("code")?))
+    for code in award_codes() {
+        medallas.push(medalla(locale, code, tiene_medalla(ganadas, code)))
     }
     let medallas_grid = h_join(medallas)
+    let n_ganadas = flv(fmt_int(locale, ganadas.len()))
+    let n_total = flv(fmt_int(locale, award_codes().len()))
+    let conteo = flv(t2(locale, "progreso.medallas_conteo", n_ganadas, n_total))
 
     let body = html("""{racha_html}
 <div class="mh-card">
@@ -215,8 +253,8 @@ async fn render_progreso(profile_id: Int, locale: Str) -> Result<Html> {
 </div>
 <div class="mh-card">
 <h2>{flv(t(locale, "progreso.medallas"))}</h2>
-{medallas_html}
-<div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
+<p style="text-align:center;color:var(--mh-suave);margin:.1rem 0 .8rem">{conteo}</p>
+<div class="mh-medallas">
 {medallas_grid}
 </div>
 </div>

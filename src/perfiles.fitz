@@ -15,6 +15,7 @@ from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from auth import read_session, mint_session, redirect_con_sesion_y_tema
 from engine import modalidad_valida
+from avatares import avatar_emoji
 from models import Profile
 
 // --- DB ------------------------------------------------------------------
@@ -63,10 +64,11 @@ fn tarjeta_perfil(locale: Str, p: Profile) -> Html {
     let nombre = flv(p.name)
     let grado = flv(label_grado(locale, p.grade))
     let pid = "{p.id}"
+    let em = flv(avatar_emoji(p.avatar))
 
     if (p.pin != "") {
         return html("""<a class="mh-profile" href="/perfiles/pin/{pid}">
-<span class="mh-av">🔒</span>
+<span class="mh-av">{em}<span class="mh-avlock" aria-hidden="true">🔒</span></span>
 <span>{nombre}</span>
 <span class="mh-pgrado">{grado}</span>
 </a>""")
@@ -74,7 +76,7 @@ fn tarjeta_perfil(locale: Str, p: Profile) -> Html {
     return html("""<form method="POST" action="/perfiles/elegir">
 <input type="hidden" name="pid" value="{pid}" />
 <button type="submit" class="mh-profile">
-<span class="mh-av">🧉</span>
+<span class="mh-av">{em}</span>
 <span>{nombre}</span>
 <span class="mh-pgrado">{grado}</span>
 </button>
