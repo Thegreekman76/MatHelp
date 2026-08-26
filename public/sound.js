@@ -245,20 +245,28 @@ if ("serviceWorker" in navigator) {
   }
 })();
 
-// --- No cambiar de idioma en medio de un juego --------------------------------
-// Cambiar idioma recarga la página (setea la cookie + redirect), y eso arranca un
-// socket/juego NUEVO: se pierde la partida en curso. En las páginas de juego (las
-// que montan un LiveComponent, marcadas con data-flv-component-name) ocultamos el
-// selector de idioma; se cambia desde el menú/home antes de jugar.
+// --- Salir de un juego avisa que se pierde la partida -------------------------
+// Cualquier navegación fuera de una partida en curso (cambiar idioma, tocar el
+// logo para ir al inicio, etc.) recarga la página y arranca un socket/juego nuevo
+// → se pierde la partida y el puntaje. En vez de bloquearlo, avisamos: si hay una
+// partida en curso (hay botones de acción del juego, [data-flv-click]) y el usuario
+// toca un link que sale, pedimos confirmación. Los links del resumen (fin de la
+// partida, ya sin [data-flv-click]) no avisan.
 (function () {
-  function apply() {
-    var enJuego = document.querySelector("[data-flv-component-name]");
-    var langs = document.querySelector(".mh-langs");
-    if (enJuego && langs) { langs.style.display = "none"; }
+  function enPartida() { return !!document.querySelector("[data-flv-click]"); }
+  function mensaje() {
+    var lang = document.documentElement.getAttribute("lang") || "es";
+    return lang.indexOf("en") === 0
+      ? "You'll leave the game and lose your progress and score. Are you sure?"
+      : "Vas a salir del juego y perder la partida y el puntaje. ¿Seguro?";
   }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", apply);
-  } else {
-    apply();
-  }
+  document.addEventListener("click", function (e) {
+    if (!enPartida()) return;
+    var a = e.target.closest ? e.target.closest("a[href]") : null;
+    if (!a) return;
+    var href = a.getAttribute("href") || "";
+    if (href === "" || href.charAt(0) === "#") return;      // ancla interna, no navega
+    if (a.getAttribute("target") === "_blank") return;      // abre en otra pestaña, no sale
+    if (!window.confirm(mensaje())) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
 })();

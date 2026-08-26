@@ -8,7 +8,7 @@
 //
 // Al cambiar los estáticos, subí la versión del cache (mathelp-vN) para que
 // el SW viejo se limpie en el activate.
-var CACHE = "mathelp-v1";
+var CACHE = "mathelp-v2";
 var ASSETS = ["/favicon.svg", "/sound.js", "/manifest.webmanifest"];
 
 self.addEventListener("install", function (e) {
@@ -39,8 +39,21 @@ self.addEventListener("fetch", function (e) {
   if (req.method !== "GET") return;
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-  // Estáticos: cache-first, y rellená el cache al vuelo.
-  if (/\.(svg|js|webmanifest|css|png|ico)$/.test(url.pathname)) {
+  // JS: network-first. El JS de la app (sound.js) cambia seguido; servirlo del
+  // cache "para siempre" dejaba a los usuarios con una versión vieja (bug real).
+  // Ahora va siempre a la red y rellena el cache; el cache es solo fallback offline.
+  if (/\.js$/.test(url.pathname)) {
+    e.respondWith(
+      fetch(req).then(function (res) {
+        var copy = res.clone();
+        caches.open(CACHE).then(function (c) { c.put(req, copy); });
+        return res;
+      }).catch(function () { return caches.match(req); })
+    );
+    return;
+  }
+  // Otros estáticos (íconos, manifest, css): cache-first (rara vez cambian).
+  if (/\.(svg|webmanifest|css|png|ico)$/.test(url.pathname)) {
     e.respondWith(
       caches.match(req).then(function (hit) {
         return hit || fetch(req).then(function (res) {

@@ -12,7 +12,7 @@
 // El server re-deriva el MISMO ejercicio y valor mostrado (gen_for + vf_shown) y
 // corrige — no confía en el cliente para la afirmación ni la verdad.
 
-from fitz_liveviews import Html, html, LiveFrame, component_with, dispatch_component_events, dispatch_to, flv_frame, component_state, flv_evict, live_embed
+from fitz_liveviews import Html, html, LiveFrame, component, component_with, dispatch_component_events, dispatch_to, diff_html, flv_frame, component_state, flv_evict, live_embed
 from config import db_url
 from records import leer_record, guardar_record
 from i18n import t, locale_from_cookie
@@ -171,8 +171,13 @@ async fn vf_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
 async fn vf_timer(ws: WsConn<LiveFrame>, cid: Str, sess_id: Int, profile_id: Int) -> Result<Null> {
     loop {
         let _ = sleep(1000).await
+        // Diff fino (ver comentario en live_game.fitz::timer): el tick emite solo el
+        // patch del reloj, no reemplaza el componente entero → sin parpadeo.
+        let antes = component("verdadero_falso", cid).raw
         let _ = dispatch_to("verdadero_falso", cid, "tick", { })
-        ws.send(flv_frame("verdadero_falso", cid))?
+        let despues = component("verdadero_falso", cid).raw
+        let patches = diff_html(antes, despues)
+        ws.send(LiveFrame { html: despues, patches: patches })?
         let st: verdadero_falso = component_state("verdadero_falso", cid)
         if (st.phase == "done") {
             let _ = guardar_record(profile_id, "verdadero_falso", st.racha_max).await

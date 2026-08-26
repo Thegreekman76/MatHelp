@@ -74,7 +74,7 @@ fn topbar(locale: Str) -> Html {
     }
     let son_lbl = flv(t(locale, "a11y.sonido"))
     return html("""<header class="mh-topbar">
-{marca}
+<a class="mh-topbar-home" href="/" aria-label="{flv(t(locale, "nav.inicio"))}">{marca}</a>
 <div class="mh-controls">
 <button id="mh-sound-btn" type="button" class="mh-sound-btn" aria-pressed="true" aria-label="{son_lbl}" title="{son_lbl}"><span class="mh-sound-ico" aria-hidden="true">🔊</span></button>
 <nav class="mh-langs" aria-label="{flv(t(locale, "idioma.cambiar"))}">

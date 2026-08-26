@@ -309,5 +309,6 @@
   "award.hint.explorador": "Probá 5 juegos distintos",
   "award.hint.generico": "Seguí jugando",
   "repaso.cta": "Repasá {0}",
-  "progreso.records": "Mis récords"
+  "progreso.records": "Mis récords",
+  "nav.inicio": "Inicio"
 }

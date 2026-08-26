@@ -189,6 +189,7 @@ fn cat_es_ar(key: Str) -> Str {
         "modalidad.comercial" => "Comercial (Economía)",
         "modalidad.comun" => "Común / primaria",
         "modalidad.industrial" => "Industrial (Técnica)",
+        "nav.inicio" => "Inicio",
         "nav.jugar" => "Jugar",
         "nav.panel" => "Panel de familia",
         "nav.perfiles" => "Perfiles",

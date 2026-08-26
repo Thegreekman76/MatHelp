@@ -309,5 +309,6 @@
   "award.hint.explorador": "Try 5 different games",
   "award.hint.generico": "Keep playing",
   "repaso.cta": "Practice {0}",
-  "progreso.records": "My records"
+  "progreso.records": "My records",
+  "nav.inicio": "Home"
 }
