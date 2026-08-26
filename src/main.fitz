@@ -36,6 +36,7 @@ import live_ecuaciones
 import live_finanzas
 import live_trigonometria
 import live_funciones
+import tema
 import menu
 import progreso
 import parent
@@ -147,6 +148,7 @@ fn home_jugar(locale: Str, resumen: Html, ultimo: Html) -> Response {
 
 <div class="mh-card">
 <a class="mh-btn sec" href="/panel"><span aria-hidden="true">📊</span>{flv(t(locale, "nav.panel"))}</a>
+<a class="mh-btn sec" href="/tema"><span aria-hidden="true">🎨</span>{flv(t(locale, "tema_color.titulo"))}</a>
 <a class="mh-btn sec" href="/perfiles">{flv(t(locale, "perfiles.titulo"))}</a>
 <form method="POST" action="/logout">
 <button class="mh-btn sec" type="submit">{flv(t(locale, "nav.salir"))}</button>

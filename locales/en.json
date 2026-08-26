@@ -291,5 +291,12 @@
   "award.maestro": "You mastered a skill!",
   "award.explorador": "You tried 5 games!",
   "resumen.dias": "{0}-day streak",
-  "resumen.hoy": "today {0}"
+  "resumen.hoy": "today {0}",
+  "tema_color.titulo": "Pick your color",
+  "tema_color.sub": "Make MatHelp the color you like best.",
+  "tema_color.default": "Mint",
+  "tema_color.oceano": "Ocean",
+  "tema_color.bosque": "Forest",
+  "tema_color.rosa": "Strawberry",
+  "tema_color.lavanda": "Lavender"
 }

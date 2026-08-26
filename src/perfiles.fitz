@@ -13,7 +13,7 @@ from fitz_liveviews import Html, html, flv, h_join
 from config import db_url
 from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
-from auth import read_session, mint_session, redirect_con_sesion
+from auth import read_session, mint_session, redirect_con_sesion_y_tema
 from engine import modalidad_valida
 from models import Profile
 
@@ -283,7 +283,7 @@ async fn elegir_post(session: Str?, form: ElegirForm) -> Response {
                 return redirect_a("/perfiles/pin/{pid}")
             }
             let token = mint_session(fam.email, form.pid)
-            return redirect_con_sesion("/", token)
+            return redirect_con_sesion_y_tema("/", token, p.theme)
         }
         Err(_) => return redirect_a("/perfiles"),
     }
@@ -321,7 +321,7 @@ async fn pin_post(session: Str?, lang: Str?, form: PinForm) -> Response {
         Ok(p) => {
             if (p.pin == form.pin) {
                 let token = mint_session(fam.email, form.pid)
-                return redirect_con_sesion("/", token)
+                return redirect_con_sesion_y_tema("/", token, p.theme)
             }
             return responder_html(page(locale, t(locale, "pin.titulo") + " — MatHelp", form_pin(locale, p, true), html("")))
         }

@@ -1,0 +1,122 @@
+// tema.fitz — selector de tema de color por perfil (F9 pulido).
+//
+// /tema muestra los temas disponibles como swatches; tocar uno lo aplica: guarda
+// el tema en el perfil (profiles.theme) y setea la cookie `mathelp_theme`, que
+// `layout.page()` lee (via un script inline en el <head>) para poner data-theme en
+// <html>. El CSS de brand.fitz recolorea los acentos por `:root[data-theme="X"]`.
+//
+// El tema es POR PERFIL: al elegir un perfil (perfiles/elegir), su tema se aplica
+// (redirect_con_sesion_y_tema). Acá se cambia cuando el chico quiere otro color.
+
+from fitz_liveviews import Html, html, flv, h_join
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session, pid_from_token
+from engine import a_int
+
+fn temas() -> List<Str> {
+    return ["default", "oceano", "bosque", "rosa", "lavanda"]
+}
+
+fn es_tema_valido(c: Str) -> Bool {
+    for x in temas() {
+        if (x == c) {
+            return true
+        }
+    }
+    return false
+}
+
+// Color primario del tema (para el preview del swatch — inline, ya que el
+// data-theme de la página es el actual, no el de cada swatch).
+fn tema_color(c: Str) -> Str {
+    return match c {
+        "oceano" => "#1565C0",
+        "bosque" => "#2E7D32",
+        "rosa" => "#D81B60",
+        "lavanda" => "#7E57C2",
+        _ => "#0E7A63",
+    }
+}
+
+fn carta_tema(locale: Str, c: Str, activo: Str) -> Html {
+    let nombre = flv(t(locale, "tema_color.{c}"))
+    let col = tema_color(c)
+    let sel = match c == activo {
+        true => " sel",
+        false => "",
+    }
+    let check = match c == activo {
+        true => flv("✓"),
+        false => "",
+    }
+    return html("""<a class="mh-swatch{sel}" href="/tema/{c}">
+<span class="mh-swatch-col" style="background:{col}">{check}</span>
+<span class="mh-swatch-name">{nombre}</span>
+</a>""")
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@cookie(name="mathelp_theme", into="tema")
+@get("/tema")
+async fn tema_get(session: Str?, lang: Str?, tema: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    let activo = match tema {
+        null => "default",
+        x => x,
+    }
+    let cartas = h_join(temas().map(fn(c) => carta_tema(locale, c, activo)))
+    let body = html("""<div class="mh-card">
+<h2>{flv(t(locale, "tema_color.titulo"))}</h2>
+<p style="text-align:center;color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "tema_color.sub"))}</p>
+<div class="mh-swatches">
+{cartas}
+</div>
+</div>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+    let titulo = t(locale, "tema_color.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
+
+// Aplica un tema: lo guarda en el perfil (best-effort) y setea la cookie.
+async fn guardar_tema(pid: Int, code: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("UPDATE profiles SET theme = $2 WHERE id = $1", [pid, code]).await
+}
+
+@cookie(name="mathelp_session", into="session")
+@get("/tema/{code}")
+async fn tema_set(session: Str?, code: Str) -> Response {
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_tema_valido(code)) {
+        return redirect_a("/tema")
+    }
+    let pid = a_int(pid_from_token(session))
+    if (pid > 0) {
+        let _ = guardar_tema(pid, code).await
+    }
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        cookies: [
+            Cookie {
+                name: "mathelp_theme",
+                value: code,
+                path: "/",
+                same_site: "Lax",
+                max_age: 31536000,
+            },
+        ],
+        headers: { "Location": "/tema" },
+        body: "",
+    }
+}

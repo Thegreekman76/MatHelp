@@ -45,6 +45,7 @@ fn page(locale: Str, titulo: Str, body: Html, live_js: Html) -> Html {
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="/favicon.svg" />
 <link rel="manifest" href="/manifest.webmanifest" />
+<script>(function()\{try\{var m=document.cookie.match(/mathelp_theme=([^;]+)/);if(m)document.documentElement.setAttribute('data-theme',m[1]);\}catch(e)\{\}\})();</script>
 <style>{css}</style>
 </head>
 <body>

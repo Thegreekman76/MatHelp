@@ -291,5 +291,12 @@
   "award.maestro": "¡Dominaste una destreza!",
   "award.explorador": "¡Probaste 5 juegos!",
   "resumen.dias": "{0} días de racha",
-  "resumen.hoy": "hoy {0}"
+  "resumen.hoy": "hoy {0}",
+  "tema_color.titulo": "Elegí tu color",
+  "tema_color.sub": "Poné MatHelp del color que más te gusta.",
+  "tema_color.default": "Menta",
+  "tema_color.oceano": "Océano",
+  "tema_color.bosque": "Bosque",
+  "tema_color.rosa": "Frutilla",
+  "tema_color.lavanda": "Lavanda"
 }

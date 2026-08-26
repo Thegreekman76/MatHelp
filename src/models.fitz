@@ -49,6 +49,7 @@ type Profile {
     // los hermanos no se metan en el perfil del otro.
     @hidden pin: Str = ""
     daily_goal: Int = 10          // ejercicios/día
+    theme: Str = "default"        // tema de color del perfil (F9 pulido)
     @db_default created_at: Str = ""
 }
 
