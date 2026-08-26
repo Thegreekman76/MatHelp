@@ -270,5 +270,11 @@
   "hist.pelotas": "pelotas",
   "hist.escuchar": "Escuchar",
   "hist.probaotra": "No era esa. ¡Probá otra!",
-  "tema.historia": "Cuentos"
+  "tema.historia": "Cuentos",
+  "cat.calculo": "Cálculo mental",
+  "cat.pensar": "Pensar y descubrir",
+  "cat.problemas": "Problemas y cuentos",
+  "cat.fracciones": "Fracciones y porcentajes",
+  "cat.medida": "Geometría y medida",
+  "cat.algebra": "Números y álgebra"
 }

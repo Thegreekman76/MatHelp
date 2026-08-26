@@ -270,5 +270,11 @@
   "hist.pelotas": "balls",
   "hist.escuchar": "Listen",
   "hist.probaotra": "Not that one. Try again!",
-  "tema.historia": "Stories"
+  "tema.historia": "Stories",
+  "cat.calculo": "Mental math",
+  "cat.pensar": "Think & discover",
+  "cat.problemas": "Word problems",
+  "cat.fracciones": "Fractions & percentages",
+  "cat.medida": "Geometry & measurement",
+  "cat.algebra": "Numbers & algebra"
 }

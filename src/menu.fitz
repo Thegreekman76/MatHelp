@@ -74,16 +74,53 @@ fn carta_juego(locale: Str, j: Juego, grade: Int) -> Html {
 </a>""")
 }
 
+// Categorías del menú, en orden de aparición (F9 pulido: con 21 juegos, agrupar
+// por área evita la pared de cartas). Cada juego lleva su `categoria` en juegos.fitz.
+fn categorias() -> List<Str> {
+    return ["calculo", "pensar", "problemas", "fracciones", "medida", "algebra"]
+}
+
+fn cat_icon(c: Str) -> Str {
+    return match c {
+        "calculo" => "⚡",
+        "pensar" => "🧠",
+        "problemas" => "💬",
+        "fracciones" => "½",
+        "medida" => "📐",
+        "algebra" => "🟰",
+        _ => "🎮",
+    }
+}
+
+// Una sección de categoría: se muestra sólo si tiene al menos un juego jugable al
+// grado. Adentro, primero los jugables y después los bloqueados (teaser "se abre
+// en Nº grado"). Si no hay ninguno jugable, devuelve "" (la categoría se oculta).
+fn seccion_categoria(locale: Str, c: Str, grade: Int, modalidad: Str) -> Str {
+    let en_cat = juegos().filter(fn(j) => j.categoria == c and (j.modalidad == "comun" or j.modalidad == modalidad))
+    let jugables = en_cat.filter(fn(j) => j.min_grade <= grade)
+    if (jugables.len() == 0) {
+        return ""
+    }
+    let bloqueados = en_cat.filter(fn(j) => j.min_grade > grade)
+    let cartas_j = h_join(jugables.map(fn(j) => carta_juego(locale, j, grade)))
+    let cartas_b = h_join(bloqueados.map(fn(j) => carta_juego(locale, j, grade)))
+    let titulo_cat = flv(t(locale, "cat.{c}"))
+    let ic = flv(cat_icon(c))
+    return html("""<section class="mh-cat">
+<h3 class="mh-cat-tit">{ic} {titulo_cat}</h3>
+<div class="mh-juegos">{cartas_j}{cartas_b}</div>
+</section>""").raw
+}
+
 fn grilla_juegos(locale: Str, grade: Int, modalidad: Str) -> Html {
-    // Filtra por orientación (F7.3): los juegos "comun" son para todos; los de
-    // una modalidad (ej. Finanzas → comercial) sólo aparecen en esa orientación.
-    let visibles = juegos().filter(fn(j) => j.modalidad == "comun" or j.modalidad == modalidad)
-    let cartas = h_join(visibles.map(fn(j) => carta_juego(locale, j, grade)))
+    // Agrupa por categoría (F7.3: la orientación filtra los juegos por modalidad).
+    let secciones = ""
+    for c in categorias() {
+        secciones = secciones + seccion_categoria(locale, c, grade, modalidad)
+    }
     return html("""<div class="mh-card">
 <h2>{flv(t(locale, "juegos.titulo"))}</h2>
-<div class="mh-juegos">
-{cartas}
-</div>
+{secciones}
 </div>
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
 }
