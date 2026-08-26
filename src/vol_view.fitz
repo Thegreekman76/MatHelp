@@ -140,7 +140,7 @@ fn vol_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total:
 <p class="vol-preg">{pregunta}</p>
 <div class="vol-fig" data-kind="{it.kind}" data-a="{it.a}" data-b="{it.b}" data-c="{it.c}" data-d="{it.d}">{fig}</div>
 <div class="q-prompt cg-eq">{hueco} cm³</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 {teclado}""")
 }
 

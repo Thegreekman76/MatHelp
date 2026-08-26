@@ -123,7 +123,7 @@ fn func_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total
 <div class="q-prompt fx-formula">{formula}</div>
 <div class="q-prompt fx-pregunta">{pregunta}</div>
 <div class="q-prompt cg-eq">{valor}</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 {teclado}""")
 }
 

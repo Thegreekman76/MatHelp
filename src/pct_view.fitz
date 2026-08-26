@@ -57,7 +57,7 @@ fn pct_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total:
 {progb}
 <p class="pct-enun">{enun}</p>
 <div class="q-prompt cg-eq pct-eq" data-kind="{it.kind}" data-p="{it.p}" data-n="{it.n}" data-p2="{it.p2}">$ {hueco}</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 {teclado}""")
 }
 

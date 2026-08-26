@@ -45,7 +45,7 @@ fn memoria_screen(seed: Int, grade: Int, locale: Str, matched: Int, sel: Int, co
 {progb}
 <p class="mem-preg">{pregunta}</p>
 <div class="mem-grid">{cartas}</div>
-<div class="q-fbwrap">{banner}</div>""")
+<div class="q-fbwrap" aria-live="polite">{banner}</div>""")
 }
 
 fn memoria_feedback(locale: Str, feedback: Str, seq: Int) -> Str {

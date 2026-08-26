@@ -42,7 +42,7 @@ fn ordenar_screen(seed: Int, grade: Int, locale: Str, placed: Int, correct: Int,
 {progb}
 <p class="ord-preg">{pregunta}</p>
 <div class="ord-grid">{cartas}</div>
-<div class="q-fbwrap">{banner}</div>""")
+<div class="q-fbwrap" aria-live="polite">{banner}</div>""")
 }
 
 fn ordenar_feedback(locale: Str, feedback: Str, seq: Int) -> Str {

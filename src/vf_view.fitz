@@ -48,7 +48,7 @@ fn vf_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, hud_a: In
 <button class="vf-opt yes" type="button" data-flv-click="answer" data-flv-value-v="1" data-flv-value-ei="{idx}"><span aria-hidden="true">✓</span>{btn_v}</button>
 <button class="vf-opt no" type="button" data-flv-click="answer" data-flv-value-v="0" data-flv-value-ei="{idx}"><span aria-hidden="true">✕</span>{btn_f}</button>
 </div>
-<div class="q-fbwrap">{banner}</div>""")
+<div class="q-fbwrap" aria-live="polite">{banner}</div>""")
 }
 
 // HUD del contrarreloj (reloj + puntaje) o del desafío (progreso X/N + aciertos).

@@ -122,13 +122,34 @@ if ("serviceWorker" in navigator) {
     else if (fb.classList.contains("bad")) beep(false);
   }
 
-  // --- acorde en los hitos de racha (5, 10, ...) ---
+  // Toast efímero (aviso visual, se auto-oculta). Cero assets: un div que se
+  // crea al vuelo y se reusa.
+  function showToast(text) {
+    try {
+      var t = document.getElementById("mh-toast");
+      if (!t) {
+        t = document.createElement("div");
+        t.id = "mh-toast";
+        t.className = "mh-toast";
+        t.setAttribute("aria-hidden", "true");
+        document.body.appendChild(t);
+      }
+      t.textContent = text;
+      t.classList.remove("show");
+      void t.offsetWidth; // reflow: reinicia la animación
+      t.classList.add("show");
+      clearTimeout(t._hide);
+      t._hide = setTimeout(function () { t.classList.remove("show"); }, 1800);
+    } catch (e) {}
+  }
+
+  // --- acorde + toast en los hitos de racha (5, 10, ...) ---
   var lastRacha = 0;
   function checkStreak() {
     var el = document.querySelector(".q-racha[data-racha]");
     if (!el) { lastRacha = 0; return; } // la racha se cortó (o no hay)
     var n = parseInt(el.getAttribute("data-racha"), 10) || 0;
-    if (n > lastRacha && n >= 5 && n % 5 === 0) chord();
+    if (n > lastRacha && n >= 5 && n % 5 === 0) { chord(); showToast("🔥 " + n); }
     lastRacha = n;
   }
   function tick() { checkFeedback(); checkStreak(); }

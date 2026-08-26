@@ -286,5 +286,10 @@
   "home.seguir": "Continue with {0}",
   "onboard.hola": "Hi! Welcome 👋",
   "onboard.tip": "Tap ▶️ Play now to start, or 🎮 Choose a game to see them all.",
-  "progreso.sin_temas": "You haven't played yet. Pick a game and start! 🎮"
+  "progreso.sin_temas": "You haven't played yet. Pick a game and start! 🎮",
+  "award.racha30": "30-day streak!",
+  "award.maestro": "You mastered a skill!",
+  "award.explorador": "You tried 5 games!",
+  "resumen.dias": "{0}-day streak",
+  "resumen.hoy": "today {0}"
 }

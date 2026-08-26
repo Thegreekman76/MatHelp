@@ -103,6 +103,9 @@ fn award_emoji(code: Str) -> Str {
     return match code {
         "primer_mate" => "🧉",
         "racha7" => "🔥",
+        "racha30" => "🌟",
+        "maestro" => "🎓",
+        "explorador" => "🧭",
         _ => "🏅",
     }
 }
@@ -111,6 +114,9 @@ fn award_label_key(code: Str) -> Str {
     return match code {
         "primer_mate" => "award.primer_mate",
         "racha7" => "award.racha7",
+        "racha30" => "award.racha30",
+        "maestro" => "award.maestro",
+        "explorador" => "award.explorador",
         _ => "award.generico",
     }
 }

@@ -29,7 +29,7 @@ fn escalera_screen(seed: Int, idx: Int, grade: Int, locale: Str, step: Int, meta
     return html("""{ladder}
 <div class="q-prompt">{a} {sym} {b} = ?</div>
 <div class="q-options">{opciones}</div>
-<div class="q-fbwrap">{banner}</div>""")
+<div class="q-fbwrap" aria-live="polite">{banner}</div>""")
 }
 
 // La escalera: `meta` escalones apilados (el de más arriba es la meta), llenos

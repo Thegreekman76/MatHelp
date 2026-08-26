@@ -61,7 +61,7 @@ fn hist_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total
 <p class="hist-text" data-hist-seq="{idx}" data-hist-lang="{speechlang}" data-kind="{it.kind}" data-a="{it.a}" data-b="{it.b}">{enun}</p>
 <button class="hist-replay" type="button" data-hist-replay>🔊 {escuchar}</button>
 <div class="q-options hist-opts">{opciones}</div>
-<div class="q-fbwrap">{banner}</div>""")
+<div class="q-fbwrap" aria-live="polite">{banner}</div>""")
 }
 
 fn hist_feedback(locale: Str, feedback: Str, seq: Int) -> Str {

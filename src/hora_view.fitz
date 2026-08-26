@@ -81,7 +81,7 @@ fn hora_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total
 <p class="hora-preg">{pregunta}</p>
 <div class="hora-clock-wrap">{reloj}</div>
 <div class="q-options hora-opts">{opciones}</div>
-<div class="q-fbwrap">{banner}</div>""")
+<div class="q-fbwrap" aria-live="polite">{banner}</div>""")
 }
 
 fn hora_feedback(locale: Str, feedback: Str, last_answer: Str, seq: Int) -> Str {

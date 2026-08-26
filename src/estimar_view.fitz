@@ -56,7 +56,7 @@ fn estimar_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, to
 {progb}
 <p class="est-hint">{hint}</p>
 <div class="q-prompt cg-eq est-eq" data-kind="{it.kind}" data-a="{it.a}" data-op="{it.op}" data-b="{it.b}">{cuenta} {eq} {hueco}</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 {teclado}""")
 }
 

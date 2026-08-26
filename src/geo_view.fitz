@@ -123,7 +123,7 @@ fn geo_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total:
 <p class="geo-preg">{pregunta}</p>
 <div class="geo-fig" data-shape="{it.shape}" data-metric="{it.metric}" data-a="{it.a}" data-b="{it.b}" data-c="{it.c}">{fig}</div>
 <div class="q-prompt cg-eq">{hueco} {unidad}</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 {teclado}""")
 }
 

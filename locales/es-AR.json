@@ -286,5 +286,10 @@
   "home.seguir": "Seguir con {0}",
   "onboard.hola": "¡Hola! Te damos la bienvenida 👋",
   "onboard.tip": "Tocá ▶️ Jugar ya para empezar, o 🎮 Elegir juego para verlos todos.",
-  "progreso.sin_temas": "Todavía no jugaste. ¡Elegí un juego y empezá! 🎮"
+  "progreso.sin_temas": "Todavía no jugaste. ¡Elegí un juego y empezá! 🎮",
+  "award.racha30": "¡30 días seguidos!",
+  "award.maestro": "¡Dominaste una destreza!",
+  "award.explorador": "¡Probaste 5 juegos!",
+  "resumen.dias": "{0} días de racha",
+  "resumen.hoy": "hoy {0}"
 }

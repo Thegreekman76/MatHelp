@@ -41,7 +41,7 @@ fn frac_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total
 {barra}
 <p class="frac-preg">{pregunta}</p>
 <div class="q-options frac-opts">{opciones}</div>
-<div class="q-fbwrap">{banner}</div>""")
+<div class="q-fbwrap" aria-live="polite">{banner}</div>""")
 }
 
 // La barra: `den` segmentos en flex, los primeros `num` pintados.

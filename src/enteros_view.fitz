@@ -80,7 +80,7 @@ fn enteros_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, to
 {progb}
 <div class="ent-recta">{recta}</div>
 <div class="q-prompt cg-eq ent-eq" data-a="{it.a}" data-op="{it.op}" data-b="{it.b}">{a} {sym} {b} = {hueco}</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 {teclado}""")
 }
 

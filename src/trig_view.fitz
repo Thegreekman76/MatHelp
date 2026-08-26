@@ -105,7 +105,7 @@ fn trig_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total
 <div class="q-figura">{figura}</div>
 <div class="q-prompt trig-pregunta">{pregunta}</div>
 <div class="q-prompt cg-eq">{valor}</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 {teclado}""")
 }
 

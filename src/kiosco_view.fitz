@@ -103,7 +103,7 @@ fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, tot
 <p class="ki-preg">{enun}</p>
 </div>
 <div class="q-prompt ki-slot">{slot}</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 {teclado}""")
 }
 

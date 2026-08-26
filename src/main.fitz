@@ -12,6 +12,7 @@ from brand import logo_lockup
 from layout import page, responder_html, redirect_a
 from auth import read_session, pid_from_token
 from engine import a_int
+from streaks import racha_actual
 import perfiles
 import assets
 import live_game
@@ -86,8 +87,9 @@ async fn home(session: Str?, lang: Str?) -> Response {
                 return redirect_a("/perfiles")
             }
             let pid = a_int(pid_from_token(session))
+            let resumen = resumen_hoy_html(locale, pid).await
             let intro = home_intro_html(locale, pid).await
-            return home_jugar(locale, intro)
+            return home_jugar(locale, resumen, intro)
         }
         Err(_) => return home_publica(locale).await,
     }
@@ -123,7 +125,7 @@ async fn home_publica(locale: Str) -> Response {
 // adaptativo, F3), Elegir juego (grilla por grado) y Práctica libre (tema →
 // dificultad). El grado sale del perfil y el nivel es adaptativo: acá no se
 // elige ninguno de los dos (salvo en Práctica libre).
-fn home_jugar(locale: Str, ultimo: Html) -> Response {
+fn home_jugar(locale: Str, resumen: Html, ultimo: Html) -> Response {
     let marca = logo_lockup(56, locale).raw
     let tagline = flv(t(locale, "app.tagline"))
 
@@ -131,6 +133,7 @@ fn home_jugar(locale: Str, ultimo: Html) -> Response {
 {marca}
 <div class="mh-tagline">{tagline}</div>
 </div>
+{resumen}
 
 <div class="mh-card">
 <h2>{flv(t(locale, "nav.jugar"))}</h2>
@@ -239,6 +242,39 @@ async fn home_intro_html(locale: Str, pid: Int) -> Html {
     let nombre = t(locale, "juego.{code}")
     let seguir = flv(t1(locale, "home.seguir", nombre))
     return html("""<a class="mh-btn mh-seguir" href="{route}"><span aria-hidden="true">↩️</span>{seguir}</a>""")
+}
+
+// Mini-resumen del día en el home: "🔥 N días de racha · ✏️ hoy M". Vacío si el
+// chico no jugó nunca (racha 0 y 0 hoy) o si falla la DB (best-effort).
+async fn resumen_hoy_html(locale: Str, pid: Int) -> Html {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return html("") },
+    }
+    let rows = match conn.query("SELECT exercises FROM streaks WHERE profile_id = $1 AND day = CURRENT_DATE", [pid]).await {
+        Ok(r) => r,
+        Err(_) => { return html("") },
+    }
+    let hoy_ej = 0
+    if (rows.len() > 0) {
+        hoy_ej = match rows[0].get_int("exercises") {
+            Ok(n) => n,
+            Err(_) => 0,
+        }
+    }
+    let racha = match racha_actual(pid).await {
+        Ok(n) => n,
+        Err(_) => 0,
+    }
+    if (racha == 0 and hoy_ej == 0) {
+        return html("")
+    }
+    let chip_racha = flv(t1(locale, "resumen.dias", "{racha}"))
+    let chip_hoy = flv(t1(locale, "resumen.hoy", "{hoy_ej}"))
+    return html("""<div class="mh-resumen">
+<span class="mh-chip">🔥 {chip_racha}</span>
+<span class="mh-chip">✏️ {chip_hoy}</span>
+</div>""")
 }
 
 // Chequeo real de Postgres, para que `docker compose up` diga la verdad.

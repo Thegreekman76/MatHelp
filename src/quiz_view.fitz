@@ -61,7 +61,7 @@ fn quiz_desafio(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, tota
 {progb}
 <div class="q-prompt">{a} {sym} {b}</div>
 <div class="q-options">{opciones}</div>
-<div class="q-fbwrap">{banner}</div>""")
+<div class="q-fbwrap" aria-live="polite">{banner}</div>""")
 }
 
 // Prompt del juego "Potencias y raíces" (F7.1.b). No es `a op b`: la potencia es
@@ -108,7 +108,7 @@ fn quiz_potencias(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, to
 {progb}
 <div class="q-prompt">{prompt}</div>
 <div class="q-options">{opciones}</div>
-<div class="q-fbwrap">{banner}</div>""")
+<div class="q-fbwrap" aria-live="polite">{banner}</div>""")
 }
 
 // Un botón de opción. Valor crudo en el atributo, formateado en el texto.
@@ -153,7 +153,7 @@ fn quiz_jugando(mode: Str, seed: Int, idx: Int, grade: Int, locale: Str, score: 
 </div>
 <div class="q-prompt">{a} {sym} {b}</div>
 <div class="q-options">{opciones}</div>
-<div class="q-fbwrap">{banner}</div>""")
+<div class="q-fbwrap" aria-live="polite">{banner}</div>""")
 }
 
 // Práctica libre: mismo ejercicio de opción múltiple, pero SIN reloj ni puntaje
@@ -181,7 +181,7 @@ fn quiz_practica(seed: Int, idx: Int, grade: Int, locale: Str, topic: Str, band:
 </div>
 <div class="q-prompt">{a} {sym} {b}</div>
 <div class="q-options">{opciones}</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 <a class="mh-btn sec" href="/">{salir}</a>""")
 }
 

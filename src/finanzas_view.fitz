@@ -60,7 +60,7 @@ fn finanzas_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
 {progb}
 <div class="fin-problema">{problema}</div>
 <div class="q-prompt cg-eq">{valor}</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 {teclado}""")
 }
 

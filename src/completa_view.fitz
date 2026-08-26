@@ -47,7 +47,7 @@ fn completa_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
 </div>
 {progb}
 <div class="q-prompt cg-eq">{a} {sym} {hueco} = {ans}</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 {teclado}""")
 }
 

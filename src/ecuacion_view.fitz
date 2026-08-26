@@ -85,7 +85,7 @@ fn ecuacion_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, t
 {progb}
 <div class="q-prompt {eq_class}">{ecua}</div>
 <div class="q-prompt cg-eq ec-x">x = {valor}</div>
-<div class="q-fbwrap">{banner}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
 {teclado}""")
 }
 

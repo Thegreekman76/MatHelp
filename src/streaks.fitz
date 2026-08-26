@@ -72,11 +72,37 @@ async fn racha_actual(profile_id: Int) -> Result<Int> {
     return Ok(racha)
 }
 
-// Orquestador que corre por cada respuesta: suma a la racha del día, otorga
-// "primer_mate" (empezar a jugar) y "racha7" (7 días seguidos). Devuelve la
-// racha actual (para mostrarla). Best-effort — cada paso propaga con `?`, pero
-// el caller lo invoca con un `let _ = ...await` (si la DB falla, la partida
-// sigue: el attempt ya quedó).
+// Medalla "maestro": dominó una destreza (rating Elo ≥ 1400 en alguna). Best-effort.
+async fn otorgar_por_dominio(profile_id: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT COALESCE(MAX(rating), 0.0) AS mx FROM mastery WHERE profile_id = $1", [profile_id]).await?
+    if (rows.len() > 0) {
+        let mx = rows[0].get_float("mx")?
+        if (mx >= 1400.0) {
+            let _ = otorgar(profile_id, "maestro").await?
+        }
+    }
+    return Ok(1)
+}
+
+// Medalla "explorador": probó al menos 5 juegos distintos (topic_code únicos).
+async fn otorgar_por_exploracion(profile_id: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT COUNT(DISTINCT topic_code)::int AS n FROM sessions WHERE profile_id = $1", [profile_id]).await?
+    if (rows.len() > 0) {
+        let n = rows[0].get_int("n")?
+        if (n >= 5) {
+            let _ = otorgar(profile_id, "explorador").await?
+        }
+    }
+    return Ok(1)
+}
+
+// Orquestador que corre por cada respuesta: suma a la racha del día y otorga las
+// medallas por logro: "primer_mate" (empezar), "racha7"/"racha30" (días seguidos),
+// "maestro" (dominar una destreza) y "explorador" (5 juegos distintos). Devuelve la
+// racha actual (para mostrarla). Best-effort — cada paso propaga con `?`, pero el
+// caller lo invoca con `let _ = ...await` (si la DB falla, la partida sigue).
 async fn registrar_y_premiar(profile_id: Int, daily_goal: Int) -> Result<Int> {
     let _ = registrar_actividad(profile_id, daily_goal).await?
     let _ = otorgar(profile_id, "primer_mate").await?
@@ -84,5 +110,10 @@ async fn registrar_y_premiar(profile_id: Int, daily_goal: Int) -> Result<Int> {
     if (racha >= 7) {
         let _ = otorgar(profile_id, "racha7").await?
     }
+    if (racha >= 30) {
+        let _ = otorgar(profile_id, "racha30").await?
+    }
+    let _ = otorgar_por_dominio(profile_id).await?
+    let _ = otorgar_por_exploracion(profile_id).await?
     return Ok(racha)
 }
