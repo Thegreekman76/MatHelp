@@ -307,5 +307,7 @@
   "award.hint.racha30": "30 días seguidos",
   "award.hint.maestro": "Dominá una destreza",
   "award.hint.explorador": "Probá 5 juegos distintos",
-  "award.hint.generico": "Seguí jugando"
+  "award.hint.generico": "Seguí jugando",
+  "repaso.cta": "Repasá {0}",
+  "progreso.records": "Mis récords"
 }

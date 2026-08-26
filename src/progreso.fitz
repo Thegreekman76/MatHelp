@@ -99,6 +99,55 @@ fn skill_icon(sc: Str) -> Str {
     }
 }
 
+// Destreza → un juego que la entrena (para el CTA "Repasá lo que te cuesta").
+fn skill_a_route(sc: Str) -> Str {
+    if (sc.starts_with("ec.") or sc == "sist.2x2") {
+        return "/ecuaciones"
+    }
+    if (sc.starts_with("fin.")) {
+        return "/finanzas"
+    }
+    if (sc.starts_with("func.")) {
+        return "/funciones"
+    }
+    if (sc.starts_with("pot.") or sc.starts_with("raiz.")) {
+        return "/potencias"
+    }
+    if (sc.starts_with("trig.")) {
+        return "/trigonometria"
+    }
+    if (sc.starts_with("pct")) {
+        return "/porcentaje"
+    }
+    return match sc {
+        "add" => "/jugar",
+        "sub" => "/jugar",
+        "mul.tabla" => "/escalera",
+        "div.exacta" => "/jugar",
+        "dec.dinero" => "/problemas",
+        "frac.parte" => "/fracciones",
+        "patron" => "/series",
+        "reloj" => "/hora",
+        "geo" => "/geometria",
+        "memoria" => "/memoria",
+        "ordenar" => "/ordenar",
+        "estimar" => "/estimar",
+        "vol" => "/volumen",
+        "historia" => "/historia",
+        "enteros" => "/enteros",
+        _ => "/jugar",
+    }
+}
+
+// game_code (de profile_game_stats) → clave i18n del nombre del juego.
+fn record_label_key(code: Str) -> Str {
+    return match code {
+        "trig" => "juego.trigonometria",
+        "desafio" => "home.desafio_dia",
+        _ => "juego.{code}",
+    }
+}
+
 fn award_emoji(code: Str) -> Str {
     return match code {
         "primer_mate" => "🧉",
@@ -186,12 +235,20 @@ fn medalla(locale: Str, code: Str, ganada: Bool) -> Html {
 </div>""")
 }
 
+// Una fila de "Mis récords": nombre del juego + mejor racha histórica.
+fn fila_record(locale: Str, code: Str, best: Int) -> Html {
+    let nombre = flv(t(locale, record_label_key(code)))
+    let n = flv(fmt_int(locale, best))
+    return html("""<div class="mh-record-row"><span>🏆 {nombre}</span><span class="mh-record-n">🔥 {n}</span></div>""")
+}
+
 // Arma el cuerpo de la página con los datos ya leídos. Propaga errores de DB
 // con `?`; el handler los traduce a una pantalla de error amable.
 async fn render_progreso(profile_id: Int, locale: Str) -> Result<Html> {
     let conn = db.connect(db_url()).await?
     let mrows = conn.query("SELECT skill_code, rating, seen, hits FROM mastery WHERE profile_id = $1 ORDER BY skill_code", [profile_id]).await?
     let arows = conn.query("SELECT code FROM awards WHERE profile_id = $1 ORDER BY earned_at", [profile_id]).await?
+    let rrows = conn.query("SELECT game_code, best_streak FROM profile_game_stats WHERE profile_id = $1 AND best_streak > 0 ORDER BY best_streak DESC, game_code", [profile_id]).await?
     let racha = racha_actual(profile_id).await?
 
     // Racha diaria arriba de todo.
@@ -246,6 +303,21 @@ async fn render_progreso(profile_id: Int, locale: Str) -> Result<Html> {
     let n_total = flv(fmt_int(locale, award_codes().len()))
     let conteo = flv(t2(locale, "progreso.medallas_conteo", n_ganadas, n_total))
 
+    // Mis récords: mejor racha por juego (solo si tiene alguno > 0).
+    let records: List<Html> = []
+    for r in rrows {
+        records.push(fila_record(locale, r.get_str("game_code")?, r.get_int("best_streak")?))
+    }
+    let records_card = match records.len() > 0 {
+        true => html("""<div class="mh-card">
+<h2>{flv(t(locale, "progreso.records"))}</h2>
+<div class="mh-records">
+{h_join(records)}
+</div>
+</div>""").raw,
+        false => "",
+    }
+
     let body = html("""{racha_html}
 <div class="mh-card">
 <h2>{flv(t(locale, "progreso.destrezas"))}</h2>
@@ -258,6 +330,7 @@ async fn render_progreso(profile_id: Int, locale: Str) -> Result<Html> {
 {medallas_grid}
 </div>
 </div>
+{records_card}
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
     return Ok(body)
 }

@@ -42,6 +42,7 @@ from avatares import avatar_emoji
 import menu
 import progreso
 import parent
+from progreso import skill_a_route, skill_label_key, skill_icon
 // Los juegos viven en sus live_*.fitz (@get + @ws). Importar los símbolos de cada
 // componente acá es lo que dispara el auto-registro del LiveComponent (el
 // compilador pre-escanea los imports directos del entry y emite el
@@ -93,7 +94,8 @@ async fn home(session: Str?, lang: Str?) -> Response {
             let saludo = saludo_html(locale, pid).await
             let resumen = resumen_hoy_html(locale, pid).await
             let intro = home_intro_html(locale, pid).await
-            return home_jugar(locale, saludo, resumen, intro)
+            let repaso = repaso_html(locale, pid).await
+            return home_jugar(locale, saludo, resumen, intro, repaso)
         }
         Err(_) => return home_publica(locale).await,
     }
@@ -129,7 +131,7 @@ async fn home_publica(locale: Str) -> Response {
 // adaptativo, F3), Elegir juego (grilla por grado) y Práctica libre (tema →
 // dificultad). El grado sale del perfil y el nivel es adaptativo: acá no se
 // elige ninguno de los dos (salvo en Práctica libre).
-fn home_jugar(locale: Str, saludo: Html, resumen: Html, ultimo: Html) -> Response {
+fn home_jugar(locale: Str, saludo: Html, resumen: Html, ultimo: Html, repaso: Html) -> Response {
     let marca = logo_lockup(56, locale).raw
     let tagline = flv(t(locale, "app.tagline"))
 
@@ -143,6 +145,7 @@ fn home_jugar(locale: Str, saludo: Html, resumen: Html, ultimo: Html) -> Respons
 <div class="mh-card">
 <h2>{flv(t(locale, "nav.jugar"))}</h2>
 {ultimo}
+{repaso}
 <a class="mh-btn" href="/jugar"><span aria-hidden="true">▶️</span>{flv(t(locale, "home.jugar_ya"))}</a>
 <a class="mh-btn sec" href="/desafio"><span aria-hidden="true">🎯</span>{flv(t(locale, "home.desafio_dia"))}</a>
 <a class="mh-btn sec" href="/juegos"><span aria-hidden="true">🎮</span>{flv(t(locale, "home.elegir_juego"))}</a>
@@ -311,6 +314,34 @@ async fn saludo_html(locale: Str, pid: Int) -> Html {
     let em = flv(avatar_emoji(av))
     let hola = flv(t1(locale, "home.hola", nombre))
     return html("""<a class="mh-saludo" href="/avatar"><span class="mh-saludo-av">{em}</span><span>{hola}</span></a>""")
+}
+
+// CTA "Repasá lo que te cuesta": detecta la destreza con menor rating (con al
+// menos 3 intentos, para que sea significativa) y linkea al juego que la
+// entrena. Best-effort → vacío si no hay datos o falla la DB.
+async fn repaso_html(locale: Str, pid: Int) -> Html {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return html("") },
+    }
+    let rows = match conn.query("SELECT skill_code FROM mastery WHERE profile_id = $1 AND seen >= 3 ORDER BY rating ASC LIMIT 1", [pid]).await {
+        Ok(r) => r,
+        Err(_) => { return html("") },
+    }
+    if (rows.len() == 0) {
+        return html("")
+    }
+    let sc = match rows[0].get_str("skill_code") {
+        Ok(s) => s,
+        Err(_) => { return html("") },
+    }
+    let ruta = skill_a_route(sc)
+    if (ruta == "") {
+        return html("")
+    }
+    let icon = flv(skill_icon(sc))
+    let cta = flv(t1(locale, "repaso.cta", t(locale, skill_label_key(sc))))
+    return html("""<a class="mh-btn sec mh-repaso" href="{ruta}"><span aria-hidden="true">🎯</span> {icon} {cta}</a>""")
 }
 
 // Chequeo real de Postgres, para que `docker compose up` diga la verdad.

@@ -567,5 +567,17 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .mh-medalla-hint \{ font-size:.72rem; color:var(--mh-suave); margin-top:.15rem; line-height:1.2; \}
 .mh-medalla.ganada \{ animation:medal-pop .5s ease-out both; \}
 .mh-medalla.bloq \{ opacity:.55; filter:grayscale(1); \}
+
+/* CTA "Repasá lo que te cuesta" (home) */
+.mh-btn.mh-repaso \{ border:2px solid var(--mh-amarillo); background:var(--mh-verde-suave); color:var(--mh-tinta); font-weight:800; \}
+
+/* Mis récords (/progreso) */
+.mh-records \{ display:flex; flex-direction:column; gap:8px; \}
+.mh-record-row \{
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  padding:10px 12px; border:1px solid var(--mh-borde); border-radius:12px;
+  background:var(--mh-verde-suave); font-weight:700;
+\}
+.mh-record-n \{ color:var(--mh-naranja); font-weight:900; white-space:nowrap; \}
 """
 }
