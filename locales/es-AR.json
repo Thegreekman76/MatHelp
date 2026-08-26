@@ -253,5 +253,9 @@
   "pct.descuento": "Una campera cuesta ${1}. Con {0}% de descuento, ¿cuánto pagás?",
   "pct.iva": "Un producto sale ${0} sin IVA. Con IVA (21%), ¿cuánto pagás en total?",
   "pct.recargo": "Comprás algo de ${1} en cuotas con {0}% de recargo. ¿Cuánto pagás en total?",
-  "pct.sucesivos": "Una bici sale ${0}. Le hacen {1}% de descuento y después {2}% más. ¿Precio final?"
+  "pct.sucesivos": "Una bici sale ${0}. Le hacen {1}% de descuento y después {2}% más. ¿Precio final?",
+  "vol.pregunta": "¿Cuál es el volumen?",
+  "vol.pregunta_pi": "¿Cuál es el volumen? (usá π ≈ 3)",
+  "vol.era": "Casi. Era {0}.",
+  "tema.volumen": "Volumen"
 }

@@ -1,0 +1,175 @@
+// vol_view.fitz — el render de "Volumen" (cuerpos 3D).
+//
+// Dibuja el cuerpo (cubo / prisma / cilindro / compuesto) en SVG con proyección
+// oblicua (caras front/top/side) y sus medidas rotuladas, y un teclado para tipear
+// el volumen. El item se DERIVA de (seed, idx, grade). El cuerpo se envuelve en
+// `.vol-fig` con data-attrs (kind/a/b/c/d) que el E2E lee para recomputar la fórmula.
+//
+// La proyección usa un offset de profundidad FIJO (`dep`) — decorativo; las medidas
+// reales van en los rótulos (el chico lee los números, no mide la figura).
+
+from fitz_liveviews import Html, html, flv
+from game_ui import resumen_estrellas, correcto_msg, progreso_bar, racha_badge, incorrecto_msg, mejor_racha_html
+from gen_vol import gen_vol
+from i18n import t, t1
+from fmt import fmt_int
+from keypad_view import keypad_html
+
+fn vol_ppu(maxd: Int) -> Int {
+    let ppu = 90 / maxd
+    if (ppu > 20) {
+        return 20
+    }
+    if (ppu < 7) {
+        return 7
+    }
+    return ppu
+}
+
+// Caja en oblicua desde (px, py) front-top-left, tamaño front w×h, profundidad dep.
+fn caja_html(px: Int, py: Int, w: Int, h: Int, dep: Int) -> Str {
+    return html("""<polygon points="{px},{py} {px + w},{py} {px + w + dep},{py - dep} {px + dep},{py - dep}" class="vol-top" />
+<polygon points="{px + w},{py} {px + w},{py + h} {px + w + dep},{py + h - dep} {px + w + dep},{py - dep}" class="vol-side" />
+<rect x="{px}" y="{py}" width="{w}" height="{h}" class="vol-front" />""").raw
+}
+
+fn cuerpo_svg(kind: Str, a: Int, b: Int, c: Int, d: Int) -> Str {
+    if (kind == "cubo") {
+        let ppu = vol_ppu(a)
+        let w = a * ppu
+        let dep = w * 4 / 10
+        let px = 70
+        let py = 60
+        let caja = caja_html(px, py, w, w, dep)
+        return html("""<svg viewBox="0 0 240 200" class="vol-clock" role="img" aria-label="cubo">
+{caja}
+<text x="{px + w / 2}" y="{py + w + 18}" class="vol-lbl">{a} cm</text>
+</svg>""").raw
+    }
+    if (kind == "cilindro") {
+        let ppu = vol_ppu(b)
+        let rx = a * ppu
+        if (rx > 55) {
+            rx = 55
+        }
+        let ry = rx * 35 / 100
+        let hpx = b * ppu
+        let cx = 120
+        let top = 55
+        let bot = top + hpx
+        return html("""<svg viewBox="0 0 240 200" class="vol-clock" role="img" aria-label="cilindro">
+<ellipse cx="{cx}" cy="{bot}" rx="{rx}" ry="{ry}" class="vol-side" />
+<line x1="{cx - rx}" y1="{top}" x2="{cx - rx}" y2="{bot}" class="vol-edge" />
+<line x1="{cx + rx}" y1="{top}" x2="{cx + rx}" y2="{bot}" class="vol-edge" />
+<ellipse cx="{cx}" cy="{top}" rx="{rx}" ry="{ry}" class="vol-front" />
+<line x1="{cx}" y1="{top}" x2="{cx + rx}" y2="{top}" class="vol-edge" />
+<text x="{cx + rx / 2}" y="{top - 6}" class="vol-lbl sm">r={a}</text>
+<text x="{cx - rx - 14}" y="{top + hpx / 2}" class="vol-lbl" text-anchor="end">{b} cm</text>
+</svg>""").raw
+    }
+    if (kind == "compuesto") {
+        let ppu = vol_ppu(a)
+        let w = a * ppu
+        let h = b * ppu
+        let dep = c * ppu / 2
+        let px = 60
+        let py = 95
+        let big = caja_html(px, py, w, h, dep)
+        // Cubo de lado d apoyado sobre la cara de arriba del prisma.
+        let w2 = d * ppu
+        let dep2 = w2 * 4 / 10
+        let px2 = px + 8
+        let py2 = py - w2
+        let cubo = caja_html(px2, py2, w2, w2, dep2)
+        return html("""<svg viewBox="0 0 240 210" class="vol-clock" role="img" aria-label="figura compuesta">
+{big}
+{cubo}
+<text x="{px + w / 2}" y="{py + h + 18}" class="vol-lbl">{a} cm</text>
+<text x="{px - 10}" y="{py + h / 2}" class="vol-lbl" text-anchor="end">{b} cm</text>
+<text x="{px + w + dep + 6}" y="{py - dep / 2}" class="vol-lbl sm">{c}</text>
+<text x="{px2 + w2 + dep2 + 6}" y="{py2 + w2 / 2}" class="vol-lbl sm">d={d}</text>
+</svg>""").raw
+    }
+    // "prisma"
+    let ppu = vol_ppu(a)
+    let w = a * ppu
+    let h = b * ppu
+    let dep = c * ppu / 2
+    if (dep > 42) {
+        dep = 42
+    }
+    let px = 65
+    let py = 70
+    let caja = caja_html(px, py, w, h, dep)
+    return html("""<svg viewBox="0 0 240 200" class="vol-clock" role="img" aria-label="prisma">
+{caja}
+<text x="{px + w / 2}" y="{py + h + 18}" class="vol-lbl">{a} cm</text>
+<text x="{px - 10}" y="{py + h / 2}" class="vol-lbl" text-anchor="end">{b} cm</text>
+<text x="{px + w + dep + 6}" y="{py - dep / 2}" class="vol-lbl sm">{c}</text>
+</svg>""").raw
+}
+
+fn vol_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+    if (phase == "done") {
+        return vol_resumen(locale, correct, total, racha_max, record_prev)
+    }
+    let it = gen_vol(seed, idx, grade)
+    let fig = cuerpo_svg(it.kind, it.a, it.b, it.c, it.d)
+    let hueco = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = vol_feedback(locale, feedback, last_answer, total)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let teclado = keypad_html(locale, entrada, idx, touched, false)
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(total, limit)
+    let pregunta = match it.kind {
+        "cilindro" => flv(t(locale, "vol.pregunta_pi")),
+        _ => flv(t(locale, "vol.pregunta")),
+    }
+    return html("""<div class="q-hud">
+<div class="q-mode">📦 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
+</div>
+{progb}
+<p class="vol-preg">{pregunta}</p>
+<div class="vol-fig" data-kind="{it.kind}" data-a="{it.a}" data-b="{it.b}" data-c="{it.c}" data-d="{it.d}">{fig}</div>
+<div class="q-prompt cg-eq">{hueco} cm³</div>
+<div class="q-fbwrap">{banner}</div>
+{teclado}""")
+}
+
+fn vol_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_int(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn vol_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
+{mejor}
+<div class="q-actions">
+<a class="mh-btn" href="/volumen">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

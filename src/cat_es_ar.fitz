@@ -254,12 +254,16 @@ fn cat_es_ar(key: Str) -> Str {
         "tema.resta" => "Resta",
         "tema.series" => "Patrones",
         "tema.suma" => "Suma",
+        "tema.volumen" => "Volumen",
         "trig.hallar_cateto" => "¿Cuánto mide el cateto que falta?",
         "trig.hallar_hip" => "¿Cuánto mide la hipotenusa?",
         "trig.hallar_opuesto" => "¿Cuánto mide el cateto opuesto al ángulo?",
         "vf.era" => "Casi. Era \{0\}.",
         "vf.falso" => "Falso",
         "vf.verdadero" => "Verdadero",
+        "vol.era" => "Casi. Era \{0\}.",
+        "vol.pregunta" => "¿Cuál es el volumen?",
+        "vol.pregunta_pi" => "¿Cuál es el volumen? (usá π ≈ 3)",
         _ => key,
     }
 }

@@ -422,6 +422,15 @@ main:focus \{ outline:none; \}
 .est-eq \{ font-size:1.5rem; font-weight:800; \}
 .pct-enun \{ text-align:center; font-size:1.05rem; font-weight:700; color:var(--mh-tinta); line-height:1.35; margin:.3rem auto .3rem; max-width:22em; \}
 .pct-eq \{ font-size:1.6rem; font-weight:800; \}
+.vol-preg \{ text-align:center; font-size:1.05rem; font-weight:800; color:var(--mh-tinta); margin:.3rem 0 .1rem; \}
+.vol-fig \{ display:flex; justify-content:center; margin:.1rem 0 .3rem; \}
+.vol-clock \{ width:min(64vw, 240px); height:auto; \}
+.vol-front \{ fill:var(--mh-celeste); fill-opacity:.5; stroke:var(--mh-tinta); stroke-width:2; stroke-linejoin:round; \}
+.vol-top \{ fill:var(--mh-celeste); fill-opacity:.28; stroke:var(--mh-tinta); stroke-width:2; stroke-linejoin:round; \}
+.vol-side \{ fill:var(--mh-celeste); fill-opacity:.7; stroke:var(--mh-tinta); stroke-width:2; stroke-linejoin:round; \}
+.vol-edge \{ stroke:var(--mh-tinta); stroke-width:2; \}
+.vol-lbl \{ fill:var(--mh-tinta); font-size:13px; font-weight:800; text-anchor:middle; dominant-baseline:central; \}
+.vol-lbl.sm \{ font-size:11px; fill:var(--mh-naranja); \}
 .frac-opts .q-opt \{ min-height:88px; \}
 .frac \{ display:inline-flex; flex-direction:column; align-items:center; line-height:1; \}
 .frac .fnum \{ padding-bottom:3px; \}

@@ -1,0 +1,111 @@
+// gen_vol.fitz — generador del juego "Volumen" (cuerpos 3D).
+//
+// Muestra un cuerpo (SVG en proyección oblicua) con sus medidas y el chico tipea el
+// volumen. Escala por nivel (F8): cubo en 6° → figura compuesta en secundaria. Todas
+// las respuestas son ENTEROS positivos (el cilindro usa π ≈ 3, como se hace en el
+// cálculo mental de la escuela).
+//
+// Reproducible desde (seed, idx, grade); el RandGen `g` es LOCAL (regla FITZ-01).
+
+from gen_arith import sub_seed, nivel_por_idx
+
+type VolItem {
+    kind: Str = "cubo"         // "cubo" | "prisma" | "cilindro" | "compuesto"
+    a: Int = 0                 // lado (cubo) / ancho (prisma) / radio (cilindro)
+    b: Int = 0                 // alto (prisma) / altura (cilindro)
+    c: Int = 0                 // profundidad (prisma / compuesto)
+    d: Int = 0                 // lado del cubo de arriba (compuesto)
+    answer: Int = 0
+    skill_code: Str = "vol"
+    difficulty: Int = 1        // 1..5 (nivel)
+}
+
+// Piso/techo del nivel por grado. min_grade del juego es 6°.
+fn nivel_piso_vol(grade: Int) -> Int {
+    if (grade <= 7) {
+        return 1
+    }
+    if (grade <= 9) {
+        return 2
+    }
+    return 3
+}
+
+fn nivel_techo_vol(grade: Int) -> Int {
+    if (grade <= 6) {
+        return 2
+    }
+    if (grade <= 7) {
+        return 3
+    }
+    if (grade <= 9) {
+        return 4
+    }
+    return 5
+}
+
+fn gen_vol(seed: Int, idx: Int, grade: Int) -> VolItem {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let piso = nivel_piso_vol(grade)
+    let techo = nivel_techo_vol(grade)
+    let nivel = nivel_por_idx(piso, techo, idx)
+
+    let kind = "cubo"
+    let a = 0
+    let b = 0
+    let c = 0
+    let d = 0
+    let answer = 0
+
+    if (nivel == 1) {
+        // Cubo: lado³.
+        kind = "cubo"
+        a = g.int(2, 10)
+        b = a
+        c = a
+        answer = a * a * a
+    }
+    if (nivel == 2) {
+        // Prisma rectangular: a·b·c.
+        kind = "prisma"
+        a = g.int(2, 8)
+        b = g.int(2, 8)
+        c = g.int(2, 8)
+        answer = a * b * c
+    }
+    if (nivel == 3) {
+        // Prisma más grande.
+        kind = "prisma"
+        a = g.int(4, 14)
+        b = g.int(3, 12)
+        c = g.int(3, 12)
+        answer = a * b * c
+    }
+    if (nivel == 4) {
+        // Cilindro con π ≈ 3: 3·r²·h.
+        kind = "cilindro"
+        a = g.int(2, 8)
+        b = g.int(2, 12)
+        answer = 3 * a * a * b
+    }
+    if (nivel >= 5) {
+        // Compuesto: prisma + un cubo encima.
+        kind = "compuesto"
+        a = g.int(4, 9)
+        b = g.int(3, 8)
+        c = g.int(3, 8)
+        d = g.int(2, 4)
+        answer = a * b * c + d * d * d
+    }
+
+    return VolItem {
+        kind: kind,
+        a: a,
+        b: b,
+        c: c,
+        d: d,
+        answer: answer,
+        skill_code: "vol",
+        difficulty: nivel,
+    }
+}

@@ -41,7 +41,7 @@ fn juegos() -> List<Juego> {
         Juego { code: "fracciones", min_grade: 4, icon: "🍕", route: "/fracciones", built: true },
         Juego { code: "geometria", min_grade: 5, icon: "📐", route: "/geometria", built: true },
         Juego { code: "porcentaje", min_grade: 6, icon: "％", route: "/porcentaje", built: true },
-        Juego { code: "volumen", min_grade: 6, icon: "📦", built: false },
+        Juego { code: "volumen", min_grade: 6, icon: "📦", route: "/volumen", built: true },
         Juego { code: "enteros", min_grade: 7, icon: "±", route: "/enteros", built: true },
         Juego { code: "potencias", min_grade: 8, icon: "🔷", route: "/potencias", built: true },
         Juego { code: "ecuaciones", min_grade: 8, icon: "🟰", route: "/ecuaciones", built: true },

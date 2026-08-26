@@ -254,12 +254,16 @@ fn cat_en(key: Str) -> Str {
         "tema.resta" => "Subtraction",
         "tema.series" => "Patterns",
         "tema.suma" => "Addition",
+        "tema.volumen" => "Volume",
         "trig.hallar_cateto" => "How long is the missing leg?",
         "trig.hallar_hip" => "How long is the hypotenuse?",
         "trig.hallar_opuesto" => "How long is the leg opposite the angle?",
         "vf.era" => "Almost. It was \{0\}.",
         "vf.falso" => "False",
         "vf.verdadero" => "True",
+        "vol.era" => "Almost. It was \{0\}.",
+        "vol.pregunta" => "What is the volume?",
+        "vol.pregunta_pi" => "What is the volume? (use π ≈ 3)",
         _ => key,
     }
 }

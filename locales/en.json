@@ -253,5 +253,9 @@
   "pct.descuento": "A jacket costs ${1}. With {0}% off, how much do you pay?",
   "pct.iva": "An item is ${0} before tax. With tax (21%), how much in total?",
   "pct.recargo": "You buy something for ${1} in installments with a {0}% surcharge. How much in total?",
-  "pct.sucesivos": "A bike costs ${0}. It gets {1}% off, then {2}% more. Final price?"
+  "pct.sucesivos": "A bike costs ${0}. It gets {1}% off, then {2}% more. Final price?",
+  "vol.pregunta": "What is the volume?",
+  "vol.pregunta_pi": "What is the volume? (use π ≈ 3)",
+  "vol.era": "Almost. It was {0}.",
+  "tema.volumen": "Volume"
 }

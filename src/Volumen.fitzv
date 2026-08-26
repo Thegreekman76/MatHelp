@@ -1,0 +1,91 @@
+// Volumen.fitzv — "Volumen de cuerpos" como LiveComponent SSR.
+//
+// Muestra un cuerpo 3D (SVG) con sus medidas y el chico TIPEA el volumen en un
+// teclado numérico (sin ±). Ronda fija de N, sin reloj. El item se deriva de
+// (seed, idx, grade) — el server re-deriva el mismo y compara given == it.answer.
+//
+// Tres eventos: digito()/borrar()/answer(). La persistencia (Attempt + mastery +
+// racha) la hace el loop del @ws en live_vol.fitz.
+
+from gen_vol import gen_vol
+from keypad import kp_append, kp_borrar
+from engine import a_int
+from vol_view import vol_screen
+
+component volumen {
+  state {
+    seed: Int = 0
+    idx: Int = 0
+    grade: Int = 6
+    locale: Str = "es-AR"
+    correct: Int = 0
+    total: Int = 0
+    racha: Int = 0
+    racha_max: Int = 0
+    record_prev: Int = 999999
+    phase: Str = "playing"         // "playing" | "done"
+    feedback: Str = ""             // "" | "ok" | "bad"
+    last_answer: Int = 0           // la respuesta correcta del item recién fallado
+    entrada: Int = 0               // lo tipeado
+    touched: Bool = false          // ¿tipeó algo?
+    limit: Int = 10                // items por ronda
+  }
+
+  event digito() {
+    if (phase == "playing") {
+      if (payload.has("d")) {
+        entrada = kp_append(entrada, a_int(payload["d"]), 9999999)
+        touched = true
+      }
+    }
+  }
+
+  event borrar() {
+    if (phase == "playing") {
+      entrada = kp_borrar(entrada)
+    }
+  }
+
+  event answer() {
+    if (phase == "playing") {
+      if (payload.has("v")) {
+        if (payload.has("ei")) {
+          let ei = a_int(payload["ei"])
+          if (ei == idx) {
+            let given = a_int(payload["v"])
+            if (touched) {
+              let it = gen_vol(seed, idx, grade)
+              let acierto = given == it.answer
+              total = total + 1
+              if (acierto) {
+                correct = correct + 1
+                feedback = "ok"
+                racha = racha + 1
+                if (racha > racha_max) {
+                  racha_max = racha
+                }
+              }
+              if (not acierto) {
+                feedback = "bad"
+                racha = 0
+                last_answer = it.answer
+              }
+              entrada = 0
+              touched = false
+              idx = idx + 1
+              if (total >= limit) {
+                phase = "done"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  <template>
+    <div id="volumen-app" class="mh-quiz">
+      {vol_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, racha, racha_max, record_prev).raw}
+    </div>
+  </template>
+}
