@@ -20,6 +20,7 @@ type Juego {
     built: Bool = false
     modalidad: Str = "comun"     // "comun" = todos; si no, sólo esa orientación (F7.3)
     categoria: Str = "calculo"   // agrupa las cartas en el menú (F9 pulido)
+    nuevo: Bool = false          // marca la carta con un badge "nuevo" (F9)
 }
 
 // El catálogo, en orden de aparición. Hoy solo el contrarreloj es jugable (F2);
@@ -32,20 +33,20 @@ fn juegos() -> List<Juego> {
         Juego { code: "verdadero_falso", min_grade: 1, icon: "✅", route: "/vf", built: true, categoria: "calculo" },
         Juego { code: "completa", min_grade: 2, icon: "🔢", route: "/completa", built: true, categoria: "calculo" },
         Juego { code: "escalera", min_grade: 2, icon: "🪜", route: "/escalera", built: true, categoria: "calculo" },
-        Juego { code: "series", min_grade: 1, icon: "🧩", route: "/series", built: true, categoria: "pensar" },
-        Juego { code: "memoria", min_grade: 1, icon: "🃏", route: "/memoria", built: true, categoria: "pensar" },
-        Juego { code: "ordenar", min_grade: 1, icon: "📊", route: "/ordenar", built: true, categoria: "pensar" },
-        Juego { code: "estimar", min_grade: 3, icon: "🎯", route: "/estimar", built: true, categoria: "pensar" },
-        Juego { code: "historia", min_grade: 1, icon: "📖", route: "/historia", built: true, categoria: "problemas" },
+        Juego { code: "series", min_grade: 1, icon: "🧩", route: "/series", built: true, categoria: "pensar" , nuevo: true },
+        Juego { code: "memoria", min_grade: 1, icon: "🃏", route: "/memoria", built: true, categoria: "pensar" , nuevo: true },
+        Juego { code: "ordenar", min_grade: 1, icon: "📊", route: "/ordenar", built: true, categoria: "pensar" , nuevo: true },
+        Juego { code: "estimar", min_grade: 3, icon: "🎯", route: "/estimar", built: true, categoria: "pensar" , nuevo: true },
+        Juego { code: "historia", min_grade: 1, icon: "📖", route: "/historia", built: true, categoria: "problemas" , nuevo: true },
         Juego { code: "kiosco", min_grade: 4, icon: "🧮", route: "/problemas", built: true, categoria: "problemas" },
         Juego { code: "finanzas", min_grade: 11, icon: "💰", route: "/finanzas", built: true, modalidad: "comercial", categoria: "problemas" },
         Juego { code: "fracciones", min_grade: 4, icon: "🍕", route: "/fracciones", built: true, categoria: "fracciones" },
-        Juego { code: "porcentaje", min_grade: 6, icon: "％", route: "/porcentaje", built: true, categoria: "fracciones" },
-        Juego { code: "hora", min_grade: 2, icon: "🕐", route: "/hora", built: true, categoria: "medida" },
-        Juego { code: "geometria", min_grade: 5, icon: "📐", route: "/geometria", built: true, categoria: "medida" },
-        Juego { code: "volumen", min_grade: 6, icon: "📦", route: "/volumen", built: true, categoria: "medida" },
+        Juego { code: "porcentaje", min_grade: 6, icon: "％", route: "/porcentaje", built: true, categoria: "fracciones" , nuevo: true },
+        Juego { code: "hora", min_grade: 2, icon: "🕐", route: "/hora", built: true, categoria: "medida" , nuevo: true },
+        Juego { code: "geometria", min_grade: 5, icon: "📐", route: "/geometria", built: true, categoria: "medida" , nuevo: true },
+        Juego { code: "volumen", min_grade: 6, icon: "📦", route: "/volumen", built: true, categoria: "medida" , nuevo: true },
         Juego { code: "trigonometria", min_grade: 10, icon: "🔺", route: "/trigonometria", built: true, categoria: "medida" },
-        Juego { code: "enteros", min_grade: 7, icon: "±", route: "/enteros", built: true, categoria: "algebra" },
+        Juego { code: "enteros", min_grade: 7, icon: "±", route: "/enteros", built: true, categoria: "algebra" , nuevo: true },
         Juego { code: "potencias", min_grade: 8, icon: "🔷", route: "/potencias", built: true, categoria: "algebra" },
         Juego { code: "ecuaciones", min_grade: 8, icon: "🟰", route: "/ecuaciones", built: true, categoria: "algebra" },
         Juego { code: "funciones", min_grade: 11, icon: "📈", route: "/funciones", built: true, categoria: "algebra" },

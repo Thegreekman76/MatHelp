@@ -276,5 +276,12 @@
   "cat.problemas": "Word problems",
   "cat.fracciones": "Fractions & percentages",
   "cat.medida": "Geometry & measurement",
-  "cat.algebra": "Numbers & algebra"
+  "cat.algebra": "Numbers & algebra",
+  "tema.ecuaciones": "Equations",
+  "tema.finanzas": "Finance",
+  "tema.funciones": "Functions",
+  "tema.potencias": "Powers",
+  "tema.trigonometria": "Trigonometry",
+  "juegos.nuevo": "new",
+  "home.seguir": "Continue with {0}"
 }

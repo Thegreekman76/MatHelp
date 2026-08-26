@@ -276,5 +276,12 @@
   "cat.problemas": "Problemas y cuentos",
   "cat.fracciones": "Fracciones y porcentajes",
   "cat.medida": "Geometría y medida",
-  "cat.algebra": "Números y álgebra"
+  "cat.algebra": "Números y álgebra",
+  "tema.ecuaciones": "Ecuaciones",
+  "tema.finanzas": "Finanzas",
+  "tema.funciones": "Funciones",
+  "tema.potencias": "Potencias",
+  "tema.trigonometria": "Trigonometría",
+  "juegos.nuevo": "nuevo",
+  "home.seguir": "Seguir con {0}"
 }

@@ -19,23 +19,82 @@ from live_game import resolver_contexto
 
 // --- etiquetas ---------------------------------------------------------------
 
-// skill_code → clave i18n del nombre (reusa las de "tema.*").
+// skill_code → clave i18n del nombre (reusa las de "tema.*"). Familias de
+// secundaria con prefijo (ec.*, fin.*, func.*, pot.*, trig.*) → etiqueta del juego.
 fn skill_label_key(sc: Str) -> Str {
+    if (sc.starts_with("ec.") or sc == "sist.2x2") {
+        return "tema.ecuaciones"
+    }
+    if (sc.starts_with("fin.")) {
+        return "tema.finanzas"
+    }
+    if (sc.starts_with("func.")) {
+        return "tema.funciones"
+    }
+    if (sc.starts_with("pot.") or sc.starts_with("raiz.")) {
+        return "tema.potencias"
+    }
+    if (sc.starts_with("trig.")) {
+        return "tema.trigonometria"
+    }
+    if (sc.starts_with("pct")) {
+        return "tema.porcentaje"
+    }
     return match sc {
         "add" => "tema.suma",
         "sub" => "tema.resta",
         "mul.tabla" => "tema.multiplicacion",
         "div.exacta" => "tema.division",
+        "dec.dinero" => "tema.decimales",
+        "frac.parte" => "tema.fracciones",
+        "patron" => "tema.series",
+        "reloj" => "tema.hora",
+        "geo" => "tema.geometria",
+        "memoria" => "tema.memoria",
+        "ordenar" => "tema.ordenar",
+        "estimar" => "tema.estimar",
+        "vol" => "tema.volumen",
+        "historia" => "tema.historia",
+        "enteros" => "tema.enteros",
         _ => "tema.mezcla",
     }
 }
 
 fn skill_icon(sc: Str) -> Str {
+    if (sc.starts_with("ec.") or sc == "sist.2x2") {
+        return "🟰"
+    }
+    if (sc.starts_with("fin.")) {
+        return "💰"
+    }
+    if (sc.starts_with("func.")) {
+        return "📈"
+    }
+    if (sc.starts_with("pot.") or sc.starts_with("raiz.")) {
+        return "🔷"
+    }
+    if (sc.starts_with("trig.")) {
+        return "🔺"
+    }
+    if (sc.starts_with("pct")) {
+        return "％"
+    }
     return match sc {
         "add" => "➕",
         "sub" => "➖",
         "mul.tabla" => "✖️",
         "div.exacta" => "➗",
+        "dec.dinero" => "💵",
+        "frac.parte" => "🍕",
+        "patron" => "🧩",
+        "reloj" => "🕐",
+        "geo" => "📐",
+        "memoria" => "🃏",
+        "ordenar" => "📊",
+        "estimar" => "🎯",
+        "vol" => "📦",
+        "historia" => "📖",
+        "enteros" => "±",
         _ => "🎲",
     }
 }

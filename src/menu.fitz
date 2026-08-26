@@ -68,7 +68,12 @@ fn carta_juego(locale: Str, j: Juego, grade: Int) -> Html {
 <span class="mh-jsub">{soon}</span>
 </div>""")
     }
+    let badge = match j.nuevo {
+        true => html("""<span class="mh-jbadge">{flv(t(locale, "juegos.nuevo"))}</span>""").raw,
+        false => "",
+    }
     return html("""<a class="mh-juego" href="{j.route}">
+{badge}
 <span class="mh-jicon">{icon}</span>
 <span class="mh-jname">{nombre}</span>
 </a>""")
