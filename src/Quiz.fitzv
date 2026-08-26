@@ -97,6 +97,17 @@ component quiz {
     }
   }
 
+  // Fin del reloj: lo dispara el server UNA vez al agotarse el tiempo. El
+  // contrarreloj ya NO tickea por segundo (el conteo visible es client-side, para
+  // no re-renderizar el componente entero cada segundo — eso parpadeaba); el
+  // server sigue siendo autoritativo del fin y marca "done" acá.
+  event timeup() {
+    if (phase == "playing") {
+      time_left = 0
+      phase = "done"
+    }
+  }
+
   <template>
     <div id="quiz-app" class="mh-quiz">
       {quiz_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, last_answer, topic, band, mode, r_add, r_sub, r_mul, r_div, limit, racha, racha_max, record_prev).raw}

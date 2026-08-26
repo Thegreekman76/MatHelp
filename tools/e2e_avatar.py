@@ -63,6 +63,8 @@ def escenario():
     home = s.get(BASE + "/").text
     assert 'href="/avatar"' in home, "el home no linkea a /avatar"
     assert "mh-saludo" in home and "🧉" in home, "el saludo no muestra el avatar por defecto"
+    # regresion: los sub-bloques Html deben ir con .raw (no filtrar 'Html { raw: ')
+    assert "Html { raw:" not in home, "se filtra el Display de Html en el home (falta .raw)"
 
     # 2. /avatar muestra 12 avatares, mate marcado
     a0 = s.get(BASE + "/avatar").text

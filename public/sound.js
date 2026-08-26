@@ -244,3 +244,47 @@ if ("serviceWorker" in navigator) {
     start();
   }
 })();
+
+// --- Reloj client-side del contrarreloj / Verdadero-Falso -------------------
+// El server ya NO empuja un frame por segundo (eso re-renderizaba el componente
+// entero y hacía parpadear las opciones y demás). El componente pinta el reloj
+// con data-q-total (segundos totales, constante); acá bajamos el número en el DOM
+// sin tocar el server. El server sigue siendo autoritativo del fin: cuando se
+// agota, empuja el frame del resumen y el reloj desaparece.
+(function () {
+  var deadline = null;
+  var lastTotal = null;
+  function tick() {
+    var timer = document.querySelector(".q-timer[data-q-total]");
+    if (!timer) { deadline = null; lastTotal = null; return; }   // no cronometrado (o ya terminó)
+    var total = parseInt(timer.getAttribute("data-q-total"), 10);
+    if (isNaN(total) || total <= 0) { return; }
+    // Arrancá (o re-sincronizá si el server cambió el total, p.ej. SSR -> socket).
+    if (deadline === null || total !== lastTotal) {
+      lastTotal = total;
+      deadline = Date.now() + total * 1000;
+    }
+    var rem = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    var num = timer.querySelector(".q-tnum");
+    if (num && num.textContent !== String(rem)) { num.textContent = String(rem); }
+  }
+  setInterval(tick, 250);
+})();
+
+// --- No cambiar de idioma en medio de un juego --------------------------------
+// Cambiar idioma recarga la página (setea la cookie + redirect), y eso arranca un
+// socket/juego NUEVO: se pierde la partida en curso. En las páginas de juego (las
+// que montan un LiveComponent, marcadas con data-flv-component-name) ocultamos el
+// selector de idioma; se cambia desde el menú/home antes de jugar.
+(function () {
+  function apply() {
+    var enJuego = document.querySelector("[data-flv-component-name]");
+    var langs = document.querySelector(".mh-langs");
+    if (enJuego && langs) { langs.style.display = "none"; }
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", apply);
+  } else {
+    apply();
+  }
+})();

@@ -47,8 +47,8 @@ from progreso import skill_a_route, skill_label_key, skill_icon
 // componente acá es lo que dispara el auto-registro del LiveComponent (el
 // compilador pre-escanea los imports directos del entry y emite el
 // flv_register("quiz"/"verdadero_falso", ...) al arrancar — §9.bb del core).
-from Quiz import quiz, quiz_render, quiz_answer, quiz_tick
-from VerdaderoFalso import verdadero_falso, verdadero_falso_render, verdadero_falso_answer, verdadero_falso_tick
+from Quiz import quiz, quiz_render, quiz_answer, quiz_tick, quiz_timeup
+from VerdaderoFalso import verdadero_falso, verdadero_falso_render, verdadero_falso_answer, verdadero_falso_tick, verdadero_falso_timeup
 from Completa import completa, completa_render, completa_answer, completa_digito, completa_borrar, completa_signo
 from Ecuaciones import ecuaciones, ecuaciones_render, ecuaciones_answer, ecuaciones_digito, ecuaciones_borrar, ecuaciones_signo
 from Finanzas import finanzas, finanzas_render, finanzas_answer, finanzas_digito, finanzas_borrar
@@ -138,14 +138,14 @@ fn home_jugar(locale: Str, saludo: Html, resumen: Html, ultimo: Html, repaso: Ht
     let body = html("""<div class="mh-hero">
 {marca}
 <div class="mh-tagline">{tagline}</div>
-{saludo}
+{saludo.raw}
 </div>
-{resumen}
+{resumen.raw}
 
 <div class="mh-card">
 <h2>{flv(t(locale, "nav.jugar"))}</h2>
-{ultimo}
-{repaso}
+{ultimo.raw}
+{repaso.raw}
 <a class="mh-btn" href="/jugar"><span aria-hidden="true">▶️</span>{flv(t(locale, "home.jugar_ya"))}</a>
 <a class="mh-btn sec" href="/desafio"><span aria-hidden="true">🎯</span>{flv(t(locale, "home.desafio_dia"))}</a>
 <a class="mh-btn sec" href="/juegos"><span aria-hidden="true">🎮</span>{flv(t(locale, "home.elegir_juego"))}</a>
