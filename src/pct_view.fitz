@@ -1,0 +1,92 @@
+// pct_view.fitz — el render de "Porcentajes" (descuentos, IVA, recargo).
+//
+// Arma el enunciado de la vida real (localizado) según el tipo, y un teclado para
+// tipear el resultado en pesos. El item se DERIVA de (seed, idx, grade); el server
+// re-deriva el mismo y compara given == it.answer. El enunciado se envuelve en
+// `.pct-eq` con data-attrs (kind/p/n/p2) que el E2E lee para recomputar.
+
+from fitz_liveviews import Html, html, flv
+from game_ui import resumen_estrellas, correcto_msg, progreso_bar, racha_badge, incorrecto_msg, mejor_racha_html
+from gen_pct import gen_pct, PctItem
+from i18n import t, t1, t2, t3
+from fmt import fmt_int
+from keypad_view import keypad_html
+
+fn pct_enunciado(locale: Str, it: PctItem) -> Str {
+    let n_str = fmt_int(locale, it.n)
+    let p_str = "{it.p}"
+    let p2_str = "{it.p2}"
+    if (it.kind == "simple") {
+        return t2(locale, "pct.simple", p_str, n_str)
+    }
+    if (it.kind == "descuento") {
+        return t2(locale, "pct.descuento", p_str, n_str)
+    }
+    if (it.kind == "iva") {
+        return t1(locale, "pct.iva", n_str)
+    }
+    if (it.kind == "recargo") {
+        return t2(locale, "pct.recargo", p_str, n_str)
+    }
+    return t3(locale, "pct.sucesivos", n_str, p_str, p2_str)
+}
+
+fn pct_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+    if (phase == "done") {
+        return pct_resumen(locale, correct, total, racha_max, record_prev)
+    }
+    let it = gen_pct(seed, idx, grade)
+    let enun = flv(pct_enunciado(locale, it))
+    let hueco = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = pct_feedback(locale, feedback, last_answer, total)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let teclado = keypad_html(locale, entrada, idx, touched, false)
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(total, limit)
+    return html("""<div class="q-hud">
+<div class="q-mode">％ {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
+</div>
+{progb}
+<p class="pct-enun">{enun}</p>
+<div class="q-prompt cg-eq pct-eq" data-kind="{it.kind}" data-p="{it.p}" data-n="{it.n}" data-p2="{it.p2}">$ {hueco}</div>
+<div class="q-fbwrap">{banner}</div>
+{teclado}""")
+}
+
+fn pct_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_int(locale, last_answer)
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
+    }
+    return ""
+}
+
+fn pct_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
+{mejor}
+<div class="q-actions">
+<a class="mh-btn" href="/porcentaje">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

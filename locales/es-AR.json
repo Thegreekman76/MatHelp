@@ -53,7 +53,7 @@
   "tema.fracciones": "Fracciones",
   "tema.decimales": "Decimales",
   "tema.geometria": "Geometría",
-  "tema.porcentaje": "Porcentaje",
+  "tema.porcentaje": "Porcentajes",
   "grado.1": "1º grado",
   "grado.2": "2º grado",
   "grado.3": "3º grado",
@@ -248,5 +248,10 @@
   "estimar.decena": "Redondeá a la decena",
   "estimar.centena": "Redondeá a la centena",
   "estimar.cerca": "¿Cuánto es, más o menos?",
-  "tema.estimar": "Estimación"
+  "tema.estimar": "Estimación",
+  "pct.simple": "¿Cuánto es el {0}% de ${1}?",
+  "pct.descuento": "Una campera cuesta ${1}. Con {0}% de descuento, ¿cuánto pagás?",
+  "pct.iva": "Un producto sale ${0} sin IVA. Con IVA (21%), ¿cuánto pagás en total?",
+  "pct.recargo": "Comprás algo de ${1} en cuotas con {0}% de recargo. ¿Cuánto pagás en total?",
+  "pct.sucesivos": "Una bici sale ${0}. Le hacen {1}% de descuento y después {2}% más. ¿Precio final?"
 }

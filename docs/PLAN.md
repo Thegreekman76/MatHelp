@@ -1244,7 +1244,7 @@ Estas seis ya tienen su fila en `juegos.fitz` con `min_grade`; sólo falta const
 | 📖 Historia | 1° | común | Problemas narrados cortos leídos en voz (Web Speech API, pre-lectores); elegir la operación/resultado | N1 suma/resta 1 paso → N5 varios pasos + fracciones/% |
 | 🕐 Hora ✅ | 2° | común | **HECHO (2026-08-25)** — leer el **reloj analógico SVG** (agujas por `transform="rotate"`, sin trig); opción múltiple "H:MM" | N1 en punto → N2 y media → N3 cuartos → N4 de a 5 → N5 minuto exacto (los intervalos "¿cuánto falta para…?" quedan como Hora v2) |
 | 📐 Geometría ✅ | 5° | común | **HECHO (2026-08-25)** — área/perímetro con **figura SVG** (cuadrado/rectángulo/triángulo/L); teclado, respuestas enteras | N1 perímetro cuadrado → N2 perímetro rect → N3 área rect → N4 área triángulo → N5 área L compuesta (el círculo con π queda como Geometría v2) |
-| ％ Porcentaje | 6° | común (útil comercial) | Descuentos, IVA, recargo; enunciado con historia | N1 % simple → N2 descuento → N3 IVA 21% → N4 recargo/cuotas → N5 % sucesivos |
+| ％ Porcentaje ✅ | 6° | común (útil comercial) | **HECHO (2026-08-25)** — descuentos, IVA, recargo con enunciados; teclado, respuestas enteras | N1 % simple → N2 descuento → N3 IVA 21% → N4 recargo/cuotas → N5 % sucesivos |
 | 📦 Volumen | 6° | común | Volumen de cuerpos con **figura SVG 3D** (prisma, cubo, cilindro) | N1 cubo → N2 prisma → N3 cilindro → N4 con conversión de unidades → N5 compuestos |
 | ± Enteros ✅ | 7° | común | **HECHO (2026-08-25)** — operaciones con signo + **recta numérica SVG**; teclado con ± (respuesta negativa) | N1 suma con un negativo → N2 suma dos signos → N3 resta con signos → N4 multiplicación de signos → N5 mixto |
 
@@ -1267,15 +1267,16 @@ Requieren mecánica de input distinta al teclado → primer candidato a definir 
 4. ~~**± Enteros (7°)**~~ — ✅ **HECHO (2026-08-25)**: operaciones con signo + recta numérica SVG, teclado con ±, E2E que recomputa con signo.
 5. ~~**📊 Ordenar / Comparar (transversal)**~~ — ✅ **HECHO (2026-08-25)**: tocar cartas en orden de menor a mayor, clave entera exacta (×120), E2E que ordena por valor.
 6. ~~**🎯 Estimación (transversal)**~~ — ✅ **HECHO (2026-08-25)**: redondeo (exacto) + estimar con tolerancia, E2E que recomputa.
-7. **％ Porcentaje (6°)** — descuentos/IVA/recargo con historia (comercial); reusa el teclado. **← próximo sugerido**
-8. **📖 Historia (1°)** — depende de Web Speech API (pre-lectores); más UX que matemática.
-9. **📦 Volumen (6°)** — cuerpos 3D en SVG, según demanda/feedback.
+7. ~~**％ Porcentaje (6°)**~~ — ✅ **HECHO (2026-08-25)**: descuentos/IVA/recargo con enunciados, E2E que recomputa los 5 tipos.
+8. **📦 Volumen (6°)** — cuerpos 3D en SVG (cubo/prisma/cilindro); reusa la técnica SVG + teclado. **← próximo sugerido**
+9. **📖 Historia (1°)** — depende de Web Speech API (pre-lectores); más UX que matemática (el último, distinto a todos).
 
 > **Nota de estado (2026-08-25):** con 🧩 Series, 🕐 Hora, 📐 Geometría, 🃏 Memoria,
-> ± Enteros, 📊 Ordenar y 🎯 Estimación construidos, el catálogo activo es de **18 juegos**
-> (contrarreloj, V/F, series, memoria, ordenar, estimar, completá, escalera, problemas,
-> fracciones, hora, geometría, enteros, potencias, ecuaciones, finanzas, trigonometría,
-> funciones). Quedan del backlog: ％ Porcentaje, 📖 Historia, 📦 Volumen (~21 al completarlo).
+> ± Enteros, 📊 Ordenar, 🎯 Estimación y ％ Porcentaje construidos, el catálogo activo es de
+> **19 juegos** (contrarreloj, V/F, series, memoria, ordenar, estimar, completá, escalera,
+> problemas, fracciones, hora, geometría, porcentaje, enteros, potencias, ecuaciones,
+> finanzas, trigonometría, funciones). Quedan del backlog: 📦 Volumen, 📖 Historia
+> (~21 al completarlo).
 
 ---
 

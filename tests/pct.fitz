@@ -1,0 +1,65 @@
+// tests/pct.fitz — el generador de "Porcentaje" (gen_pct.fitz).
+//
+// (Nombre distinto del módulo importado → sin ciclo, FITZ-21.)
+//
+// Invariante clave: la respuesta coincide con la fórmula del porcentaje según el
+// tipo (simple / descuento / IVA / recargo / sucesivos) y SIEMPRE es un entero
+// positivo (los montos son múltiplos de 100/400 por construcción).
+
+from gen_pct import gen_pct, PctItem
+
+@test fn pct_reproducible() {
+    let idx = 0
+    while (idx < 60) {
+        let a = gen_pct(1234, idx, 8)
+        let b = gen_pct(1234, idx, 8)
+        assert_eq(a.answer, b.answer)
+        assert_eq(a.kind, b.kind)
+        idx = idx + 1
+    }
+}
+
+@test fn pct_formula_correcta() {
+    let grades = [6, 7, 8, 10, 13]
+    for gr in grades {
+        let idx = 0
+        while (idx < 30) {
+            let it = gen_pct(555, idx, gr)
+            let esperado = 0
+            if (it.kind == "simple") {
+                esperado = it.n * it.p / 100
+            }
+            if (it.kind == "descuento") {
+                esperado = it.n - it.n * it.p / 100
+            }
+            if (it.kind == "iva") {
+                esperado = it.n + it.n * 21 / 100
+            }
+            if (it.kind == "recargo") {
+                esperado = it.n + it.n * it.p / 100
+            }
+            if (it.kind == "sucesivos") {
+                let n1 = it.n - it.n * it.p / 100
+                esperado = n1 - n1 * it.p2 / 100
+            }
+            assert_eq(it.answer, esperado)
+            assert(it.answer > 0)
+            assert(it.difficulty >= 1)
+            assert(it.difficulty <= 5)
+            idx = idx + 1
+        }
+    }
+}
+
+@test fn pct_grade6_simple() {
+    let it = gen_pct(8, 0, 6)
+    assert_eq(it.kind, "simple")
+    assert_eq(it.difficulty, 1)
+}
+
+@test fn pct_rampa_por_grado() {
+    let bajo = gen_pct(9, 0, 6)
+    assert_eq(bajo.difficulty, 1)
+    let alto = gen_pct(9, 30, 13)
+    assert_eq(alto.difficulty, 5)
+}

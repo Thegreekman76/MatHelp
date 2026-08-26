@@ -1,0 +1,109 @@
+// gen_pct.fitz — generador del juego "Porcentaje" (descuentos, IVA, recargo).
+//
+// Enunciados de la vida real con porcentajes (útil para la modalidad comercial).
+// Escala por nivel (F8): "el P% de N" en 6° → descuentos sucesivos en secundaria.
+// Todas las respuestas son ENTEROS positivos por construcción: los montos son
+// múltiplos de 100 (N1-N4) o de 400 (N5), así P% siempre da un entero.
+//
+// Reproducible desde (seed, idx, grade); el RandGen `g` es LOCAL (regla FITZ-01).
+
+from gen_arith import sub_seed, nivel_por_idx
+
+type PctItem {
+    kind: Str = "simple"       // "simple" | "descuento" | "iva" | "recargo" | "sucesivos"
+    p: Int = 0                 // porcentaje (o P1 en sucesivos)
+    n: Int = 0                 // el monto
+    p2: Int = 0                // 2do porcentaje (sucesivos)
+    answer: Int = 0
+    skill_code: Str = "pct"
+    difficulty: Int = 1        // 1..5 (nivel)
+}
+
+// Piso/techo del nivel por grado. min_grade del juego es 6°.
+fn nivel_piso_pct(grade: Int) -> Int {
+    if (grade <= 7) {
+        return 1
+    }
+    if (grade <= 9) {
+        return 2
+    }
+    return 3
+}
+
+fn nivel_techo_pct(grade: Int) -> Int {
+    if (grade <= 6) {
+        return 2
+    }
+    if (grade <= 7) {
+        return 3
+    }
+    if (grade <= 9) {
+        return 4
+    }
+    return 5
+}
+
+fn gen_pct(seed: Int, idx: Int, grade: Int) -> PctItem {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let piso = nivel_piso_pct(grade)
+    let techo = nivel_techo_pct(grade)
+    let nivel = nivel_por_idx(piso, techo, idx)
+
+    let kind = "simple"
+    let p = 0
+    let n = 0
+    let p2 = 0
+    let answer = 0
+
+    if (nivel == 1) {
+        // El P% de $N.
+        kind = "simple"
+        let ps = [10, 25, 50]
+        p = ps[g.int(0, 2)]
+        n = g.int(1, 30) * 100
+        answer = n * p / 100
+    }
+    if (nivel == 2) {
+        // Descuento: pagás N menos el P%.
+        kind = "descuento"
+        let ps = [10, 20, 25, 50]
+        p = ps[g.int(0, 3)]
+        n = g.int(2, 40) * 100
+        answer = n - n * p / 100
+    }
+    if (nivel == 3) {
+        // IVA 21%: precio final con IVA.
+        kind = "iva"
+        p = 21
+        n = g.int(1, 30) * 100
+        answer = n + n * 21 / 100
+    }
+    if (nivel == 4) {
+        // Recargo en cuotas: N más el P%.
+        kind = "recargo"
+        let ps = [10, 15, 20, 30]
+        p = ps[g.int(0, 3)]
+        n = g.int(2, 40) * 100
+        answer = n + n * p / 100
+    }
+    if (nivel >= 5) {
+        // Descuentos sucesivos (N múltiplo de 400, P en {25,50} → ambos pasos exactos).
+        kind = "sucesivos"
+        let ps = [25, 50]
+        p = ps[g.int(0, 1)]
+        p2 = ps[g.int(0, 1)]
+        n = g.int(2, 20) * 400
+        let n1 = n - n * p / 100
+        answer = n1 - n1 * p2 / 100
+    }
+
+    return PctItem {
+        kind: kind,
+        p: p,
+        n: n,
+        p2: p2,
+        answer: answer,
+        skill_code: "pct",
+        difficulty: nivel,
+    }
+}

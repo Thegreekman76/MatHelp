@@ -53,7 +53,7 @@
   "tema.fracciones": "Fractions",
   "tema.decimales": "Decimals",
   "tema.geometria": "Geometry",
-  "tema.porcentaje": "Percentage",
+  "tema.porcentaje": "Percentages",
   "grado.1": "1st grade",
   "grado.2": "2nd grade",
   "grado.3": "3rd grade",
@@ -248,5 +248,10 @@
   "estimar.decena": "Round to the nearest ten",
   "estimar.centena": "Round to the nearest hundred",
   "estimar.cerca": "About how much?",
-  "tema.estimar": "Estimation"
+  "tema.estimar": "Estimation",
+  "pct.simple": "What is {0}% of ${1}?",
+  "pct.descuento": "A jacket costs ${1}. With {0}% off, how much do you pay?",
+  "pct.iva": "An item is ${0} before tax. With tax (21%), how much in total?",
+  "pct.recargo": "You buy something for ${1} in installments with a {0}% surcharge. How much in total?",
+  "pct.sucesivos": "A bike costs ${0}. It gets {1}% off, then {2}% more. Final price?"
 }
