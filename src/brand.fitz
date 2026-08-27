@@ -570,6 +570,23 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .mh-medalla.ganada \{ animation:medal-pop .5s ease-out both; \}
 .mh-medalla.bloq \{ opacity:.55; filter:grayscale(1); \}
 
+/* Tablero familiar (panel): comparar hermanos */
+.mh-tablero \{ display:flex; flex-direction:column; gap:8px; \}
+.mh-tab-row \{
+  display:flex; align-items:center; gap:10px; padding:10px 12px;
+  border:1px solid var(--mh-borde); border-radius:12px; background:var(--mh-verde-suave);
+  text-decoration:none; color:var(--mh-tinta); transition:transform .12s ease;
+\}
+.mh-tab-row:hover \{ transform:translateY(-2px); \}
+.mh-tab-av \{ font-size:1.6rem; line-height:1; \}
+.mh-tab-nom \{ font-weight:800; flex:1; \}
+.mh-tab-stats \{ display:flex; gap:10px; font-weight:800; white-space:nowrap; font-size:.95rem; \}
+
+/* Reporte semanal (panel) */
+.mh-rep-row \{ display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin:.5rem 0; font-weight:600; \}
+.mh-rep-row > span:first-of-type \{ color:var(--mh-suave); font-weight:700; \}
+.mh-rep-chip \{ display:inline-flex; align-items:center; gap:.25rem; background:var(--mh-verde-suave); border:1px solid var(--mh-borde); border-radius:99px; padding:.15rem .6rem; font-weight:700; font-size:.9rem; \}
+
 /* Meta semanal (home): barra de objetivo de la semana */
 .mh-meta \{ background:var(--mh-panel); border:1px solid var(--mh-borde); border-radius:var(--mh-radio); padding:.7rem .9rem; margin:.5rem 0; animation:page-in .35s cubic-bezier(.2,.7,.3,1) both; \}
 .mh-meta-top \{ display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:.92rem; margin-bottom:.45rem; \}

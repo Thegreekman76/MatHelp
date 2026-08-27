@@ -313,5 +313,12 @@
   "nav.inicio": "Inicio",
   "home.sorpresa": "🎲 Sorpresa",
   "meta.semanal": "Meta semanal",
-  "meta.lograda": "¡Lograda! 🎉"
+  "meta.lograda": "¡Lograda! 🎉",
+  "familia.tablero": "Tablero familiar",
+  "reporte.titulo": "Reporte semanal",
+  "reporte.esta_semana": "{0} ejercicios esta semana",
+  "reporte.mejoro": "Mejoró en",
+  "reporte.reforzar": "A reforzar",
+  "reporte.sin_mejora": "seguí jugando para ver el progreso",
+  "reporte.todo_bien": "¡todo al día!"
 }

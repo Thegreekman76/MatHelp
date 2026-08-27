@@ -33,6 +33,7 @@ from engine import progreso_pct
 from streaks import racha_actual
 from auth import read_session
 from perfiles import perfiles_de, perfil_de_familia
+from avatares import avatar_emoji
 from models import Profile
 
 // --- etiquetas ---------------------------------------------------------------
@@ -335,8 +336,10 @@ async fn render_panel(fam_id: Int, pid: Int, locale: Str, perfiles: List<Profile
     }
 
     let meta_html = form_meta(locale, pid, perfil.daily_goal).raw
+    let reporte_html = reporte_semanal(locale, pid, conn).await.raw
 
     let body = html("""{stats_html}
+{reporte_html}
 <div class="mh-card">
 <h2>{flv(t(locale, "panel.aciertos_titulo"))}</h2>
 {aciertos_html}
@@ -359,6 +362,124 @@ async fn render_panel(fam_id: Int, pid: Int, locale: Str, perfiles: List<Profile
 </div>
 {meta_html}""")
     return Ok(body)
+}
+
+// --- Tablero familiar: comparar a los hermanos (racha, récord, medallas) -----
+
+// Una fila del tablero: avatar + nombre + racha actual + mejor récord + medallas.
+async fn fila_familiar(locale: Str, p: Profile) -> Html {
+    let racha = match racha_actual(p.id).await {
+        Ok(n) => n,
+        Err(_) => 0,
+    }
+    let medallas = 0
+    let record = 0
+    match db.connect(db_url()).await {
+        Ok(conn) => {
+            match conn.query("SELECT COUNT(*)::int AS n FROM awards WHERE profile_id = $1", [p.id]).await {
+                Ok(r) => {
+                    if (r.len() > 0) {
+                        medallas = match r[0].get_int("n") { Ok(n) => n, Err(_) => 0 }
+                    }
+                }
+                Err(_) => 0,
+            }
+            match conn.query("SELECT COALESCE(MAX(best_streak), 0)::int AS n FROM profile_game_stats WHERE profile_id = $1", [p.id]).await {
+                Ok(r) => {
+                    if (r.len() > 0) {
+                        record = match r[0].get_int("n") { Ok(n) => n, Err(_) => 0 }
+                    }
+                }
+                Err(_) => 0,
+            }
+        }
+        Err(_) => 0,
+    }
+    let em = flv(avatar_emoji(p.avatar))
+    let nombre = flv(p.name)
+    let rf = flv(fmt_int(locale, racha))
+    let recf = flv(fmt_int(locale, record))
+    let medf = flv(fmt_int(locale, medallas))
+    return html("""<a class="mh-tab-row" href="/panel/{p.id}">
+<span class="mh-tab-av">{em}</span>
+<span class="mh-tab-nom">{nombre}</span>
+<span class="mh-tab-stats"><span title="racha">🔥 {rf}</span><span title="record">🏆 {recf}</span><span title="medallas">🏅 {medf}</span></span>
+</a>""")
+}
+
+// El tablero completo. Solo tiene sentido con 2+ hijos (comparar). Best-effort.
+async fn tablero_familiar(locale: Str, perfiles: List<Profile>) -> Html {
+    if (perfiles.len() < 2) {
+        return html("")
+    }
+    let filas: List<Html> = []
+    for p in perfiles {
+        // Computá la fila ANTES del push: el codegen de `filas.push(<algo>.await)`
+        // lockea `filas` y evalúa el arg con el lock tomado → MutexGuard a través del
+        // await → future no-Send (rompe el @get). Con un local intermedio el await
+        // pasa sin el lock.
+        let fila = fila_familiar(locale, p).await
+        filas.push(fila)
+    }
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "familia.tablero"))}</h2>
+<div class="mh-tablero">
+{h_join(filas)}
+</div>
+</div>""")
+}
+
+// --- Reporte semanal: qué practicó, dónde mejora, dónde se traba ---------------
+
+async fn reporte_semanal(locale: Str, pid: Int, conn: DbConn) -> Html {
+    // ejercicios de la semana en curso
+    let n = 0
+    match conn.query("SELECT COALESCE(SUM(exercises), 0)::int AS n FROM streaks WHERE profile_id = $1 AND day >= date_trunc('week', CURRENT_DATE)", [pid]).await {
+        Ok(r) => {
+            if (r.len() > 0) {
+                n = match r[0].get_int("n") { Ok(v) => v, Err(_) => 0 }
+            }
+        }
+        Err(_) => 0,
+    }
+    // mejoró: destrezas cuyo rating subió vs el snapshot del inicio de la semana
+    let mejoro: List<Html> = []
+    match conn.query("SELECT m.skill_code AS sc FROM mastery m WHERE m.profile_id = $1 AND m.rating > COALESCE((SELECT s.rating FROM mastery_snapshots s WHERE s.profile_id = m.profile_id AND s.skill_code = m.skill_code AND s.day >= date_trunc('week', CURRENT_DATE) ORDER BY s.day ASC LIMIT 1), m.rating) ORDER BY m.rating DESC LIMIT 3", [pid]).await {
+        Ok(rows) => {
+            for r in rows {
+                match r.get_str("sc") {
+                    Ok(sc) => mejoro.push(html("""<span class="mh-rep-chip">{flv(skill_icon(sc))} {flv(t(locale, skill_label_key(sc)))}</span>""")),
+                    Err(_) => 0,
+                }
+            }
+        }
+        Err(_) => 0,
+    }
+    // a reforzar: la destreza más floja (con ≥3 intentos)
+    let reforzar = ""
+    match conn.query("SELECT skill_code AS sc FROM mastery WHERE profile_id = $1 AND seen >= 3 ORDER BY rating ASC LIMIT 1", [pid]).await {
+        Ok(rows) => {
+            if (rows.len() > 0) {
+                reforzar = match rows[0].get_str("sc") { Ok(sc) => sc, Err(_) => "" }
+            }
+        }
+        Err(_) => 0,
+    }
+    let esta_sem = flv(t1(locale, "reporte.esta_semana", fmt_int(locale, n)))
+    let mejoro_html = match mejoro.len() > 0 {
+        true => h_join(mejoro),
+        false => html("""<span style="color:var(--mh-suave)">{flv(t(locale, "reporte.sin_mejora"))}</span>""").raw,
+    }
+    let reforzar_html = match reforzar == "" {
+        true => html("""<span style="color:var(--mh-suave)">{flv(t(locale, "reporte.todo_bien"))}</span>""").raw,
+        false => html("""<span class="mh-rep-chip">{flv(skill_icon(reforzar))} {flv(t(locale, skill_label_key(reforzar)))}</span>""").raw,
+    }
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "reporte.titulo"))}</h2>
+<div class="mh-rep-row">📅 <span>{esta_sem}</span></div>
+<div class="mh-rep-row">📈 <span>{flv(t(locale, "reporte.mejoro"))}:</span> {mejoro_html}</div>
+<div class="mh-rep-row">🎯 <span>{flv(t(locale, "reporte.reforzar"))}:</span> {reforzar_html}</div>
+</div>""")
 }
 
 // Pantalla de error de DB amable (reusa el patrón de progreso.fitz).
@@ -420,10 +541,12 @@ async fn panel_hijo_get(session: Str?, lang: Str?, pid: Int) -> Response {
         return responder_html(page(locale, titulo, pantalla_sin_hijos(locale), html("")))
     }
     let titulo = t(locale, "nav.panel") + " — MatHelp"
+    let tablero = tablero_familiar(locale, perfiles).await.raw
     let selector = selector_hijos(locale, perfiles, pid).raw
     match render_panel(fam.id, pid, locale, perfiles).await {
         Ok(cuerpo) => {
-            let full = html("""{selector}
+            let full = html("""{tablero}
+{selector}
 {cuerpo.raw}
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
             return responder_html(page(locale, titulo, full, html("")))

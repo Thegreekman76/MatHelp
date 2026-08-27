@@ -313,5 +313,12 @@
   "nav.inicio": "Home",
   "home.sorpresa": "🎲 Surprise",
   "meta.semanal": "Weekly goal",
-  "meta.lograda": "Done! 🎉"
+  "meta.lograda": "Done! 🎉",
+  "familia.tablero": "Family board",
+  "reporte.titulo": "Weekly report",
+  "reporte.esta_semana": "{0} exercises this week",
+  "reporte.mejoro": "Improved in",
+  "reporte.reforzar": "To reinforce",
+  "reporte.sin_mejora": "keep playing to see progress",
+  "reporte.todo_bien": "all caught up!"
 }
