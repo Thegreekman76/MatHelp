@@ -1,0 +1,40 @@
+name: CI
+
+# Corre en cada push y PR: verifica que MatHelp compile (Docker build = fitz build)
+# y que los tests de lógica pasen (fitz test). Los E2E que necesitan Postgres/browser
+# (tools/e2e_*.py, tools/browser) son locales; acá cubrimos build + tests unitarios.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compila (Docker build = fitz build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build
+        run: docker build -t mathelp:ci .
+
+  test:
+    name: fitz check + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clonar fitz-liveviews (la dep)
+        run: git clone --depth 1 --branch v0.50.0 https://github.com/Thegreekman76/fitz-liveviews vendor-flv
+      - name: fitz check + fitz test (dentro de la imagen oficial de Fitz)
+        run: |
+          cp fitz.docker.toml fitz.toml
+          docker run --rm \
+            -v "$PWD:/app" \
+            -v "$PWD/vendor-flv:/vendor/fitz-liveviews" \
+            -w /app \
+            ghcr.io/thegreekman76/fitz:v0.58.1 \
+            sh -c "fitz check && fitz test"

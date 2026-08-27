@@ -3,3 +3,7 @@ target/
 .env
 fitz.lock
 *.log
+
+# E2E de browser (puppeteer)
+tools/browser/node_modules/
+tools/browser/package-lock.json

@@ -1,0 +1,9 @@
+{
+  "name": "mathelp-browser-e2e",
+  "private": true,
+  "type": "module",
+  "description": "E2E de browser real (puppeteer) para MatHelp: caza parpadeo/errores en los juegos.",
+  "dependencies": {
+    "puppeteer-core": "^23"
+  }
+}
