@@ -1074,17 +1074,23 @@ fn rating_op(op: Str, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) ->
 // repaso). Empates → la primera en `ops` (determinista). El repaso "real" por
 // due_at vencido vive en la capa de DB (Desafío/selección de sesión, F3); acá,
 // dentro del contrarreloj, la más floja es la mejor proxy sin timestamps.
-fn op_mas_floja(ops: List<Str>, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Str {
-    let mejor = ops[0]
-    let mejor_r = rating_op(mejor, r_add, r_sub, r_mul, r_div)
+// Toma el RandGen `g` para romper empates AL AZAR: con un perfil nuevo (todos los
+// ratings en 800) las 4 operaciones empatan, y antes el desempate "el primero"
+// devolvía SIEMPRE "add" → el 20% de repaso era siempre suma y la suma dominaba
+// ~40% de la partida. Ahora, entre las de menor rating (empatadas o no), elige una
+// al azar → en grados altos las 4 operaciones aparecen parejas. Determinista desde
+// (seed, idx) porque `g` viene de rand.seeded — paridad con la persistencia.
+fn op_mas_floja(g: RandGen, ops: List<Str>, r_add: Float, r_sub: Float, r_mul: Float, r_div: Float) -> Str {
+    let mejor_r = rating_op(ops[0], r_add, r_sub, r_mul, r_div)
     for op in ops {
         let r = rating_op(op, r_add, r_sub, r_mul, r_div)
         if (r < mejor_r) {
-            mejor = op
             mejor_r = r
         }
     }
-    return mejor
+    let flojas = ops.filter(fn(op) => rating_op(op, r_add, r_sub, r_mul, r_div) == mejor_r)
+    let i = g.int(0, flojas.len() - 1)
+    return flojas[i]
 }
 
 // Genera el próximo ejercicio adaptativo. `r_*` son los ratings por operación
@@ -1103,8 +1109,8 @@ fn gen_adaptive(seed: Int, idx: Int, grade: Int, r_add: Float, r_sub: Float, r_m
         eff = grado_efectivo(grade, rating_op(op, r_add, r_sub, r_mul, r_div))
     }
     if (roll >= 70 and roll < 90) {
-        // 20% repaso: la op más floja, a su grado efectivo.
-        op = op_mas_floja(ops, r_add, r_sub, r_mul, r_div)
+        // 20% repaso: la op más floja (empates al azar con `g`), a su grado efectivo.
+        op = op_mas_floja(g, ops, r_add, r_sub, r_mul, r_div)
         eff = grado_efectivo(grade, rating_op(op, r_add, r_sub, r_mul, r_div))
     }
     if (roll >= 90) {

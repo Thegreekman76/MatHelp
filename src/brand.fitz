@@ -570,6 +570,13 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .mh-medalla.ganada \{ animation:medal-pop .5s ease-out both; \}
 .mh-medalla.bloq \{ opacity:.55; filter:grayscale(1); \}
 
+/* Meta semanal (home): barra de objetivo de la semana */
+.mh-meta \{ background:var(--mh-panel); border:1px solid var(--mh-borde); border-radius:var(--mh-radio); padding:.7rem .9rem; margin:.5rem 0; animation:page-in .35s cubic-bezier(.2,.7,.3,1) both; \}
+.mh-meta-top \{ display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:.92rem; margin-bottom:.45rem; \}
+.mh-meta-top span:last-child \{ color:var(--mh-suave); \}
+.mh-meta-bar \{ background:var(--mh-borde); border-radius:99px; height:12px; overflow:hidden; \}
+.mh-meta-fill \{ height:100%; background:var(--mh-verde); border-radius:99px; transition:width .4s ease; \}
+
 /* CTA "Repasá lo que te cuesta" (home) */
 .mh-btn.mh-repaso \{ border:2px solid var(--mh-amarillo); background:var(--mh-verde-suave); color:var(--mh-tinta); font-weight:800; \}
 

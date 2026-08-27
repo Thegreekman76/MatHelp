@@ -367,11 +367,27 @@ fn contains_str(xs: List<Str>, target: Str) -> Bool {
     assert_eq(grado_efectivo(4, 5000.0), 7)    // corrimiento clampeado a +3 → 7º
 }
 
-// El repaso (20%) elige la operación más floja: la de menor rating.
+// El repaso (20%) elige la operación más floja: la de menor rating. Con un único
+// mínimo el desempate al azar no cambia el resultado (hay una sola candidata).
 @test fn op_mas_floja_es_la_de_menor_rating() {
     let ops = ops_for_grade(4)                  // [add, sub, mul, div]
-    assert_eq(op_mas_floja(ops, 1000.0, 1000.0, 600.0, 1000.0), "mul")
-    assert_eq(op_mas_floja(ops, 500.0, 1000.0, 1000.0, 1000.0), "add")
+    let g = rand.seeded(1)
+    assert_eq(op_mas_floja(g, ops, 1000.0, 1000.0, 600.0, 1000.0), "mul")
+    assert_eq(op_mas_floja(g, ops, 500.0, 1000.0, 1000.0, 1000.0), "add")
+}
+
+// Con ratings todos iguales (perfil nuevo) las 4 empatan → el desempate al azar
+// las reparte (no devuelve siempre "add" como antes). Sobre muchas semillas deben
+// aparecer al menos 3 operaciones distintas.
+@test fn op_mas_floja_empate_reparte() {
+    let ops = ops_for_grade(4)                  // [add, sub, mul, div]
+    let vistas: Map<Str, Bool> = {}
+    for k in 0..40 {
+        let g = rand.seeded(k * 7 + 1)
+        let op = op_mas_floja(g, ops, 800.0, 800.0, 800.0, 800.0)
+        vistas[op] = true
+    }
+    assert(vistas.len() >= 3)
 }
 
 // La selección adaptativa produce siempre ejercicios válidos (sobre un lote,

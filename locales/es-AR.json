@@ -310,5 +310,8 @@
   "award.hint.generico": "Seguí jugando",
   "repaso.cta": "Repasá {0}",
   "progreso.records": "Mis récords",
-  "nav.inicio": "Inicio"
+  "nav.inicio": "Inicio",
+  "home.sorpresa": "🎲 Sorpresa",
+  "meta.semanal": "Meta semanal",
+  "meta.lograda": "¡Lograda! 🎉"
 }

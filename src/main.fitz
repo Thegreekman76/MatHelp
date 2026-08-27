@@ -12,7 +12,9 @@ from brand import logo_lockup
 from layout import page, responder_html, redirect_a
 from auth import read_session, pid_from_token
 from engine import a_int
+from fmt import fmt_int
 from streaks import racha_actual
+from juegos import juegos, Juego
 import perfiles
 import assets
 import live_game
@@ -42,7 +44,7 @@ from avatares import avatar_emoji
 import menu
 import progreso
 import parent
-from progreso import skill_a_route, skill_label_key, skill_icon
+from progreso import skill_a_route, skill_label_key, skill_icon, skill_a_practica_op
 // Los juegos viven en sus live_*.fitz (@get + @ws). Importar los símbolos de cada
 // componente acá es lo que dispara el auto-registro del LiveComponent (el
 // compilador pre-escanea los imports directos del entry y emite el
@@ -93,9 +95,10 @@ async fn home(session: Str?, lang: Str?) -> Response {
             let pid = a_int(pid_from_token(session))
             let saludo = saludo_html(locale, pid).await
             let resumen = resumen_hoy_html(locale, pid).await
+            let meta = meta_semanal_html(locale, pid).await
             let intro = home_intro_html(locale, pid).await
             let repaso = repaso_html(locale, pid).await
-            return home_jugar(locale, saludo, resumen, intro, repaso)
+            return home_jugar(locale, saludo, resumen, meta, intro, repaso)
         }
         Err(_) => return home_publica(locale).await,
     }
@@ -131,7 +134,7 @@ async fn home_publica(locale: Str) -> Response {
 // adaptativo, F3), Elegir juego (grilla por grado) y Práctica libre (tema →
 // dificultad). El grado sale del perfil y el nivel es adaptativo: acá no se
 // elige ninguno de los dos (salvo en Práctica libre).
-fn home_jugar(locale: Str, saludo: Html, resumen: Html, ultimo: Html, repaso: Html) -> Response {
+fn home_jugar(locale: Str, saludo: Html, resumen: Html, meta: Html, ultimo: Html, repaso: Html) -> Response {
     let marca = logo_lockup(56, locale).raw
     let tagline = flv(t(locale, "app.tagline"))
 
@@ -141,12 +144,14 @@ fn home_jugar(locale: Str, saludo: Html, resumen: Html, ultimo: Html, repaso: Ht
 {saludo.raw}
 </div>
 {resumen.raw}
+{meta.raw}
 
 <div class="mh-card">
 <h2>{flv(t(locale, "nav.jugar"))}</h2>
 {ultimo.raw}
 {repaso.raw}
 <a class="mh-btn" href="/jugar"><span aria-hidden="true">▶️</span>{flv(t(locale, "home.jugar_ya"))}</a>
+<a class="mh-btn sec" href="/sorpresa"><span aria-hidden="true">🎲</span>{flv(t(locale, "home.sorpresa"))}</a>
 <a class="mh-btn sec" href="/desafio"><span aria-hidden="true">🎯</span>{flv(t(locale, "home.desafio_dia"))}</a>
 <a class="mh-btn sec" href="/juegos"><span aria-hidden="true">🎮</span>{flv(t(locale, "home.elegir_juego"))}</a>
 <a class="mh-btn sec" href="/practica"><span aria-hidden="true">📚</span>{flv(t(locale, "home.practica_libre"))}</a>
@@ -316,32 +321,172 @@ async fn saludo_html(locale: Str, pid: Int) -> Html {
     return html("""<a class="mh-saludo" href="/avatar"><span class="mh-saludo-av">{em}</span><span>{hola}</span></a>""")
 }
 
-// CTA "Repasá lo que te cuesta": detecta la destreza con menor rating (con al
-// menos 3 intentos, para que sea significativa) y linkea al juego que la
-// entrena. Best-effort → vacío si no hay datos o falla la DB.
-async fn repaso_html(locale: Str, pid: Int) -> Html {
+// La destreza con menor rating (con ≥3 intentos, para que sea significativa).
+// "" si no hay datos o falla la DB. La usan el CTA de repaso y /repaso.
+async fn weakest_skill(pid: Int) -> Str {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
-        Err(_) => { return html("") },
+        Err(_) => { return "" },
     }
     let rows = match conn.query("SELECT skill_code FROM mastery WHERE profile_id = $1 AND seen >= 3 ORDER BY rating ASC LIMIT 1", [pid]).await {
         Ok(r) => r,
-        Err(_) => { return html("") },
+        Err(_) => { return "" },
     }
     if (rows.len() == 0) {
-        return html("")
+        return ""
     }
-    let sc = match rows[0].get_str("skill_code") {
+    return match rows[0].get_str("skill_code") {
         Ok(s) => s,
-        Err(_) => { return html("") },
+        Err(_) => "",
     }
-    let ruta = skill_a_route(sc)
-    if (ruta == "") {
+}
+
+// CTA "Repasá lo que te cuesta": nombra tu destreza más floja y linkea a /repaso
+// (una tanda ENFOCADA en eso). Best-effort → vacío si no hay datos.
+async fn repaso_html(locale: Str, pid: Int) -> Html {
+    let sc = weakest_skill(pid).await
+    if (sc == "") {
         return html("")
     }
     let icon = flv(skill_icon(sc))
     let cta = flv(t1(locale, "repaso.cta", t(locale, skill_label_key(sc))))
-    return html("""<a class="mh-btn sec mh-repaso" href="{ruta}"><span aria-hidden="true">🎯</span> {icon} {cta}</a>""")
+    return html("""<a class="mh-btn sec mh-repaso" href="/repaso"><span aria-hidden="true">🎯</span> {icon} {cta}</a>""")
+}
+
+// Repaso DIRIGIDO: te lleva a una tanda enfocada en tu punto más flojo. Si es una
+// de las 4 operaciones → práctica libre SOLO de esa (cookie op:band). Si es un
+// juego (Hora, Geometría, ...) → ese juego. Sin datos → contrarreloj.
+@cookie(name="mathelp_session", into="session")
+@get("/repaso")
+async fn repaso_get(session: Str?) -> Response {
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    let pid = a_int(pid_from_token(session))
+    if (pid <= 0) {
+        return redirect_a("/perfiles")
+    }
+    let sc = weakest_skill(pid).await
+    if (sc == "") {
+        return redirect_a("/jugar")
+    }
+    let op = skill_a_practica_op(sc)
+    if (op == "") {
+        return redirect_a(skill_a_route(sc))
+    }
+    // Práctica enfocada en esa operación (banda media). El GET /jugar/practica lee
+    // esta cookie (mismo formato op:band que el picker de práctica).
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        cookies: [
+            Cookie {
+                name: "mathelp_practice",
+                value: "{op}:2",
+                path: "/",
+                same_site: "Lax",
+                max_age: 3600,
+            },
+        ],
+        headers: { "Location": "/jugar/practica" },
+        body: "",
+    }
+}
+
+// 🎲 Sorpresa: elige AL AZAR un juego jugable (built, del grado y la modalidad del
+// perfil) y te lleva ahí. Rompe la costumbre de tocar siempre el mismo botón.
+@cookie(name="mathelp_session", into="session")
+@get("/sorpresa")
+async fn sorpresa_get(session: Str?) -> Response {
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    let pid = a_int(pid_from_token(session))
+    if (pid <= 0) {
+        return redirect_a("/perfiles")
+    }
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return redirect_a("/juegos") },
+    }
+    let rows = match conn.query("SELECT grade, modalidad FROM profiles WHERE id = $1", [pid]).await {
+        Ok(r) => r,
+        Err(_) => { return redirect_a("/juegos") },
+    }
+    if (rows.len() == 0) {
+        return redirect_a("/juegos")
+    }
+    let grade = match rows[0].get_int("grade") {
+        Ok(n) => n,
+        Err(_) => 1,
+    }
+    let modalidad = match rows[0].get_str("modalidad") {
+        Ok(m) => m,
+        Err(_) => "comun",
+    }
+    let cands = juegos().filter(fn(j) => j.built and j.min_grade <= grade and (j.modalidad == "comun" or j.modalidad == modalidad))
+    if (cands.len() == 0) {
+        return redirect_a("/juegos")
+    }
+    let i = rand.int(0, cands.len() - 1)
+    return redirect_a(cands[i].route)
+}
+
+// Meta semanal: barra "esta semana practicaste X de Y" (Y = daily_goal × 5 días).
+// Cuenta los ejercicios de la semana en curso (streaks). Best-effort.
+async fn meta_semanal_html(locale: Str, pid: Int) -> Html {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return html("") },
+    }
+    let drows = match conn.query("SELECT daily_goal FROM profiles WHERE id = $1", [pid]).await {
+        Ok(r) => r,
+        Err(_) => { return html("") },
+    }
+    let daily = 10
+    if (drows.len() > 0) {
+        daily = match drows[0].get_int("daily_goal") {
+            Ok(n) => n,
+            Err(_) => 10,
+        }
+    }
+    let meta = daily * 5
+    if (meta <= 0) {
+        return html("")
+    }
+    let wrows = match conn.query("SELECT COALESCE(SUM(exercises), 0)::int AS n FROM streaks WHERE profile_id = $1 AND day >= date_trunc('week', CURRENT_DATE)", [pid]).await {
+        Ok(r) => r,
+        Err(_) => { return html("") },
+    }
+    let hechos = 0
+    if (wrows.len() > 0) {
+        hechos = match wrows[0].get_int("n") {
+            Ok(n) => n,
+            Err(_) => 0,
+        }
+    }
+    // Perfil que todavía no jugó esta semana → sin barra (home limpio, como el
+    // resumen). Aparece en cuanto sumás el primer ejercicio.
+    if (hechos == 0) {
+        return html("")
+    }
+    let pct = (hechos * 100) / meta
+    if (pct > 100) {
+        pct = 100
+    }
+    let hechos_f = flv(fmt_int(locale, hechos))
+    let meta_f = flv(fmt_int(locale, meta))
+    let lbl = flv(t(locale, "meta.semanal"))
+    let lista = match hechos >= meta {
+        true => flv(t(locale, "meta.lograda")),
+        false => "{hechos_f} / {meta_f}",
+    }
+    return html("""<div class="mh-meta">
+<div class="mh-meta-top"><span>🎯 {lbl}</span><span>{lista}</span></div>
+<div class="mh-meta-bar"><div class="mh-meta-fill" style="width:{pct}%"></div></div>
+</div>""")
 }
 
 // Chequeo real de Postgres, para que `docker compose up` diga la verdad.

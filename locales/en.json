@@ -310,5 +310,8 @@
   "award.hint.generico": "Keep playing",
   "repaso.cta": "Practice {0}",
   "progreso.records": "My records",
-  "nav.inicio": "Home"
+  "nav.inicio": "Home",
+  "home.sorpresa": "🎲 Surprise",
+  "meta.semanal": "Weekly goal",
+  "meta.lograda": "Done! 🎉"
 }

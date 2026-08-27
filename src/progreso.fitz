@@ -139,6 +139,19 @@ fn skill_a_route(sc: Str) -> Str {
     }
 }
 
+// Destreza aritmética → el "op" de práctica libre (add/sub/mul/div), para el
+// repaso dirigido: si tu punto flojo es una de las 4 operaciones, te llevamos a
+// una práctica enfocada SOLO en esa. "" si no es aritmética (→ va al juego).
+fn skill_a_practica_op(sc: Str) -> Str {
+    return match sc {
+        "add" => "add",
+        "sub" => "sub",
+        "mul.tabla" => "mul",
+        "div.exacta" => "div",
+        _ => "",
+    }
+}
+
 // game_code (de profile_game_stats) → clave i18n del nombre del juego.
 fn record_label_key(code: Str) -> Str {
     return match code {
