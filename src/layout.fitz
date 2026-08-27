@@ -26,6 +26,7 @@ fn page(locale: Str, titulo: Str, body: Html, live_js: Html) -> Html {
     let desc = flv(t(locale, "app.description"))
     let top = topbar(locale).raw
     let pie = footer(locale).raw
+    let salir = salir_modal(locale).raw
     let js = live_js.raw
     let skip = flv(t(locale, "a11y.saltar"))
     return html("""<!doctype html>
@@ -55,6 +56,7 @@ fn page(locale: Str, titulo: Str, body: Html, live_js: Html) -> Html {
 {body.raw}
 </main>
 {pie}
+{salir}
 {js}
 <script src="/sound.js" defer></script>
 </body>
@@ -73,9 +75,11 @@ fn topbar(locale: Str) -> Html {
         false => "false",
     }
     let son_lbl = flv(t(locale, "a11y.sonido"))
+    let salir_lbl = flv(t(locale, "salir.boton"))
     return html("""<header class="mh-topbar">
 <a class="mh-topbar-home" href="/" aria-label="{flv(t(locale, "nav.inicio"))}">{marca}</a>
 <div class="mh-controls">
+<button id="mh-salir-btn" type="button" class="mh-salir-btn" hidden aria-label="{salir_lbl}" title="{salir_lbl}"><span aria-hidden="true">✕</span> {salir_lbl}</button>
 <button id="mh-sound-btn" type="button" class="mh-sound-btn" aria-pressed="true" aria-label="{son_lbl}" title="{son_lbl}"><span class="mh-sound-ico" aria-hidden="true">🔊</span></button>
 <nav class="mh-langs" aria-label="{flv(t(locale, "idioma.cambiar"))}">
 <a class="mh-lang" href="/lang/es-AR" aria-current="{es_actual}" hreflang="es">ES</a>
@@ -83,6 +87,28 @@ fn topbar(locale: Str) -> Html {
 </nav>
 </div>
 </header>""")
+}
+
+// Modal de "salir de la partida" — overlay ESTÁTICO en el shell (fuera del
+// <main>/LiveComponent, así el re-render por WebSocket no lo toca). Oculto por
+// default; sound.js lo muestra cuando el usuario toca la home (u otro link que
+// sale) o el botón "Salir" de la topbar DURANTE una partida. Reemplaza el
+// window.confirm() del navegador por un modal con el look de la app.
+fn salir_modal(locale: Str) -> Html {
+    let titulo = flv(t(locale, "salir.titulo"))
+    let mensaje = flv(t(locale, "salir.mensaje"))
+    let seguir = flv(t(locale, "salir.seguir"))
+    let confirmar = flv(t(locale, "salir.confirmar"))
+    return html("""<div id="mh-salir-modal" class="mh-modal-overlay" hidden>
+<div class="mh-modal" role="dialog" aria-modal="true" aria-labelledby="mh-salir-titulo">
+<h2 id="mh-salir-titulo" class="mh-modal-titulo">{titulo}</h2>
+<p class="mh-modal-texto">{mensaje}</p>
+<div class="mh-modal-acciones">
+<button type="button" class="mh-btn" data-mh-salir-seguir>{seguir}</button>
+<a class="mh-btn sec mh-salir-ir" href="/">{confirmar}</a>
+</div>
+</div>
+</div>""")
 }
 
 fn responder_html(h: Html) -> Response {

@@ -274,25 +274,47 @@ if ("serviceWorker" in navigator) {
 // --- Salir de un juego avisa que se pierde la partida -------------------------
 // Cualquier navegación fuera de una partida en curso (cambiar idioma, tocar el
 // logo para ir al inicio, etc.) recarga la página y arranca un socket/juego nuevo
-// → se pierde la partida y el puntaje. En vez de bloquearlo, avisamos: si hay una
-// partida en curso (hay botones de acción del juego, [data-flv-click]) y el usuario
-// toca un link que sale, pedimos confirmación. Los links del resumen (fin de la
-// partida, ya sin [data-flv-click]) no avisan.
+// → se pierde la partida y el puntaje. En vez de bloquearlo, mostramos un MODAL
+// de la app (#mh-salir-modal, estático en el shell — layout.fitz) en vez del feo
+// window.confirm() del navegador. Se abre desde: (a) el botón "Salir" de la
+// topbar (#mh-salir-btn), que aparece solo durante la partida; (b) un link que
+// sale (el logo, cambiar idioma) tocado durante la partida. "Seguir jugando"
+// cierra; "Salir igual" (.mh-salir-ir) es el único link que dejamos navegar.
+// "En partida" = hay botones de acción del juego ([data-flv-click]); el resumen
+// (fin de la partida, ya sin [data-flv-click]) no avisa.
 (function () {
+  var modal = document.getElementById("mh-salir-modal");
+  var btn = document.getElementById("mh-salir-btn");
   function enPartida() { return !!document.querySelector("[data-flv-click]"); }
-  function mensaje() {
-    var lang = document.documentElement.getAttribute("lang") || "es";
-    return lang.indexOf("en") === 0
-      ? "You'll leave the game and lose your progress and score. Are you sure?"
-      : "Vas a salir del juego y perder la partida y el puntaje. ¿Seguro?";
+  function abrir() { if (modal) modal.hidden = false; }
+  function cerrar() { if (modal) modal.hidden = true; }
+  // El botón "Salir" de la topbar aparece/desaparece según haya partida. El
+  // juego arranca por WebSocket después del load y el resumen la termina, así
+  // que observamos el <main> para re-sincronizar el botón.
+  function syncBtn() { if (btn) btn.hidden = !enPartida(); }
+  syncBtn();
+  var main = document.getElementById("main");
+  if (main && window.MutationObserver) {
+    new MutationObserver(syncBtn).observe(main, { childList: true, subtree: true });
   }
   document.addEventListener("click", function (e) {
+    var t = e.target;
+    var cl = t.closest ? t.closest.bind(t) : function () { return null; };
+    if (cl("#mh-salir-btn")) { e.preventDefault(); abrir(); return; }
+    if (cl("[data-mh-salir-seguir]")) { e.preventDefault(); cerrar(); return; }
+    // Click en el fondo del overlay (no en el diálogo) → cerrar.
+    if (modal && !modal.hidden && t === modal) { cerrar(); return; }
     if (!enPartida()) return;
-    var a = e.target.closest ? e.target.closest("a[href]") : null;
+    var a = cl("a[href]");
     if (!a) return;
+    if (a.classList.contains("mh-salir-ir")) return;        // el link real de salir del modal
     var href = a.getAttribute("href") || "";
     if (href === "" || href.charAt(0) === "#") return;      // ancla interna, no navega
     if (a.getAttribute("target") === "_blank") return;      // abre en otra pestaña, no sale
-    if (!window.confirm(mensaje())) { e.preventDefault(); e.stopPropagation(); }
+    // Link que sale durante la partida → mostramos el modal en vez de navegar.
+    e.preventDefault(); e.stopPropagation(); abrir();
   }, true);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && modal && !modal.hidden) cerrar();
+  });
 })();

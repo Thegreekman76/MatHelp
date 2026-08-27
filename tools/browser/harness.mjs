@@ -151,6 +151,63 @@ async function smokeGame(browser, route) {
   }
 }
 
+// Modal de salir (reemplaza el window.confirm): tocar el logo DURANTE la partida
+// abre el modal de la app (no un confirm nativo); el botón "Salir" de la topbar
+// aparece solo en partida; "Seguir jugando" cierra; "Salir igual" navega.
+async function testModal(browser) {
+  const page = await browser.newPage();
+  const errs = [];
+  const dialogs = [];
+  page.on("pageerror", (e) => errs.push(String(e)));
+  page.on("dialog", (d) => { dialogs.push(d.type()); d.dismiss().catch(() => {}); });
+  try {
+    await page.goto(BASE + "/jugar", { waitUntil: "networkidle2", timeout: 20000 });
+    await page.waitForSelector("[data-flv-click]", { timeout: 12000 });
+    await sleep(600);
+    // 1. El botón "Salir" de la topbar es visible durante la partida.
+    const btnVis = await page.evaluate(() => {
+      const b = document.getElementById("mh-salir-btn");
+      return !!b && !b.hidden;
+    });
+    // 2. Tocar el logo → abre el modal (NO navega, NO confirm nativo).
+    await page.click(".mh-topbar-home");
+    await sleep(300);
+    const trasLogo = await page.evaluate(() => ({
+      modalAbierto: (function () { var m = document.getElementById("mh-salir-modal"); return !!m && !m.hidden; })(),
+      enJugar: location.pathname === "/jugar",
+    }));
+    // 3. "Seguir jugando" cierra el modal.
+    await page.click("[data-mh-salir-seguir]");
+    await sleep(200);
+    const trasSeguir = await page.evaluate(() => {
+      const m = document.getElementById("mh-salir-modal");
+      return { cerrado: !!m && m.hidden, enJugar: location.pathname === "/jugar" };
+    });
+    // 4. El botón "Salir" de la topbar reabre el modal.
+    await page.click("#mh-salir-btn");
+    await sleep(200);
+    const trasBtn = await page.evaluate(() => { var m = document.getElementById("mh-salir-modal"); return !!m && !m.hidden; });
+    // 5. "Salir igual" navega al inicio.
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: "networkidle2", timeout: 8000 }).catch(() => {}),
+      page.click(".mh-salir-ir"),
+    ]);
+    await sleep(300);
+    const salio = await page.evaluate(() => location.pathname === "/");
+    const ok = btnVis && trasLogo.modalAbierto && trasLogo.enJugar &&
+      trasSeguir.cerrado && trasSeguir.enJugar && trasBtn && salio &&
+      dialogs.length === 0 && errs.length === 0;
+    return {
+      ok,
+      detail: `btnTopbar=${btnVis ? "visible" : "OCULTO"} logo->modal=${trasLogo.modalAbierto ? "abre" : "NO"}(sinNavegar=${trasLogo.enJugar}) seguir=${trasSeguir.cerrado ? "cierra" : "NO"} btn->modal=${trasBtn ? "abre" : "NO"} salir->home=${salio ? "si" : "NO"} confirmNativo=${dialogs.length} errores=${errs.length}`,
+    };
+  } catch (e) {
+    return { ok: false, detail: "excepcion: " + String(e).split("\n")[0] };
+  } finally {
+    await page.close();
+  }
+}
+
 (async () => {
   const chrome = findChrome();
   if (!chrome) { console.error("✗ No encontré Chrome. Seteá CHROME_PATH."); process.exit(2); }
@@ -166,6 +223,13 @@ async function smokeGame(browser, route) {
     for (const route of TIMED) {
       const r = await testFlicker(browser, route);
       console.log(`  ${r.ok ? "✓" : "✗"} ${route.padEnd(12)} ${r.detail}`);
+      if (!r.ok) fails++;
+    }
+
+    console.log("\n=== Modal de salir (reemplaza el confirm nativo) ===");
+    {
+      const r = await testModal(browser);
+      console.log(`  ${r.ok ? "✓" : "✗"} /jugar       ${r.detail}`);
       if (!r.ok) fails++;
     }
 
