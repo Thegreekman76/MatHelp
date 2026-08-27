@@ -245,6 +245,32 @@ if ("serviceWorker" in navigator) {
   }
 })();
 
+// --- Reloj client-side del contrarreloj / Verdadero-Falso -------------------
+// El server ya NO empuja frames por segundo (cada frame recreaba el componente en
+// el browser — el cliente cae a outerHTML porque el path del patch no resuelve — y
+// re-disparaba las animaciones = parpadeo). El componente pinta data-q-total (los
+// segundos totales, constante); acá bajamos el número en el DOM sin tocar el server.
+// El server sigue siendo autoritativo del fin: al agotarse empuja el frame del
+// resumen y el reloj desaparece.
+(function () {
+  var deadline = null;
+  var lastTotal = null;
+  function tick() {
+    var timer = document.querySelector(".q-timer[data-q-total]");
+    if (!timer) { deadline = null; lastTotal = null; return; }   // no cronometrado (o ya terminó)
+    var total = parseInt(timer.getAttribute("data-q-total"), 10);
+    if (isNaN(total) || total <= 0) { return; }
+    if (deadline === null || total !== lastTotal) {              // arrancá / re-sincronizá
+      lastTotal = total;
+      deadline = Date.now() + total * 1000;
+    }
+    var rem = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    var num = timer.querySelector(".q-tnum");
+    if (num && num.textContent !== String(rem)) { num.textContent = String(rem); }
+  }
+  setInterval(tick, 250);
+})();
+
 // --- Salir de un juego avisa que se pierde la partida -------------------------
 // Cualquier navegación fuera de una partida en curso (cambiar idioma, tocar el
 // logo para ir al inicio, etc.) recarga la página y arranca un socket/juego nuevo

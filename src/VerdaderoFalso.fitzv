@@ -87,6 +87,15 @@ component verdadero_falso {
     }
   }
 
+  // Fin del reloj (lo dispara el server al agotarse). Conteo visible client-side;
+  // el server marca "done" acá.
+  event timeup() {
+    if (phase == "playing") {
+      time_left = 0
+      phase = "done"
+    }
+  }
+
   <template>
     <div id="vf-app" class="mh-quiz">
       {vf_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, correct_last, mode, r_add, r_sub, r_mul, r_div, limit, racha, racha_max, record_prev).raw}

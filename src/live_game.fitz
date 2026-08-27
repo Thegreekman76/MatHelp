@@ -16,7 +16,7 @@
 //   3. Cada `answer` del loop persiste un `attempt`. El reloj, al llegar a 0,
 //      cierra la partida (UPDATE de totales) y termina.
 
-from fitz_liveviews import Html, html, flv, LiveFrame, component, component_with, dispatch_component_events, dispatch_to, diff_html, flv_frame, component_state, flv_evict, live_embed
+from fitz_liveviews import Html, html, flv, LiveFrame, component_with, dispatch_component_events, dispatch_to, flv_frame, component_state, flv_evict, live_embed
 from config import db_url
 from records import leer_record, guardar_record
 from i18n import t, locale_from_cookie
@@ -250,24 +250,26 @@ async fn quiz_socket(ws: WsConn<LiveFrame>, session: Str?, lang: Str?) {
 // cierra la partida con el resumen y corta.
 @background
 async fn timer(ws: WsConn<LiveFrame>, cid: Str, sess_id: Int, profile_id: Int) -> Result<Null> {
+    // El conteo VISIBLE es client-side (public/sound.js baja el número leyendo
+    // data-q-total): así NO empujamos ningún frame por segundo. Cualquier frame que
+    // manda el server (incluso con diff_html) el cliente lo aplica cayendo a
+    // `root.outerHTML` (el path del patch no resuelve en el DOM del browser — parse
+    // del server ≠ parse del navegador — y cae al catch), lo que RECREA el componente
+    // entero cada segundo y re-dispara las animaciones (fb-pop, etc.) = parpadeo.
+    // Verificado con browser real: los nodos NO sobreviven el tick. La única forma
+    // sólida de que las opciones/feedback no se recreen es no mandar nada por segundo.
+    // El server sigue siendo autoritativo del fin: cuenta local y, al agotarse, marca
+    // `timeup` y empuja UN solo frame (el resumen).
+    let secs = duracion_default()
     loop {
         let _ = sleep(1000).await
-        // Diff FINO en vez de flv_frame (que manda patches vacíos → el cliente hace
-        // `root.outerHTML = html`, reemplazo TOTAL del componente cada segundo, y por
-        // eso parpadeaban las opciones). Con `diff_html(antes, después)` el tick emite
-        // UN solo patch de texto (el reloj); los botones ni se tocan → cero parpadeo.
-        // `antes` se lee fresco del estado actual (post cualquier respuesta), que es lo
-        // que el cliente tiene pintado → el patch aplica limpio; ante una carrera con
-        // el loop de respuestas, el cliente cae a outerHTML una vez (no cada segundo).
-        let antes = component("quiz", cid).raw
-        let _ = dispatch_to("quiz", cid, "tick", { })
-        let despues = component("quiz", cid).raw
-        let patches = diff_html(antes, despues)
-        ws.send(LiveFrame { html: despues, patches: patches })?
-        let st: quiz = component_state("quiz", cid)
-        if (st.phase == "done") {
+        secs = secs - 1
+        if (secs <= 0) {
+            let _ = dispatch_to("quiz", cid, "timeup", { })
+            let st: quiz = component_state("quiz", cid)
             let _ = guardar_record(profile_id, "contrarreloj", st.racha_max).await
             let _ = finalizar_sesion(sess_id, st.total, st.correct, st.score).await
+            ws.send(flv_frame("quiz", cid))?
             break
         }
     }
