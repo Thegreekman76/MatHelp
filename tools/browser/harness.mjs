@@ -194,12 +194,19 @@ async function testModal(browser) {
     ]);
     await sleep(300);
     const salio = await page.evaluate(() => location.pathname === "/");
+    // 6. En la home (NO partida) el botón "Salir" NO debe verse. Chequeamos el
+    //    display COMPUTADO, no la propiedad .hidden: el CSS .mh-salir-btn ganaba
+    //    sobre el atributo hidden y lo dejaba visible siempre (regresión real).
+    const btnOcultoHome = await page.evaluate(() => {
+      const b = document.getElementById("mh-salir-btn");
+      return !b || getComputedStyle(b).display === "none";
+    });
     const ok = btnVis && trasLogo.modalAbierto && trasLogo.enJugar &&
       trasSeguir.cerrado && trasSeguir.enJugar && trasBtn && salio &&
-      dialogs.length === 0 && errs.length === 0;
+      btnOcultoHome && dialogs.length === 0 && errs.length === 0;
     return {
       ok,
-      detail: `btnTopbar=${btnVis ? "visible" : "OCULTO"} logo->modal=${trasLogo.modalAbierto ? "abre" : "NO"}(sinNavegar=${trasLogo.enJugar}) seguir=${trasSeguir.cerrado ? "cierra" : "NO"} btn->modal=${trasBtn ? "abre" : "NO"} salir->home=${salio ? "si" : "NO"} confirmNativo=${dialogs.length} errores=${errs.length}`,
+      detail: `btnTopbar=${btnVis ? "visible" : "OCULTO"} logo->modal=${trasLogo.modalAbierto ? "abre" : "NO"}(sinNavegar=${trasLogo.enJugar}) seguir=${trasSeguir.cerrado ? "cierra" : "NO"} btn->modal=${trasBtn ? "abre" : "NO"} salir->home=${salio ? "si" : "NO"} btnOcultoHome=${btnOcultoHome ? "si" : "NO(REGRESION)"} confirmNativo=${dialogs.length} errores=${errs.length}`,
     };
   } catch (e) {
     return { ok: false, detail: "excepcion: " + String(e).split("\n")[0] };
