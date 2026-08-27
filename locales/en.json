@@ -320,5 +320,14 @@
   "reporte.mejoro": "Improved in",
   "reporte.reforzar": "To reinforce",
   "reporte.sin_mejora": "keep playing to see progress",
-  "reporte.todo_bien": "all caught up!"
+  "reporte.todo_bien": "all caught up!",
+  "acc.titulo": "Accessibility",
+  "acc.sub": "Adjust contrast and text size.",
+  "acc.contraste": "Contrast",
+  "acc.contraste.normal": "Normal",
+  "acc.contraste.alto": "High",
+  "acc.fuente": "Text size",
+  "acc.fuente.chico": "Small",
+  "acc.fuente.normal": "Normal",
+  "acc.fuente.grande": "Large"
 }

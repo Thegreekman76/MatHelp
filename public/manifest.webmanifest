@@ -15,5 +15,28 @@
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Jugar ya",
+      "short_name": "Jugar",
+      "description": "Contrarreloj de cálculo mental",
+      "url": "/jugar",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Elegir juego",
+      "short_name": "Juegos",
+      "description": "El menú con todos los juegos",
+      "url": "/juegos",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Sorpresa",
+      "short_name": "Sorpresa",
+      "description": "Un juego al azar",
+      "url": "/sorpresa",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
   ]
 }

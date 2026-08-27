@@ -320,5 +320,14 @@
   "reporte.mejoro": "Mejoró en",
   "reporte.reforzar": "A reforzar",
   "reporte.sin_mejora": "seguí jugando para ver el progreso",
-  "reporte.todo_bien": "¡todo al día!"
+  "reporte.todo_bien": "¡todo al día!",
+  "acc.titulo": "Accesibilidad",
+  "acc.sub": "Ajustá el contraste y el tamaño de la letra.",
+  "acc.contraste": "Contraste",
+  "acc.contraste.normal": "Normal",
+  "acc.contraste.alto": "Alto",
+  "acc.fuente": "Tamaño de letra",
+  "acc.fuente.chico": "Chico",
+  "acc.fuente.normal": "Normal",
+  "acc.fuente.grande": "Grande"
 }

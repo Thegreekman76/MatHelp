@@ -45,7 +45,7 @@ fn page(locale: Str, titulo: Str, body: Html, live_js: Html) -> Html {
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="/favicon.svg" />
 <link rel="manifest" href="/manifest.webmanifest" />
-<script>(function()\{try\{var m=document.cookie.match(/mathelp_theme=([^;]+)/);if(m)document.documentElement.setAttribute('data-theme',m[1]);\}catch(e)\{\}\})();</script>
+<script>(function()\{try\{var d=document.documentElement,c=document.cookie;function g(k)\{var m=c.match(new RegExp(k+'=([^;]+)'));return m?m[1]:null;\}var t=g('mathelp_theme');if(t)d.setAttribute('data-theme',t);var k=g('mathelp_contrast');if(k)d.setAttribute('data-contrast',k);var f=g('mathelp_font');if(f)d.setAttribute('data-font',f);\}catch(e)\{\}\})();</script>
 <style>{css}</style>
 </head>
 <body>

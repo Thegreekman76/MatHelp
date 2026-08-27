@@ -8,7 +8,7 @@
 //
 // Al cambiar los estáticos, subí la versión del cache (mathelp-vN) para que
 // el SW viejo se limpie en el activate.
-var CACHE = "mathelp-v2";
+var CACHE = "mathelp-v3";
 var ASSETS = ["/favicon.svg", "/sound.js", "/manifest.webmanifest"];
 
 self.addEventListener("install", function (e) {

@@ -39,6 +39,7 @@ import live_finanzas
 import live_trigonometria
 import live_funciones
 import tema
+import accesibilidad
 import avatares
 from avatares import avatar_emoji
 import menu
@@ -162,6 +163,7 @@ fn home_jugar(locale: Str, saludo: Html, resumen: Html, meta: Html, ultimo: Html
 <a class="mh-btn sec" href="/panel"><span aria-hidden="true">📊</span>{flv(t(locale, "nav.panel"))}</a>
 <a class="mh-btn sec" href="/avatar"><span aria-hidden="true">🙂</span>{flv(t(locale, "avatar.titulo"))}</a>
 <a class="mh-btn sec" href="/tema"><span aria-hidden="true">🎨</span>{flv(t(locale, "tema_color.titulo"))}</a>
+<a class="mh-btn sec" href="/accesibilidad"><span aria-hidden="true">🔎</span>{flv(t(locale, "acc.titulo"))}</a>
 <a class="mh-btn sec" href="/perfiles">{flv(t(locale, "perfiles.titulo"))}</a>
 <form method="POST" action="/logout">
 <button class="mh-btn sec" type="submit">{flv(t(locale, "nav.salir"))}</button>

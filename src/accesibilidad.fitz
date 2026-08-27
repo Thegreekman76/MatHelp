@@ -1,0 +1,146 @@
+// accesibilidad.fitz — alto contraste + tamaño de fuente por perfil (F9 pulido).
+//
+// Mismo patrón que tema.fitz: se guarda en el perfil (profiles.contrast/font_size)
+// y en cookies (mathelp_contrast / mathelp_font). El script inline del <head> de
+// layout.page() las lee y pone data-contrast / data-font en <html>; brand.fitz
+// aplica los estilos por `:root[data-contrast="alto"]` / `:root[data-font="..."]`.
+
+from fitz_liveviews import Html, html, flv, h_join
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session, pid_from_token
+from engine import a_int
+
+fn contrastes() -> List<Str> {
+    return ["normal", "alto"]
+}
+
+fn fuentes() -> List<Str> {
+    return ["chico", "normal", "grande"]
+}
+
+fn es_contraste(c: Str) -> Bool {
+    return c == "normal" or c == "alto"
+}
+
+fn es_fuente(f: Str) -> Bool {
+    return f == "chico" or f == "normal" or f == "grande"
+}
+
+fn opcion(grupo: Str, val: Str, activo: Str, etiqueta: Str) -> Html {
+    let sel = match val == activo {
+        true => " sel",
+        false => "",
+    }
+    let lbl = flv(etiqueta)
+    return html("""<a class="mh-accopt{sel}" href="/accesibilidad/{grupo}/{val}">{lbl}</a>""")
+}
+
+async fn guardar_contraste(pid: Int, val: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("UPDATE profiles SET contrast = $2 WHERE id = $1", [pid, val]).await
+}
+
+async fn guardar_fuente(pid: Int, val: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("UPDATE profiles SET font_size = $2 WHERE id = $1", [pid, val]).await
+}
+
+// Setea una cookie de preferencia (1 año) y vuelve a /accesibilidad.
+fn aplicar(nombre: Str, val: Str) -> Response {
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        cookies: [
+            Cookie {
+                name: nombre,
+                value: val,
+                path: "/",
+                same_site: "Lax",
+                max_age: 31536000,
+            },
+        ],
+        headers: { "Location": "/accesibilidad" },
+        body: "",
+    }
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@cookie(name="mathelp_contrast", into="contrast")
+@cookie(name="mathelp_font", into="font")
+@get("/accesibilidad")
+async fn accesibilidad_get(session: Str?, lang: Str?, contrast: Str?, font: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    let cont = match contrast {
+        null => "normal",
+        x => x,
+    }
+    let fnt = match font {
+        null => "normal",
+        x => x,
+    }
+    let op_cont = h_join([
+        opcion("contraste", "normal", cont, t(locale, "acc.contraste.normal")),
+        opcion("contraste", "alto", cont, t(locale, "acc.contraste.alto")),
+    ])
+    let op_fnt = h_join([
+        opcion("fuente", "chico", fnt, t(locale, "acc.fuente.chico")),
+        opcion("fuente", "normal", fnt, t(locale, "acc.fuente.normal")),
+        opcion("fuente", "grande", fnt, t(locale, "acc.fuente.grande")),
+    ])
+    let body = html("""<div class="mh-card">
+<h2>{flv(t(locale, "acc.titulo"))}</h2>
+<p style="text-align:center;color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "acc.sub"))}</p>
+<div class="mh-acc-grupo">
+<div class="mh-acc-lbl">{flv(t(locale, "acc.contraste"))}</div>
+<div class="mh-accopts">{op_cont}</div>
+</div>
+<div class="mh-acc-grupo">
+<div class="mh-acc-lbl">{flv(t(locale, "acc.fuente"))}</div>
+<div class="mh-accopts">{op_fnt}</div>
+</div>
+</div>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+    let titulo = t(locale, "acc.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@get("/accesibilidad/contraste/{val}")
+async fn contraste_set(session: Str?, val: Str) -> Response {
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_contraste(val)) {
+        return redirect_a("/accesibilidad")
+    }
+    let pid = a_int(pid_from_token(session))
+    if (pid > 0) {
+        let _ = guardar_contraste(pid, val).await
+    }
+    return aplicar("mathelp_contrast", val)
+}
+
+@cookie(name="mathelp_session", into="session")
+@get("/accesibilidad/fuente/{val}")
+async fn fuente_set(session: Str?, val: Str) -> Response {
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_fuente(val)) {
+        return redirect_a("/accesibilidad")
+    }
+    let pid = a_int(pid_from_token(session))
+    if (pid > 0) {
+        let _ = guardar_fuente(pid, val).await
+    }
+    return aplicar("mathelp_font", val)
+}

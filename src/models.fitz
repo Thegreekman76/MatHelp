@@ -50,6 +50,8 @@ type Profile {
     @hidden pin: Str = ""
     daily_goal: Int = 10          // ejercicios/día
     theme: Str = "default"        // tema de color del perfil (F9 pulido)
+    contrast: Str = "normal"      // accesibilidad: "normal" | "alto"
+    font_size: Str = "normal"     // accesibilidad: "chico" | "normal" | "grande"
     @db_default created_at: Str = ""
 }
 

@@ -87,9 +87,10 @@ fn redirect_con_sesion(destino: Str, token: Str) -> Response {
     }
 }
 
-// Igual que redirect_con_sesion pero además setea la cookie del tema del perfil
-// (F9 pulido): al elegir un perfil, su tema de color se aplica en todas las páginas.
-fn redirect_con_sesion_y_tema(destino: Str, token: Str, theme: Str) -> Response {
+// Igual que redirect_con_sesion pero además setea las cookies de PREFERENCIAS del
+// perfil (F9 pulido): al elegir un perfil, su tema de color + accesibilidad (alto
+// contraste, tamaño de fuente) se aplican en todas las páginas.
+fn redirect_con_sesion_prefs(destino: Str, token: Str, theme: Str, contrast: Str, font: Str) -> Response {
     return Response {
         status: 303,
         content_type: "text/html; charset=utf-8",
@@ -105,6 +106,20 @@ fn redirect_con_sesion_y_tema(destino: Str, token: Str, theme: Str) -> Response 
             Cookie {
                 name: "mathelp_theme",
                 value: theme,
+                path: "/",
+                same_site: "Lax",
+                max_age: 31536000,
+            },
+            Cookie {
+                name: "mathelp_contrast",
+                value: contrast,
+                path: "/",
+                same_site: "Lax",
+                max_age: 31536000,
+            },
+            Cookie {
+                name: "mathelp_font",
+                value: font,
                 path: "/",
                 same_site: "Lax",
                 max_age: 31536000,
