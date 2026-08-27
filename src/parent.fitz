@@ -414,12 +414,7 @@ async fn tablero_familiar(locale: Str, perfiles: List<Profile>) -> Html {
     }
     let filas: List<Html> = []
     for p in perfiles {
-        // Computá la fila ANTES del push: el codegen de `filas.push(<algo>.await)`
-        // lockea `filas` y evalúa el arg con el lock tomado → MutexGuard a través del
-        // await → future no-Send (rompe el @get). Con un local intermedio el await
-        // pasa sin el lock.
-        let fila = fila_familiar(locale, p).await
-        filas.push(fila)
+        filas.push(fila_familiar(locale, p).await)
     }
     return html("""<div class="mh-card">
 <h2>{flv(t(locale, "familia.tablero"))}</h2>
