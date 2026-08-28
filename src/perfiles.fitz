@@ -52,10 +52,10 @@ async fn crear_perfil(family_id: Int, nombre: Str, grado: Int, modalidad: Str, p
 // --- Render --------------------------------------------------------------
 
 fn label_grado(locale: Str, grade: Int) -> Str {
-    if (grade < 1 or grade > 7) {
+    if (grade < 1 or grade > 13) {
         return ""
     }
-    return t(locale, "grado.{grade}")
+    return t(locale, "grado.{grade}")   // 1-7 "Nº grado", 8-13 "Nº secundaria"
 }
 
 // Una tarjeta por perfil. Con PIN → link al form de PIN; sin PIN → form que

@@ -16,6 +16,7 @@ from fmt import fmt_int
 fn hist_enunciado(locale: Str, it: HistItem) -> Str {
     let a_str = "{it.a}"
     let b_str = "{it.b}"
+    let c_str = "{it.c}"
     let obj = t(locale, it.obj)
     if (it.kind == "suma") {
         return t4(locale, "hist.suma", it.nombre, a_str, b_str, obj)
@@ -28,6 +29,12 @@ fn hist_enunciado(locale: Str, it: HistItem) -> Str {
     }
     if (it.kind == "reparto") {
         return t4(locale, "hist.reparto", it.nombre, a_str, b_str, obj)
+    }
+    if (it.kind == "multi") {
+        return t4(locale, "hist.multi", a_str, b_str, c_str, obj)
+    }
+    if (it.kind == "porcentaje") {
+        return t3(locale, "hist.porcentaje", a_str, b_str, obj)
     }
     return t3(locale, "hist.mult", a_str, b_str, obj)
 }

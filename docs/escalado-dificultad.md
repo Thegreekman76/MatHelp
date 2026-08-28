@@ -136,5 +136,16 @@ bugs puntuales.
 - **`difficulty_for`**: se deja (satura en 5 por diseño de la escala Elo 1-5).
 
 **Estado**: el reclamo original (la secundaria recibía ejercicios de primaria) está
-**cubierto en los 20 juegos**. Único item verdaderamente opcional que queda: enriquecer
-Historia con multi-paso/% narrados (ya tiene mult grande + reparto, que alcanza).
+**cubierto en los 20 juegos**.
+
+### 2026-08-27 — Tanda 4 (Historia multi-paso + porcentaje)
+
+`gen_historia.fitz` gana niveles 8 (multi-paso: `a·b + c`, "cajas de X más sueltos") y
+9 (porcentaje narrado: `el b% de a`) + rebandeo de secundaria (g8-9 → mult grande +
+reparto, g10-11 → + multi-paso, g12-13 → + porcentaje). Campo `c` nuevo en `HistItem`
+(el multi-paso usa tres números). i18n `hist.multi`/`hist.porcentaje` + objetos adultos.
+**Bug encontrado y arreglado**: el loop de distractores usaba `for c in shuf`, pisando
+el campo `c` → el `c` devuelto era un distractor, no el del multi-paso. Renombrado a
+`cd`. 165 tests verdes + verificado en browser (reparto → multi-paso → porcentaje).
+
+Con esto Historia queda completa; no queda deuda de escalado abierta.

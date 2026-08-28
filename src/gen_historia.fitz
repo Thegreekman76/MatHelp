@@ -12,15 +12,16 @@
 from gen_arith import sub_seed, nivel_por_idx
 
 type HistItem {
-    kind: Str = "suma"         // "suma" | "resta" | "comparar" | "mult"
+    kind: Str = "suma"         // "suma"|"resta"|"comparar"|"mult"|"reparto"|"multi"|"porcentaje"
     nombre: Str = "Ana"        // personaje (nombre propio, igual en es/en)
     obj: Str = "hist.globos"   // clave i18n del objeto
     a: Int = 0
     b: Int = 0
+    c: Int = 0                 // tercer número (multi-paso, nivel 8)
     answer: Int = 0
     options: List<Int> = []    // 4 opciones, una correcta, barajadas
     skill_code: Str = "historia"
-    difficulty: Int = 1        // 1..5 (nivel)
+    difficulty: Int = 1        // 1..9 (nivel)
 }
 
 fn lista_tiene(xs: List<Int>, n: Int) -> Bool {
@@ -46,9 +47,9 @@ fn nivel_piso_hist(grade: Int) -> Int {
         return 3
     }
     if (grade <= 9) {
-        return 5               // 1º-2º sec: ni el primer problema es trivial
+        return 6               // 1º-2º sec: arranca en multiplicación grande
     }
-    return 6                    // 3º-6º sec: arranca en multiplicación grande
+    return 7                    // 3º-6º sec: arranca en reparto
 }
 
 fn nivel_techo_hist(grade: Int) -> Int {
@@ -65,9 +66,12 @@ fn nivel_techo_hist(grade: Int) -> Int {
         return 5               // 6º-7º primaria
     }
     if (grade <= 9) {
-        return 6               // 1º-2º sec: multiplicación grande
+        return 7               // 1º-2º sec: mult grande + reparto
     }
-    return 7                    // 3º-6º sec: multiplicación grande + reparto
+    if (grade <= 11) {
+        return 8               // 3º-4º sec: + multi-paso
+    }
+    return 9                    // 5º-6º sec: + porcentaje
 }
 
 fn gen_historia(seed: Int, idx: Int, grade: Int) -> HistItem {
@@ -89,6 +93,7 @@ fn gen_historia(seed: Int, idx: Int, grade: Int) -> HistItem {
     let kind = "suma"
     let a = 0
     let b = 0
+    let c = 0
     let answer = 0
 
     if (nivel == 1) {
@@ -142,7 +147,7 @@ fn gen_historia(seed: Int, idx: Int, grade: Int) -> HistItem {
         b = g.int(6, 12)
         answer = a * b
     }
-    if (nivel >= 7) {
+    if (nivel == 7) {
         // Reparto en partes iguales (división exacta).
         kind = "reparto"
         b = g.int(3, 12)
@@ -150,18 +155,34 @@ fn gen_historia(seed: Int, idx: Int, grade: Int) -> HistItem {
         a = b * q
         answer = q
     }
+    if (nivel == 8) {
+        // Multi-paso: cajas de X más sueltos (a·b + c).
+        kind = "multi"
+        a = g.int(4, 12)
+        b = g.int(3, 9)
+        c = g.int(2, 20)
+        answer = a * b + c
+    }
+    if (nivel >= 9) {
+        // Porcentaje narrado: el b% de a (a múltiplo de 20 → entero).
+        kind = "porcentaje"
+        a = g.int(1, 6) * 20
+        let ps = [10, 20, 25, 50]
+        b = ps[g.int(0, 3)]
+        answer = a * b / 100
+    }
 
     // Opciones: correcta + 3 distractores cercanos, distintos y ≥ 0.
     let cands = [answer - 2, answer - 1, answer + 1, answer + 2, answer + 3]
     let seen = [answer]
     let dist: List<Int> = []
     let shuf = g.shuffle(cands)
-    for c in shuf {
+    for cd in shuf {
         if (dist.len() < 3) {
-            if (c >= 0) {
-                if (not lista_tiene(seen, c)) {
-                    dist.push(c)
-                    seen.push(c)
+            if (cd >= 0) {
+                if (not lista_tiene(seen, cd)) {
+                    dist.push(cd)
+                    seen.push(cd)
                 }
             }
         }
@@ -178,6 +199,7 @@ fn gen_historia(seed: Int, idx: Int, grade: Int) -> HistItem {
         obj: obj,
         a: a,
         b: b,
+        c: c,
         answer: answer,
         options: options,
         skill_code: "historia",
