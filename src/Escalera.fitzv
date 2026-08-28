@@ -11,6 +11,7 @@
 from gen_arith import gen_escalera
 from engine import a_int
 from escalera_view import escalera_screen
+from quiz_view import explicar
 
 component escalera {
   state {
@@ -28,6 +29,7 @@ component escalera {
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // el producto correcto del ejercicio recién fallado
+    last_expl: Str = ""            // la cuenta del ejercicio recién fallado (a × b = producto)
     r_mul: Float = 800.0           // rating de multiplicación (escala las tablas)
   }
 
@@ -58,6 +60,7 @@ component escalera {
               feedback = "bad"
               racha = 0
               last_answer = ex.answer
+              last_expl = explicar(locale, ex)
             }
             idx = idx + 1
             if (step >= meta) {
@@ -71,7 +74,7 @@ component escalera {
 
   <template>
     <div id="escalera-app" class="mh-quiz">
-      {escalera_screen(seed, idx, grade, locale, step, meta, correct, total, phase, feedback, last_answer, r_mul, racha, racha_max, record_prev).raw}
+      {escalera_screen(seed, idx, grade, locale, step, meta, correct, total, phase, feedback, last_answer, last_expl, r_mul, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

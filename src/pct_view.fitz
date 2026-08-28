@@ -31,7 +31,7 @@ fn pct_enunciado(locale: Str, it: PctItem) -> Str {
     return t3(locale, "pct.sucesivos", n_str, p_str, p2_str)
 }
 
-fn pct_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+fn pct_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_expl: Str, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
         return pct_resumen(locale, correct, total, racha_max, record_prev)
     }
@@ -41,7 +41,7 @@ fn pct_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total:
         true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
         false => html("""<span class="cg-slot">?</span>""").raw,
     }
-    let banner = pct_feedback(locale, feedback, last_answer, total)
+    let banner = pct_feedback(locale, feedback, last_answer, last_expl, total)
     let hecho = flv(fmt_int(locale, total))
     let de_lbl = flv(t(locale, "juego.de"))
     let de_total = flv(fmt_int(locale, limit))
@@ -61,13 +61,47 @@ fn pct_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total:
 {teclado}""")
 }
 
-fn pct_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
+// Explicación del paso: cómo se calcula el porcentaje ("n × p ÷ 100"), que es la
+// lección del juego. Descuento/IVA/recargo agregan el 2º paso (restar/sumar el
+// porcentaje); en sucesivos se encadenan los dos con notación "%".
+fn explicar_pct(locale: Str, it: PctItem) -> Str {
+    let n = fmt_int(locale, it.n)
+    let p = fmt_int(locale, it.p)
+    let ans = fmt_int(locale, it.answer)
+    if (it.kind == "simple") {
+        return n + " × " + p + " ÷ 100 = " + ans
+    }
+    if (it.kind == "descuento") {
+        let d = fmt_int(locale, it.n * it.p / 100)
+        return n + " × " + p + " ÷ 100 = " + d + " → " + n + " − " + d + " = " + ans
+    }
+    if (it.kind == "iva") {
+        let iv = fmt_int(locale, it.n * 21 / 100)
+        return n + " × 21 ÷ 100 = " + iv + " → " + n + " + " + iv + " = " + ans
+    }
+    if (it.kind == "recargo") {
+        let r = fmt_int(locale, it.n * it.p / 100)
+        return n + " × " + p + " ÷ 100 = " + r + " → " + n + " + " + r + " = " + ans
+    }
+    if (it.kind == "sucesivos") {
+        let n1 = fmt_int(locale, it.n - it.n * it.p / 100)
+        let p2 = fmt_int(locale, it.p2)
+        return n + " − " + p + "% = " + n1 + " → " + n1 + " − " + p2 + "% = " + ans
+    }
+    return ""
+}
+
+fn pct_feedback(locale: Str, feedback: Str, last_answer: Int, last_expl: Str, seq: Int) -> Str {
     if (feedback == "ok") {
         return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
     }
     if (feedback == "bad") {
         let resp = fmt_int(locale, last_answer)
-        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
+        let expl = match last_expl == "" {
+            true => "",
+            false => html("""<div class="q-expl">{flv(last_expl)}</div>""").raw,
+        }
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}{expl}</div>""").raw
     }
     return ""
 }

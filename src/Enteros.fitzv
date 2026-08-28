@@ -11,7 +11,7 @@
 from gen_enteros import gen_enteros
 from keypad import kp_append, kp_borrar, kp_signo
 from engine import a_int
-from enteros_view import enteros_screen
+from enteros_view import enteros_screen, explicar_enteros
 
 component enteros {
   state {
@@ -27,6 +27,7 @@ component enteros {
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // la respuesta correcta del item recién fallado
+    last_expl: Str = ""            // la cuenta con signos del item recién fallado
     entrada: Int = 0               // lo tipeado (puede ser negativo)
     touched: Bool = false          // ¿tipeó algo? (distingue vacío de 0 tipeado)
     limit: Int = 10                // items por ronda
@@ -78,6 +79,7 @@ component enteros {
                 feedback = "bad"
                 racha = 0
                 last_answer = it.answer
+                last_expl = explicar_enteros(locale, it)
               }
               entrada = 0
               touched = false
@@ -94,7 +96,7 @@ component enteros {
 
   <template>
     <div id="enteros-app" class="mh-quiz">
-      {enteros_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, racha, racha_max, record_prev).raw}
+      {enteros_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, last_expl, entrada, touched, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

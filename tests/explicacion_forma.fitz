@@ -1,0 +1,54 @@
+// tests/explicacion_forma.fitz — la fórmula que resuelve cada figura (feedback al
+// errar en Geometría y Volumen).
+
+from geo_view import explicar_geo
+from gen_geo import GeoItem
+from vol_view import explicar_vol
+from gen_vol import VolItem
+
+// --- Geometría ---
+@test fn expl_geo_cuadrado() {
+    let g = GeoItem { shape: "cuadrado", metric: "perimetro", a: 5, answer: 20 }
+    assert_eq(explicar_geo("es-AR", g), "4 × 5 = 20")
+}
+
+@test fn expl_geo_rect_perimetro() {
+    let g = GeoItem { shape: "rect", metric: "perimetro", a: 6, b: 4, answer: 20 }
+    assert_eq(explicar_geo("es-AR", g), "2 × (6 + 4) = 20")
+}
+
+@test fn expl_geo_rect_area() {
+    let g = GeoItem { shape: "rect", metric: "area", a: 6, b: 4, answer: 24 }
+    assert_eq(explicar_geo("es-AR", g), "6 × 4 = 24")
+}
+
+@test fn expl_geo_triangulo() {
+    let g = GeoItem { shape: "triangulo", metric: "area", a: 8, b: 5, answer: 20 }
+    assert_eq(explicar_geo("es-AR", g), "8 × 5 ÷ 2 = 20")
+}
+
+@test fn expl_geo_ele() {
+    let g = GeoItem { shape: "ele", metric: "area", a: 10, b: 8, c: 3, answer: 71 }
+    assert_eq(explicar_geo("es-AR", g), "10 × 8 − 3 × 3 = 71")
+}
+
+// --- Volumen ---
+@test fn expl_vol_cubo() {
+    let v = VolItem { kind: "cubo", a: 3, answer: 27 }
+    assert_eq(explicar_vol("es-AR", v), "3 × 3 × 3 = 27")
+}
+
+@test fn expl_vol_prisma() {
+    let v = VolItem { kind: "prisma", a: 2, b: 3, c: 4, answer: 24 }
+    assert_eq(explicar_vol("es-AR", v), "2 × 3 × 4 = 24")
+}
+
+@test fn expl_vol_cilindro() {
+    let v = VolItem { kind: "cilindro", a: 2, b: 5, answer: 60 }
+    assert_eq(explicar_vol("es-AR", v), "3 × 2 × 2 × 5 = 60")
+}
+
+@test fn expl_vol_compuesto() {
+    let v = VolItem { kind: "compuesto", a: 4, b: 3, c: 2, d: 2, answer: 32 }
+    assert_eq(explicar_vol("es-AR", v), "4 × 3 × 2 + 2 × 2 × 2 = 32")
+}

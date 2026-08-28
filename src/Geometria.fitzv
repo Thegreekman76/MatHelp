@@ -11,7 +11,7 @@
 from gen_geo import gen_geo
 from keypad import kp_append, kp_borrar
 from engine import a_int
-from geo_view import geo_screen
+from geo_view import geo_screen, explicar_geo
 
 component geometria {
   state {
@@ -27,6 +27,7 @@ component geometria {
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // la respuesta correcta del item recién fallado
+    last_expl: Str = ""            // la fórmula con los números del item recién fallado
     entrada: Int = 0               // lo tipeado en el teclado
     touched: Bool = false          // ¿tipeó algo?
     limit: Int = 10                // items por ronda
@@ -70,6 +71,7 @@ component geometria {
                 feedback = "bad"
                 racha = 0
                 last_answer = it.answer
+                last_expl = explicar_geo(locale, it)
               }
               entrada = 0
               touched = false
@@ -86,7 +88,7 @@ component geometria {
 
   <template>
     <div id="geometria-app" class="mh-quiz">
-      {geo_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, racha, racha_max, record_prev).raw}
+      {geo_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, last_expl, entrada, touched, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

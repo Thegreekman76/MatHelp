@@ -11,7 +11,7 @@
 
 from fitz_liveviews import Html, html, flv
 from game_ui import resumen_estrellas, correcto_msg, progreso_bar, racha_badge, incorrecto_msg, mejor_racha_html
-from gen_enteros import gen_enteros
+from gen_enteros import gen_enteros, EnteroItem
 from i18n import t, t1
 from fmt import fmt_int, fmt_operando
 from keypad_view import keypad_html
@@ -51,7 +51,7 @@ fn recta_svg(rango: Int) -> Str {
 </svg>""").raw
 }
 
-fn enteros_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+fn enteros_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_expl: Str, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
         return enteros_resumen(locale, correct, total, racha_max, record_prev)
     }
@@ -64,7 +64,7 @@ fn enteros_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, to
         true => html("""<span class="cg-slot filled">{flv(fmt_operando(locale, entrada))}</span>""").raw,
         false => html("""<span class="cg-slot">?</span>""").raw,
     }
-    let banner = enteros_feedback(locale, feedback, last_answer, total)
+    let banner = enteros_feedback(locale, feedback, last_answer, last_expl, total)
     let hecho = flv(fmt_int(locale, total))
     let de_lbl = flv(t(locale, "juego.de"))
     let de_total = flv(fmt_int(locale, limit))
@@ -84,13 +84,27 @@ fn enteros_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, to
 {teclado}""")
 }
 
-fn enteros_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
+// Explicación del paso al errar una operación con enteros: la cuenta con los
+// signos ("(−5) + 3 = −2"). `op` ya es el símbolo; `fmt_operando` pone los
+// negativos entre paréntesis (igual que el enunciado).
+fn explicar_enteros(locale: Str, it: EnteroItem) -> Str {
+    let a = fmt_operando(locale, it.a)
+    let b = fmt_operando(locale, it.b)
+    let ans = fmt_int(locale, it.answer)
+    return a + " " + it.op + " " + b + " = " + ans
+}
+
+fn enteros_feedback(locale: Str, feedback: Str, last_answer: Int, last_expl: Str, seq: Int) -> Str {
     if (feedback == "ok") {
         return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
     }
     if (feedback == "bad") {
         let resp = fmt_int(locale, last_answer)
-        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
+        let expl = match last_expl == "" {
+            true => "",
+            false => html("""<div class="q-expl">{flv(last_expl)}</div>""").raw,
+        }
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}{expl}</div>""").raw
     }
     return ""
 }

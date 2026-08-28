@@ -190,6 +190,47 @@ fn expl_kiosco(locale: Str, k: KioscoItem) -> Str {
         // {b}/{c} de {a}: dividir por el denominador y multiplicar por el numerador.
         return a + " ÷ " + c + " × " + b + " = " + ans
     }
+    // --- multi-paso (secundaria): dos cuentas encadenadas con " → " ------------
+    if (k.kind == "combo" or k.kind == "evento") {
+        // n·precioA + precioB  /  personas·$ + fijo
+        return a + " × " + b + " + " + c + " = " + ans
+    }
+    if (k.kind == "trabajo") {
+        return a + " × " + b + " × " + c + " = " + ans
+    }
+    if (k.kind == "interes") {
+        return a + " × " + b + " × " + c + " ÷ 100 = " + ans
+    }
+    if (k.kind == "ecuacion") {
+        // x·a + b = c  →  x = (c − b) ÷ a
+        return "(" + c + " − " + b + ") ÷ " + a + " = " + ans
+    }
+    if (k.kind == "descuento") {
+        let desc = fmt_int(locale, k.a * k.b / 100)
+        return a + " × " + b + " ÷ 100 = " + desc + " → " + a + " − " + desc + " = " + ans
+    }
+    if (k.kind == "iva") {
+        let iva = fmt_int(locale, k.a * 21 / 100)
+        return a + " × 21 ÷ 100 = " + iva + " → " + a + " + " + iva + " = " + ans
+    }
+    if (k.kind == "oferta") {
+        let sub = fmt_int(locale, k.a * k.b)
+        return a + " × " + b + " = " + sub + " → " + c + " − " + sub + " = " + ans
+    }
+    if (k.kind == "regla3") {
+        let unit = fmt_int(locale, k.b / k.a)
+        return b + " ÷ " + a + " = " + unit + " → " + unit + " × " + c + " = " + ans
+    }
+    if (k.kind == "rendimiento") {
+        let veces = fmt_int(locale, k.c / k.b)
+        return c + " ÷ " + b + " = " + veces + " → " + a + " × " + veces + " = " + ans
+    }
+    if (k.kind == "desc_compuesto") {
+        let p1 = fmt_int(locale, 100 - k.b)
+        let p2 = fmt_int(locale, 100 - k.c)
+        let t1 = fmt_int(locale, k.a * (100 - k.b) / 100)
+        return a + " × " + p1 + " ÷ 100 = " + t1 + " → " + t1 + " × " + p2 + " ÷ 100 = " + ans
+    }
     return ""
 }
 

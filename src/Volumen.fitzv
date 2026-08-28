@@ -10,7 +10,7 @@
 from gen_vol import gen_vol
 from keypad import kp_append, kp_borrar
 from engine import a_int
-from vol_view import vol_screen
+from vol_view import vol_screen, explicar_vol
 
 component volumen {
   state {
@@ -26,6 +26,7 @@ component volumen {
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // la respuesta correcta del item recién fallado
+    last_expl: Str = ""            // la fórmula del volumen del item recién fallado
     entrada: Int = 0               // lo tipeado
     touched: Bool = false          // ¿tipeó algo?
     limit: Int = 10                // items por ronda
@@ -69,6 +70,7 @@ component volumen {
                 feedback = "bad"
                 racha = 0
                 last_answer = it.answer
+                last_expl = explicar_vol(locale, it)
               }
               entrada = 0
               touched = false
@@ -85,7 +87,7 @@ component volumen {
 
   <template>
     <div id="volumen-app" class="mh-quiz">
-      {vol_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, racha, racha_max, record_prev).raw}
+      {vol_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, last_expl, entrada, touched, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

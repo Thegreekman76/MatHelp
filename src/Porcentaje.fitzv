@@ -11,7 +11,7 @@
 from gen_pct import gen_pct
 from keypad import kp_append, kp_borrar
 from engine import a_int
-from pct_view import pct_screen
+from pct_view import pct_screen, explicar_pct
 
 component porcentaje {
   state {
@@ -27,6 +27,7 @@ component porcentaje {
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // la respuesta correcta del item recién fallado
+    last_expl: Str = ""            // cómo se calcula el porcentaje del item recién fallado
     entrada: Int = 0               // lo tipeado
     touched: Bool = false          // ¿tipeó algo?
     limit: Int = 10                // items por ronda
@@ -70,6 +71,7 @@ component porcentaje {
                 feedback = "bad"
                 racha = 0
                 last_answer = it.answer
+                last_expl = explicar_pct(locale, it)
               }
               entrada = 0
               touched = false
@@ -86,7 +88,7 @@ component porcentaje {
 
   <template>
     <div id="porcentaje-app" class="mh-quiz">
-      {pct_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, entrada, touched, racha, racha_max, record_prev).raw}
+      {pct_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, last_expl, entrada, touched, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

@@ -82,6 +82,28 @@ Cada feature nueva destapa/endurece bugs del core de Fitz. Se anota en
     desc_compuesto/evento) devuelven `""` por ahora → "era X" simple.
   - Sin claves i18n nuevas (ecuaciones puras). `tests/explicacion_kiosco.fitz` (7) +
     2 en `tests/fracciones.fitz`. E2E browser real: ambos renderizan, 0 errores.
-  - **Falta (Tanda 3)**: los multi-paso de Kiosco (descuento/iva/interés/…) con
-    derivación de 2 pasos, Historia, Porcentaje (juego propio), Geometría/Volumen
-    (fórmula), Enteros, Estimar, Series, Escalera.
+### 🎓 Feedback al errar con explicación — Tanda 3 (el resto de los juegos)
+
+- **2026-08-28** — Cierra 6 juegos más con el mismo patrón (`last_expl` en estado
+  + función `explicar_*` pura + render `.q-expl`):
+  - **Escalera** (`Escalera.fitzv` + `escalera_view`): reusa `explicar` de gen_arith
+    (multiplicación, `2 × 2 = 4`).
+  - **Enteros** (`enteros_view` + `Enteros.fitzv`): `explicar_enteros` con signos
+    (`(-3) + 8 = 5`).
+  - **Kiosco multi-paso** (`kiosco_view`): completa los 11 tipos secundarios que
+    faltaban — descuento/iva/interés/oferta/combo/regla3/rendimiento/ecuación/
+    trabajo/desc_compuesto/evento, con derivación de 2 cuentas encadenadas con
+    " → " (`3.200 × 10 ÷ 100 = 320 → 3.200 − 320 = 2.880`).
+  - **Geometría** (`geo_view` + `Geometria.fitzv`): la FÓRMULA por figura
+    (`4 × 14 = 56` cuadrado, `2 × (a+b)` rect perím., `a × b ÷ 2` triángulo, etc.).
+  - **Volumen** (`vol_view` + `Volumen.fitzv`): la fórmula del cuerpo (cubo lado³,
+    prisma a×b×c, cilindro π≈3, compuesto).
+  - **Porcentaje** (`pct_view` + `Porcentaje.fitzv`): `explicar_pct` — `n × p ÷ 100`
+    (la lección), con 2º paso para descuento/iva/recargo y sucesivos con notación %.
+  - Sin claves i18n nuevas. Tests: `explicacion_forma.fitz` (9 geo+vol) +
+    `explicacion_pct.fitz` (5) + los 6 multi-paso en `explicacion_kiosco.fitz`.
+    Suite completa 767/767. E2E browser real (5 juegos, 0 errores).
+  - **Excluidos por diseño**: **Historia** es intencionalmente gentil para
+    pre-lectores ("¡Probá otra!" sin revelar la respuesta) — mostrar la ecuación
+    rompería ese diseño. **Estimar** (redondeo) y **Series** (patrón) no tienen una
+    "cuenta" única que mostrar (la respuesta es un rango / una regla a inferir).

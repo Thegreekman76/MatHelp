@@ -10,7 +10,7 @@
 
 from fitz_liveviews import Html, html, flv
 from game_ui import resumen_estrellas, correcto_msg, progreso_bar, racha_badge, incorrecto_msg, mejor_racha_html
-from gen_vol import gen_vol
+from gen_vol import gen_vol, VolItem
 from i18n import t, t1
 from fmt import fmt_int
 from keypad_view import keypad_html
@@ -109,7 +109,7 @@ fn cuerpo_svg(kind: Str, a: Int, b: Int, c: Int, d: Int) -> Str {
 </svg>""").raw
 }
 
-fn vol_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+fn vol_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_expl: Str, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
         return vol_resumen(locale, correct, total, racha_max, record_prev)
     }
@@ -119,7 +119,7 @@ fn vol_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total:
         true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
         false => html("""<span class="cg-slot">?</span>""").raw,
     }
-    let banner = vol_feedback(locale, feedback, last_answer, total)
+    let banner = vol_feedback(locale, feedback, last_answer, last_expl, total)
     let hecho = flv(fmt_int(locale, total))
     let de_lbl = flv(t(locale, "juego.de"))
     let de_total = flv(fmt_int(locale, limit))
@@ -144,13 +144,40 @@ fn vol_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total:
 {teclado}""")
 }
 
-fn vol_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
+// Explicación del paso: la FÓRMULA del volumen con los números. Cubo (lado³),
+// prisma (a × b × c), cilindro (π≈3 → 3 × r × r × h), compuesto (prisma + cubo).
+fn explicar_vol(locale: Str, v: VolItem) -> Str {
+    let a = fmt_int(locale, v.a)
+    let b = fmt_int(locale, v.b)
+    let c = fmt_int(locale, v.c)
+    let d = fmt_int(locale, v.d)
+    let ans = fmt_int(locale, v.answer)
+    if (v.kind == "cubo") {
+        return a + " × " + a + " × " + a + " = " + ans
+    }
+    if (v.kind == "prisma") {
+        return a + " × " + b + " × " + c + " = " + ans
+    }
+    if (v.kind == "cilindro") {
+        return "3 × " + a + " × " + a + " × " + b + " = " + ans
+    }
+    if (v.kind == "compuesto") {
+        return a + " × " + b + " × " + c + " + " + d + " × " + d + " × " + d + " = " + ans
+    }
+    return ""
+}
+
+fn vol_feedback(locale: Str, feedback: Str, last_answer: Int, last_expl: Str, seq: Int) -> Str {
     if (feedback == "ok") {
         return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
     }
     if (feedback == "bad") {
         let resp = fmt_int(locale, last_answer)
-        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
+        let expl = match last_expl == "" {
+            true => "",
+            false => html("""<div class="q-expl">{flv(last_expl)}</div>""").raw,
+        }
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}{expl}</div>""").raw
     }
     return ""
 }

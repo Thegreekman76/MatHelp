@@ -36,8 +36,34 @@ from gen_kiosco import KioscoItem
     assert_eq(expl_kiosco("es-AR", k), "(100 + 150 + 200) ÷ 3 = 150")
 }
 
-@test fn expl_kiosco_multipaso_vacio() {
-    // Los multi-paso (descuento, iva, …) todavía no tienen cuenta desarrollada.
-    let k = KioscoItem { kind: "descuento", a: 1000, b: 20, answer: 800 }
-    assert_eq(expl_kiosco("es-AR", k), "")
+// Multi-paso: dos cuentas encadenadas con " → " (números < 1000 en los tests
+// para no arrastrar el separador de miles del locale).
+@test fn expl_kiosco_descuento() {
+    let k = KioscoItem { kind: "descuento", a: 500, b: 20, answer: 400 }
+    assert_eq(expl_kiosco("es-AR", k), "500 × 20 ÷ 100 = 100 → 500 − 100 = 400")
+}
+
+@test fn expl_kiosco_combo() {
+    let k = KioscoItem { kind: "combo", a: 3, b: 100, c: 50, answer: 350 }
+    assert_eq(expl_kiosco("es-AR", k), "3 × 100 + 50 = 350")
+}
+
+@test fn expl_kiosco_interes() {
+    let k = KioscoItem { kind: "interes", a: 500, b: 10, c: 2, answer: 100 }
+    assert_eq(expl_kiosco("es-AR", k), "500 × 10 × 2 ÷ 100 = 100")
+}
+
+@test fn expl_kiosco_ecuacion() {
+    let k = KioscoItem { kind: "ecuacion", a: 3, b: 5, c: 20, answer: 5 }
+    assert_eq(expl_kiosco("es-AR", k), "(20 − 5) ÷ 3 = 5")
+}
+
+@test fn expl_kiosco_regla3() {
+    let k = KioscoItem { kind: "regla3", a: 2, b: 100, c: 6, answer: 300 }
+    assert_eq(expl_kiosco("es-AR", k), "100 ÷ 2 = 50 → 50 × 6 = 300")
+}
+
+@test fn expl_kiosco_iva() {
+    let k = KioscoItem { kind: "iva", a: 500, answer: 605 }
+    assert_eq(expl_kiosco("es-AR", k), "500 × 21 ÷ 100 = 105 → 500 + 105 = 605")
 }

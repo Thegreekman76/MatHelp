@@ -11,7 +11,7 @@
 
 from fitz_liveviews import Html, html, flv
 from game_ui import resumen_estrellas, correcto_msg, progreso_bar, racha_badge, incorrecto_msg, mejor_racha_html
-from gen_geo import gen_geo
+from gen_geo import gen_geo, GeoItem
 from i18n import t, t1
 from fmt import fmt_int
 from keypad_view import keypad_html
@@ -87,7 +87,7 @@ fn geo_svg(shape: Str, a: Int, b: Int, c: Int) -> Str {
 </svg>""").raw
 }
 
-fn geo_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+fn geo_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_expl: Str, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
         return geo_resumen(locale, correct, total, racha_max, record_prev)
     }
@@ -97,7 +97,7 @@ fn geo_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total:
         true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
         false => html("""<span class="cg-slot">?</span>""").raw,
     }
-    let banner = geo_feedback(locale, feedback, last_answer, total)
+    let banner = geo_feedback(locale, feedback, last_answer, last_expl, total)
     let hecho = flv(fmt_int(locale, total))
     let de_lbl = flv(t(locale, "juego.de"))
     let de_total = flv(fmt_int(locale, limit))
@@ -127,13 +127,43 @@ fn geo_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total:
 {teclado}""")
 }
 
-fn geo_feedback(locale: Str, feedback: Str, last_answer: Int, seq: Int) -> Str {
+// Explicación del paso: la FÓRMULA con los números de la figura. Cuadrado
+// perímetro (4 × lado), rectángulo perímetro (2 × (a+b)) / área (a × b),
+// triángulo área (base × altura ÷ 2), figura en L (a × b − c × c).
+fn explicar_geo(locale: Str, g: GeoItem) -> Str {
+    let a = fmt_int(locale, g.a)
+    let b = fmt_int(locale, g.b)
+    let c = fmt_int(locale, g.c)
+    let ans = fmt_int(locale, g.answer)
+    if (g.shape == "cuadrado") {
+        return "4 × " + a + " = " + ans
+    }
+    if (g.shape == "rect" and g.metric == "perimetro") {
+        return "2 × (" + a + " + " + b + ") = " + ans
+    }
+    if (g.shape == "rect") {
+        return a + " × " + b + " = " + ans
+    }
+    if (g.shape == "triangulo") {
+        return a + " × " + b + " ÷ 2 = " + ans
+    }
+    if (g.shape == "ele") {
+        return a + " × " + b + " − " + c + " × " + c + " = " + ans
+    }
+    return ""
+}
+
+fn geo_feedback(locale: Str, feedback: Str, last_answer: Int, last_expl: Str, seq: Int) -> Str {
     if (feedback == "ok") {
         return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
     }
     if (feedback == "bad") {
         let resp = fmt_int(locale, last_answer)
-        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
+        let expl = match last_expl == "" {
+            true => "",
+            false => html("""<div class="q-expl">{flv(last_expl)}</div>""").raw,
+        }
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}{expl}</div>""").raw
     }
     return ""
 }

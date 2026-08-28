@@ -15,7 +15,7 @@ from i18n import t, t1
 from fmt import fmt_int, fmt_operando
 
 
-fn escalera_screen(seed: Int, idx: Int, grade: Int, locale: Str, step: Int, meta: Int, correct: Int, total: Int, phase: Str, feedback: Str, last_answer: Int, r_mul: Float, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+fn escalera_screen(seed: Int, idx: Int, grade: Int, locale: Str, step: Int, meta: Int, correct: Int, total: Int, phase: Str, feedback: Str, last_answer: Int, last_expl: Str, r_mul: Float, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
         return escalera_resumen(locale, meta, correct, total, racha_max, record_prev)
     }
@@ -24,7 +24,7 @@ fn escalera_screen(seed: Int, idx: Int, grade: Int, locale: Str, step: Int, meta
     let b = flv(fmt_operando(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
     let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
-    let banner = feedback_banner(locale, feedback, last_answer, "", idx)
+    let banner = feedback_banner(locale, feedback, last_answer, last_expl, idx)
     let ladder = escalera_ladder(locale, step, meta, racha)
     return html("""{ladder}
 <div class="q-prompt">{a} {sym} {b} = ?</div>
