@@ -7,7 +7,7 @@
 // Corré con:  fitz test
 
 from engine import es_secundaria, anio_secundaria, es_ciclo_orientado, modalidad_valida
-from gen_arith import gen, grade_teclado, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta, gen_finanzas, gen_trig, gen_func, nivel_por_idx, grado_efectivo, nivel_piso_ecuacion, nivel_techo_ecuacion
+from gen_arith import gen, gen_potencia, ipow, gen_ecuacion, ecuacion_correcta, gen_finanzas, gen_trig, gen_func, nivel_por_idx, grado_efectivo, nivel_piso_ecuacion, nivel_techo_ecuacion
 from fmt import fmt_operando
 
 // --- es_secundaria (grade >= 8) ---------------------------------------------
@@ -115,14 +115,6 @@ from fmt import fmt_operando
     }
 }
 
-// --- grade_teclado (clamp a primaria para juegos de teclado) -----------------
-
-@test fn grade_teclado_clampea_secundaria_a_primaria() {
-    assert_eq(grade_teclado(8), 7)
-    assert_eq(grade_teclado(13), 7)
-    assert_eq(grade_teclado(4), 4)   // primaria pasa igual
-    assert_eq(grade_teclado(7), 7)
-}
 
 // --- fmt_operando (paréntesis en negativos, byte-idéntico en >= 0) -----------
 

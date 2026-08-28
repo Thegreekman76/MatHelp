@@ -184,14 +184,6 @@ fn nivel_por_idx(piso: Int, techo: Int, idx: Int) -> Int {
     return iclamp(piso + idx / 3, piso, techo)
 }
 
-// Grado para juegos de TECLADO ("Completá el hueco"): la respuesta se tipea con
-// dígitos, así que no puede ser negativa. Un perfil de secundaria juega estos
-// juegos en versión positiva (clamp a primaria, ≤7) — los enteros con signo
-// llegan por los juegos de opción múltiple. El teclado con ± queda para F7.1.b.
-fn grade_teclado(grade: Int) -> Int {
-    return imin(grade, 7)
-}
-
 // Potencia entera base^exp (exp >= 0), pura. Con base negativa el signo sigue la
 // paridad del exponente: (-3)^2 = 9, (-2)^3 = -8 (la regla del signo, F7.1.b).
 fn ipow(base: Int, exp: Int) -> Int {
@@ -421,7 +413,10 @@ fn nivel_piso_potencia(grade: Int) -> Int {
     if (grade <= 9) {
         return 1
     }
-    return 2
+    if (grade <= 11) {
+        return 2
+    }
+    return 3                   // 5º-6º sec: arranca en raíces (no en cuadrados)
 }
 
 fn nivel_techo_potencia(grade: Int) -> Int {
@@ -781,7 +776,10 @@ fn nivel_piso_trig(grade: Int) -> Int {
     if (grade <= 11) {
         return 1
     }
-    return 2
+    if (grade <= 12) {
+        return 2
+    }
+    return 3                   // 6º sec: arranca en Pitágoras hallar cateto
 }
 
 fn nivel_techo_trig(grade: Int) -> Int {

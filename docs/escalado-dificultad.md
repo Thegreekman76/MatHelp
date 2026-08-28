@@ -55,20 +55,26 @@ de secundaria).
 - [x] **Enteros** — `gen_enteros.fitz`: rebandeo del piso (12-13 arranca en multiplicación de signos). Recta ±15 fija impide escalar magnitud sin romper la vista.
 - [ ] **Hora** — `gen_hora.fitz`: 7-13 iguales (defendible: "cualquier minuto" es la skill final). Baja prioridad, quizá dejar como está.
 
-### 🟡 Con reservas (progresan pero mesetean en los últimos años) — DIFERIDO
+### 🟡 Con reservas (concept-driven; tweaks de piso aplicados) — CERRADO
 
-Los tres especiales YA progresan por grado (solo mesetean el último año o dos). Son
-los menos graves. Diferidos: el fix real es escalar magnitud dentro de sus niveles
-(gen_potencia/ecuacion/trig), un follow-up de menor impacto que los rojos/flojos.
+Los tres especiales son concept-driven (los niveles ya escalan concepto: cuadrado→
+raíz→notación científica, lineal→cuadrática→sistema, etc.). Escalar magnitud los haría
+absurdos (12⁵ como opción múltiple). Se aplicó un tweak de piso para diferenciar el
+último año:
 
-- [~] **Potencias** — meseta 11-13 (progresa 8→11). Aceptable por ahora.
-- [~] **Ecuaciones** — meseta 12-13 (piso sube a 3). Aceptable.
-- [~] **Trigonometría** — meseta 12-13. Aceptable.
+- [x] **Potencias** — 12-13 arrancan en raíces (piso 3), no en cuadrados.
+- [~] **Ecuaciones** — ya tenía piso 3 para 12-13; se deja (aceptable).
+- [x] **Trigonometría** — 13 arranca en "Pitágoras hallar cateto" (piso 3).
 
-### 🐛 Bugs / puntuales — DIFERIDO
+### 🐛 Bugs / puntuales — RESUELTO
 
-- [ ] **`grade_teclado` código muerto** — Completá hace tipear negativos a secundaria. Decidir: aplicar (versión positiva) o quitar el muerto + arreglar el teclado de negativos. _(No es de dificultad; es UX del teclado.)_
-- [ ] **`difficulty_for` satura en 5** para grados altos → el Elo/puntaje no distingue. _(Es de scoring, no del ejercicio; menor prioridad.)_
+- [x] **`grade_teclado` código muerto** — NO era un bug de correctitud: el teclado de
+  Completá SÍ tiene la tecla ± (`con_signo`/`kp_signo`) y la secundaria puede tipear
+  negativos. La función era dead code (el ± la reemplazó). **Removida** (función + test
+  + import).
+- [x] **`difficulty_for` satura en 5** — es **por diseño**: la escala Elo es 1-5, no se
+  puede "distinguir" más allá del máximo. No hay fix; no toca el ejercicio, solo el peso
+  del scoring. Se deja.
 
 ### ⚪ Sin cambios (defendible)
 
@@ -119,3 +125,16 @@ tests verdes + verificado en browser a grado 13.
 
 **Diferido restante**: multi-paso/% narrados en Historia, magnitud en los especiales,
 bugs puntuales.
+
+### 2026-08-27 — Tanda 3 (cierre)
+
+- **Especiales**: tweaks de piso (potencias 12-13 arrancan en raíces, trig 13 en
+  Pitágoras hallar cateto) para diferenciar el último año. Ecuaciones ya estaba bien.
+  El fix de magnitud NO aplica (concept-driven; los niveles ya escalan concepto).
+- **`grade_teclado`**: removido (dead code — el teclado de Completá tiene ± para
+  secundaria, no era un bug de correctitud).
+- **`difficulty_for`**: se deja (satura en 5 por diseño de la escala Elo 1-5).
+
+**Estado**: el reclamo original (la secundaria recibía ejercicios de primaria) está
+**cubierto en los 20 juegos**. Único item verdaderamente opcional que queda: enriquecer
+Historia con multi-paso/% narrados (ya tiene mult grande + reparto, que alcanza).
