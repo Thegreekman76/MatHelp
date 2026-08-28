@@ -35,7 +35,7 @@ fn contiene_str(xs: List<Str>, t: Str) -> Bool {
 // La respuesta SIEMPRE es un entero positivo (el teclado la exige > 0). Cubre
 // varios grados y muchos idx.
 @test fn respuesta_siempre_positiva() {
-    for grade in [4, 5, 6, 7] {
+    for grade in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] {
         let idx = 0
         while (idx < 60) {
             let k = gen_kiosco(2727, idx, grade)
@@ -123,6 +123,108 @@ fn contiene_str(xs: List<Str>, t: Str) -> Bool {
             idx = idx + 1
         }
     }
+}
+
+// Cada tipo NUEVO de secundaria (N6-N9) cumple su fórmula, con respuesta entera
+// positiva. Cubre grados 8..13 y verifica que los 10 tipos aparezcan (cobertura).
+@test fn cada_tipo_secundaria_cumple_su_formula() {
+    let vistos: List<Str> = []
+    for grade in [8, 9, 10, 11, 12, 13] {
+        let idx = 0
+        while (idx < 40) {
+            let k = gen_kiosco(9090 + grade, idx, grade)
+            if (not contiene_str(vistos, k.kind)) {
+                vistos.push(k.kind)
+            }
+            if (k.kind == "fraccion") {
+                assert_eq(k.a % k.c, 0)                 // total divisible por el denominador
+                assert_eq(k.b < k.c, true)              // fracción propia
+                assert_eq(k.answer, k.a * k.b / k.c)
+            }
+            if (k.kind == "regla3") {
+                assert_eq(k.b % k.a, 0)                 // unitario entero
+                assert_eq(k.answer, k.c * (k.b / k.a))
+            }
+            if (k.kind == "iva") {
+                assert_eq(k.a % 100, 0)                 // 21% exacto
+                assert_eq(k.answer, k.a + k.a * 21 / 100)
+            }
+            if (k.kind == "velocidad") {
+                assert_eq(k.a % k.b, 0)                 // km/h entero
+                assert_eq(k.answer, k.a / k.b)
+            }
+            if (k.kind == "rendimiento") {
+                assert_eq(k.c % k.b, 0)
+                assert_eq(k.answer, k.a * k.c / k.b)
+            }
+            if (k.kind == "ecuacion") {
+                assert_eq(k.a * k.answer + k.b, k.c)    // coef·x + suma = resultado
+            }
+            if (k.kind == "interes") {
+                assert_eq(k.a % 100, 0)
+                assert_eq(k.answer, k.a * k.b * k.c / 100)
+            }
+            if (k.kind == "trabajo") {
+                assert_eq(k.answer, k.a * k.b * k.c)
+            }
+            if (k.kind == "desc_compuesto") {
+                assert_eq(k.a * (100 - k.b) * (100 - k.c) % 10000, 0)
+                assert_eq(k.answer, k.a * (100 - k.b) * (100 - k.c) / 10000)
+            }
+            if (k.kind == "evento") {
+                assert_eq(k.answer, k.a * k.b + k.c)
+            }
+            assert_eq(k.answer > 0, true)
+            idx = idx + 1
+        }
+    }
+    // Los 10 tipos nuevos aparecen al menos una vez (cobertura del pool N6-N9).
+    for tipo in ["fraccion", "regla3", "iva", "velocidad", "rendimiento", "ecuacion", "interes", "trabajo", "desc_compuesto", "evento"] {
+        assert_eq(contiene_str(vistos, tipo), true)
+    }
+}
+
+// Bandas por grado (rebandeo): un 6° de secundaria (13) NUNCA ve tipos primarios
+// (N1-N5) y sí los duros de secundaria; un 1° de secundaria (8) no baja de N4.
+@test fn banda_por_grado_secundaria() {
+    let g13: List<Str> = []
+    let s = 0
+    while (s < 60) {
+        let idx = 0
+        while (idx < 12) {
+            let k = gen_kiosco(4000 + s, idx, 13)
+            if (not contiene_str(g13, k.kind)) {
+                g13.push(k.kind)
+            }
+            idx = idx + 1
+        }
+        s = s + 1
+    }
+    assert_eq(contiene_str(g13, "total"), false)      // nada de N1
+    assert_eq(contiene_str(g13, "vuelto"), false)     // N2
+    assert_eq(contiene_str(g13, "reparto"), false)    // N3
+    assert_eq(contiene_str(g13, "descuento"), false)  // N4
+    assert_eq(contiene_str(g13, "oferta"), false)     // N5
+    assert_eq(contiene_str(g13, "ecuacion") or contiene_str(g13, "interes") or contiene_str(g13, "trabajo"), true)
+    assert_eq(contiene_str(g13, "desc_compuesto") or contiene_str(g13, "evento"), true)
+
+    let g8: List<Str> = []
+    s = 0
+    while (s < 60) {
+        let idx = 0
+        while (idx < 12) {
+            let k = gen_kiosco(6000 + s, idx, 8)
+            if (not contiene_str(g8, k.kind)) {
+                g8.push(k.kind)
+            }
+            idx = idx + 1
+        }
+        s = s + 1
+    }
+    assert_eq(contiene_str(g8, "total"), false)       // no baja de N4
+    assert_eq(contiene_str(g8, "vuelto"), false)
+    assert_eq(contiene_str(g8, "reparto"), false)
+    assert_eq(contiene_str(g8, "fraccion") or contiene_str(g8, "regla3"), true)   // llega a N6
 }
 
 // Cobertura por grado (F8): un 4° (niveles 1..2) sólo ve tipos de tier 1-2, NUNCA

@@ -57,13 +57,28 @@ fn kiosco_items() -> List<Str> {
     return ["alfajor", "chicle", "agua", "galletitas", "caramelo", "chocolate", "jugo", "turron"]
 }
 
+// Piso de dificultad por grado. Primaria (1-7) queda como estaba (N1 para ≤5,
+// N2 para 6-7). Secundaria (8-13) NUNCA baja de N4 y el piso trepa por año, así
+// un 6° de secundaria (13) jamás ve un problema de nivel primario.
 fn nivel_piso_kiosco(grade: Int) -> Int {
     if (grade <= 5) {
         return 1
     }
-    return 2
+    if (grade <= 7) {
+        return 2
+    }
+    if (grade <= 9) {
+        return 4
+    }
+    if (grade <= 11) {
+        return 5
+    }
+    return 6
 }
 
+// Techo de dificultad por grado. Primaria como estaba (topa en N5 para 7°);
+// secundaria escala hasta N9 (fracciones, %, tasas, ecuaciones), con techo
+// distinto por año — un 1° de secundaria (8) llega a N6 y un 6° (13) a N9.
 fn nivel_techo_kiosco(grade: Int) -> Int {
     if (grade <= 4) {
         return 2
@@ -74,11 +89,26 @@ fn nivel_techo_kiosco(grade: Int) -> Int {
     if (grade <= 6) {
         return 4
     }
-    return 5
+    if (grade <= 7) {
+        return 5
+    }
+    if (grade <= 8) {
+        return 6
+    }
+    if (grade <= 10) {
+        return 7
+    }
+    if (grade <= 12) {
+        return 8
+    }
+    return 9
 }
 
-// Pool de tipos por nivel (dificultad creciente). Contextos variados de la vida
-// real: kiosco, ahorro, edades, cuadras (distancia), promedios, porcentajes.
+// Pool de tipos por nivel (dificultad creciente). N1-N5 primaria (kiosco, ahorro,
+// edades, distancias, %, 2 pasos); N6-N9 secundaria con conceptos de la franja:
+// fracciones y regla de tres, IVA y tasas (velocidad/rendimiento), ecuaciones e
+// interés, multi-paso y descuentos compuestos. Contextos adultos (sueldo, nafta,
+// cuotas). Dentro del pool el tipo se elige al azar (variedad).
 fn tipos_de_nivel(nivel: Int) -> List<Str> {
     if (nivel == 1) {
         return ["total", "suma", "ahorro", "edad", "cuadras"]
@@ -92,7 +122,35 @@ fn tipos_de_nivel(nivel: Int) -> List<Str> {
     if (nivel == 4) {
         return ["descuento", "promedio", "porcentaje"]
     }
-    return ["oferta", "combo"]
+    if (nivel == 5) {
+        return ["oferta", "combo"]
+    }
+    if (nivel == 6) {
+        return ["fraccion", "regla3"]
+    }
+    if (nivel == 7) {
+        return ["iva", "velocidad", "rendimiento"]
+    }
+    if (nivel == 8) {
+        return ["ecuacion", "interes", "trabajo"]
+    }
+    return ["desc_compuesto", "evento"]
+}
+
+// Magnitud de la plata en los problemas de secundaria: sube por grado (múltiplos
+// de 100, así IVA/interés/descuento compuesto dan entero). Sólo se llama con
+// grade >= 8 (los tipos N6-N9 son de secundaria); defensivo para grade < 8.
+fn esc_kiosco(grade: Int) -> Int {
+    if (grade <= 8) {
+        return 100
+    }
+    if (grade <= 10) {
+        return 200
+    }
+    if (grade <= 12) {
+        return 500
+    }
+    return 1000
 }
 
 fn contiene_str_local(xs: List<Str>, t: Str) -> Bool {
@@ -276,6 +334,121 @@ fn gen_kiosco_raw(seed: Int, idx: Int, grade: Int, salt: Int) -> KioscoItem {
         b = p
         answer = x * p / 100
         skill = "dec.dinero"
+    }
+    // --- N6: fracciones + proporción -----------------------------------------
+    if (kind == "fraccion") {
+        // {b}/{c} de un monto ${a}: a = parte·c (múltiplo de c) → respuesta entera.
+        let dens = [2, 3, 4, 5]
+        let den = dens[g.int(0, 3)]
+        let num = g.int(1, den - 1)
+        let parte = g.int(3, 12) * esc_kiosco(grade)
+        a = parte * den
+        b = num
+        c = den
+        answer = parte * num
+        skill = "div.exacta"
+    }
+    if (kind == "regla3") {
+        // {a} litros cuestan ${b}; ¿cuánto {c} litros? b = a·unit → unitario entero.
+        let unit = g.int(2, 9) * (esc_kiosco(grade) / 10)
+        let n = g.int(2, 6)
+        let m = g.int(2, 8)
+        a = n
+        b = n * unit
+        c = m
+        answer = m * unit
+        skill = "div.exacta"
+    }
+    // --- N7: porcentajes reales + tasas --------------------------------------
+    if (kind == "iva") {
+        // Precio ${a} sin IVA + 21%. a múltiplo de 100 → 21% entero.
+        let x = g.int(2, 20) * esc_kiosco(grade)
+        a = x
+        answer = x + x * 21 / 100
+        skill = "dec.dinero"
+    }
+    if (kind == "velocidad") {
+        // {a} km en {b} h → km/h. a = v·b (cuenta, sin dinero).
+        let h = g.int(2, 6)
+        let v = g.int(40, 120)
+        a = v * h
+        b = h
+        answer = v
+        money = false
+        skill = "div.exacta"
+    }
+    if (kind == "rendimiento") {
+        // {a} litros cada {b} km; ¿litros para {c} km? c múltiplo de b.
+        let litros = g.int(4, 12)
+        let cada = g.int(1, 4) * 100
+        let veces = g.int(2, 8)
+        a = litros
+        b = cada
+        c = veces * cada
+        answer = litros * veces
+        money = false
+        skill = "div.exacta"
+    }
+    // --- N8: multi-paso + ecuaciones -----------------------------------------
+    if (kind == "ecuacion") {
+        // x·{a} + {b} = {c} → x. Sin dinero (un número).
+        let coef = g.int(2, 6)
+        let x = g.int(3, 25)
+        let suma = g.int(1, 30)
+        a = coef
+        b = suma
+        c = coef * x + suma
+        answer = x
+        money = false
+        skill = "sub"
+    }
+    if (kind == "interes") {
+        // ${a} al {b}% mensual simple, {c} meses. a múltiplo de 100 → entero.
+        let cap = g.int(2, 20) * esc_kiosco(grade)
+        let tasas = [5, 10]
+        let tasa = tasas[g.int(0, 1)]
+        let meses = g.int(2, 6)
+        a = cap
+        b = tasa
+        c = meses
+        answer = cap * tasa * meses / 100
+        skill = "mul.tabla"
+    }
+    if (kind == "trabajo") {
+        // Ganás ${a}/hora, {b} h/día, {c} días (multi-paso).
+        let porhora = g.int(3, 12) * (esc_kiosco(grade) / 10)
+        let horas = g.int(4, 9)
+        let dias = g.int(3, 6)
+        a = porhora
+        b = horas
+        c = dias
+        answer = porhora * horas * dias
+        skill = "mul.tabla"
+    }
+    // --- N9: los más duros ---------------------------------------------------
+    if (kind == "desc_compuesto") {
+        // ${a} con {b}% off y después {c}% off. pcts ∈ {10,20,50}, a múltiplo de
+        // 100 → (100-b)(100-c)/100 entero → respuesta entera.
+        let x = g.int(2, 20) * esc_kiosco(grade)
+        let pcts = [10, 20, 50]
+        let p1 = pcts[g.int(0, 2)]
+        let p2 = pcts[g.int(0, 2)]
+        a = x
+        b = p1
+        c = p2
+        answer = x * (100 - p1) * (100 - p2) / 10000
+        skill = "dec.dinero"
+    }
+    if (kind == "evento") {
+        // {a} personas × ${b} por persona + costo fijo ${c} (multi-paso).
+        let n = g.int(5, 30)
+        let porpersona = g.int(3, 12) * (esc_kiosco(grade) / 10)
+        let fijo = g.int(2, 10) * esc_kiosco(grade)
+        a = n
+        b = porpersona
+        c = fijo
+        answer = n * porpersona + fijo
+        skill = "mul.tabla"
     }
     return KioscoItem {
         kind: kind,

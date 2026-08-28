@@ -59,6 +59,47 @@ fn kiosco_enunciado(locale: Str, it: KioscoItem) -> Str {
     if (it.kind == "porcentaje") {
         return t2(locale, "kiosco.p_porcentaje", fmt_int(locale, it.b), fmt_money(locale, it.a))
     }
+    // --- N6-N9 (secundaria): a/b/c según cada tipo (ver gen_kiosco) ----------
+    if (it.kind == "fraccion") {
+        // a=monto($), b=numerador, c=denominador
+        return t3(locale, "kiosco.p_fraccion", fmt_money(locale, it.a), fmt_int(locale, it.b), fmt_int(locale, it.c))
+    }
+    if (it.kind == "regla3") {
+        // a=litros, b=$total, c=litros
+        return t3(locale, "kiosco.p_regla3", fmt_int(locale, it.a), fmt_money(locale, it.b), fmt_int(locale, it.c))
+    }
+    if (it.kind == "iva") {
+        // a=precio sin IVA
+        return t1(locale, "kiosco.p_iva", fmt_money(locale, it.a))
+    }
+    if (it.kind == "velocidad") {
+        // a=km, b=horas
+        return t2(locale, "kiosco.p_velocidad", fmt_int(locale, it.a), fmt_int(locale, it.b))
+    }
+    if (it.kind == "rendimiento") {
+        // a=litros, b=cada km, c=km total
+        return t3(locale, "kiosco.p_rendimiento", fmt_int(locale, it.a), fmt_int(locale, it.b), fmt_int(locale, it.c))
+    }
+    if (it.kind == "ecuacion") {
+        // a=coef, b=suma, c=resultado
+        return t3(locale, "kiosco.p_ecuacion", fmt_int(locale, it.a), fmt_int(locale, it.b), fmt_int(locale, it.c))
+    }
+    if (it.kind == "interes") {
+        // a=capital($), b=%, c=meses
+        return t3(locale, "kiosco.p_interes", fmt_money(locale, it.a), fmt_int(locale, it.b), fmt_int(locale, it.c))
+    }
+    if (it.kind == "trabajo") {
+        // a=$/hora, b=horas, c=días
+        return t3(locale, "kiosco.p_trabajo", fmt_money(locale, it.a), fmt_int(locale, it.b), fmt_int(locale, it.c))
+    }
+    if (it.kind == "desc_compuesto") {
+        // a=precio, b=%1, c=%2
+        return t3(locale, "kiosco.p_desc_compuesto", fmt_money(locale, it.a), fmt_int(locale, it.b), fmt_int(locale, it.c))
+    }
+    if (it.kind == "evento") {
+        // a=personas, b=$/persona, c=$fijo
+        return t3(locale, "kiosco.p_evento", fmt_int(locale, it.a), fmt_money(locale, it.b), fmt_money(locale, it.c))
+    }
     if (it.kind == "oferta") {
         return t4(locale, "kiosco.p_oferta", fmt_int(locale, it.a), prod, fmt_money(locale, it.b), fmt_money(locale, it.c))
     }
