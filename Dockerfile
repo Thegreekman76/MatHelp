@@ -20,7 +20,7 @@
 # binario estático, ~9x más rápido que el intérprete, imagen distroless mínima.
 # ─────────────────────────────────────────────────────────────────────────
 
-ARG FITZ_IMAGE=ghcr.io/thegreekman76/fitz:v0.59.1
+ARG FITZ_IMAGE=ghcr.io/thegreekman76/fitz:v0.60.0
 ARG FLV_TAG=v0.50.0
 
 # ---- Stage 1: vendor ----------------------------------------------------
