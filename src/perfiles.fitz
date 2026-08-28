@@ -49,6 +49,21 @@ async fn crear_perfil(family_id: Int, nombre: Str, grado: Int, modalidad: Str, p
     }).await
 }
 
+// Edita nombre/grado/modalidad de un perfil DE ESTA FAMILIA. El `family_id` en el
+// WHERE es la defensa (no se puede editar el perfil de otra cuenta). El progreso
+// (mastery/attempts/streaks/awards) es por profile_id, así que cambiar el grado NO
+// pierde nada — solo cambia el nivel de los ejercicios futuros.
+async fn actualizar_perfil(family_id: Int, pid: Int, nombre: Str, grado: Int, modalidad: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("UPDATE profiles SET name = $2, grade = $3, modalidad = $4 WHERE id = $1 AND family_id = $5", [pid, nombre, grado, modalidad_valida(modalidad), family_id]).await
+}
+
+// Cambia el PIN de un perfil (solo si el usuario tipeó uno nuevo). "" borra el PIN.
+async fn actualizar_pin(family_id: Int, pid: Int, pin: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("UPDATE profiles SET pin = $2 WHERE id = $1 AND family_id = $3", [pid, pin, family_id]).await
+}
+
 // --- Render --------------------------------------------------------------
 
 fn label_grado(locale: Str, grade: Int) -> Str {
@@ -65,22 +80,29 @@ fn tarjeta_perfil(locale: Str, p: Profile) -> Html {
     let grado = flv(label_grado(locale, p.grade))
     let pid = "{p.id}"
     let em = flv(avatar_emoji(p.avatar))
-
-    if (p.pin != "") {
-        return html("""<a class="mh-profile" href="/perfiles/pin/{pid}">
+    let ed_lbl = flv(t(locale, "perfiles.editar"))
+    // El "target" de jugar: con PIN → link al form de PIN; sin PIN → form directo.
+    let inner = match p.pin != "" {
+        true => html("""<a class="mh-profile" href="/perfiles/pin/{pid}">
 <span class="mh-av">{em}<span class="mh-avlock" aria-hidden="true">🔒</span></span>
 <span>{nombre}</span>
 <span class="mh-pgrado">{grado}</span>
-</a>""")
-    }
-    return html("""<form method="POST" action="/perfiles/elegir">
+</a>""").raw,
+        false => html("""<form method="POST" action="/perfiles/elegir">
 <input type="hidden" name="pid" value="{pid}" />
 <button type="submit" class="mh-profile">
 <span class="mh-av">{em}</span>
 <span>{nombre}</span>
 <span class="mh-pgrado">{grado}</span>
 </button>
-</form>""")
+</form>""").raw,
+    }
+    // El lápiz de editar va FUERA del target de jugar (nada de interactivos
+    // anidados): un wrapper relativo con el lápiz posicionado en la esquina.
+    return html("""<div class="mh-pcard">
+{inner}
+<a class="mh-pedit" href="/perfiles/editar/{pid}" aria-label="{ed_lbl}" title="{ed_lbl}"><span aria-hidden="true">✏️</span></a>
+</div>""")
 }
 
 fn render_perfiles(locale: Str, perfiles: List<Profile>) -> Html {
@@ -167,6 +189,88 @@ fn opcion_grado(locale: Str, g: Int) -> Html {
     return html("""<option value="{g}">{etiqueta}</option>""")
 }
 
+// Igual que opciones_grado pero con el grado actual pre-seleccionado (edición).
+fn opciones_grado_sel(locale: Str, sel: Int) -> Str {
+    let prim = [1, 2, 3, 4, 5, 6, 7]
+    let sec = [8, 9, 10, 11, 12, 13]
+    let ops_prim = h_join(prim.map(fn(g) => opcion_grado_sel(locale, g, sel)))
+    let ops_sec = h_join(sec.map(fn(g) => opcion_grado_sel(locale, g, sel)))
+    let g_prim = flv(t(locale, "perfiles.grupo_primaria"))
+    let g_sec = flv(t(locale, "perfiles.grupo_secundaria"))
+    return html("""<optgroup label="{g_prim}">{ops_prim}</optgroup>
+<optgroup label="{g_sec}">{ops_sec}</optgroup>""").raw
+}
+
+fn opcion_grado_sel(locale: Str, g: Int, sel: Int) -> Html {
+    let etiqueta = flv(t(locale, "grado.{g}"))
+    let s = match g == sel {
+        true => " selected",
+        false => "",
+    }
+    return html("""<option value="{g}"{s}>{etiqueta}</option>""")
+}
+
+// Una opción de modalidad con selección.
+fn opcion_modalidad(locale: Str, val: Str, sel: Str) -> Html {
+    let etiqueta = flv(t(locale, "modalidad.{val}"))
+    let s = match val == sel {
+        true => " selected",
+        false => "",
+    }
+    return html("""<option value="{val}"{s}>{etiqueta}</option>""")
+}
+
+fn opciones_modalidad_sel(locale: Str, sel: Str) -> Str {
+    let vals = ["comun", "bachiller", "comercial", "industrial"]
+    return h_join(vals.map(fn(v) => opcion_modalidad(locale, v, sel)))
+}
+
+// Form de EDICIÓN de un perfil (nombre / grado / modalidad / PIN). El grado y la
+// modalidad vienen pre-seleccionados. El PIN vacío = dejar el actual como está.
+fn form_editar(locale: Str, p: Profile, error_key: Str) -> Html {
+    let err = match error_key == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, error_key))}</div>""").raw,
+    }
+    let nombre_esc = flv(p.name)
+    let pid = "{p.id}"
+    let nombre_ph = flv(t(locale, "perfiles.nombre_ph"))
+    let opciones = opciones_grado_sel(locale, p.grade)
+    let mod_ops = opciones_modalidad_sel(locale, p.modalidad)
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "perfiles.editar"))}</h2>
+{err}
+<form method="POST" action="/perfiles/editar">
+<input type="hidden" name="pid" value="{pid}" />
+<div class="mh-field">
+<label class="mh-label" for="nombre">{flv(t(locale, "perfiles.nombre"))}</label>
+<input class="mh-input" id="nombre" name="nombre" type="text" value="{nombre_esc}" placeholder="{nombre_ph}" autocomplete="off" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="grado">{flv(t(locale, "perfiles.grado"))}</label>
+<select class="mh-select" id="grado" name="grado">
+{opciones}
+</select>
+<span class="mh-hint">{flv(t(locale, "perfiles.grado_editar_hint"))}</span>
+</div>
+<div class="mh-field">
+<label class="mh-label" for="modalidad">{flv(t(locale, "perfiles.modalidad"))}</label>
+<select class="mh-select" id="modalidad" name="modalidad">
+{mod_ops}
+</select>
+<span class="mh-hint">{flv(t(locale, "perfiles.modalidad_hint"))}</span>
+</div>
+<div class="mh-field">
+<label class="mh-label" for="pin">{flv(t(locale, "perfiles.pin"))}</label>
+<input class="mh-input" id="pin" name="pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" />
+<span class="mh-hint">{flv(t(locale, "perfiles.pin_editar_hint"))}</span>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "perfiles.guardar"))}</button>
+</form>
+<a class="mh-link" href="/perfiles">{flv(t(locale, "perfiles.volver"))}</a>
+</div>""")
+}
+
 fn form_pin(locale: Str, p: Profile, hay_error: Bool) -> Html {
     let err = match hay_error {
         true => html("""<div class="mh-error">{flv(t(locale, "pin.error"))}</div>""").raw,
@@ -201,6 +305,14 @@ type NuevoPerfilForm {
     grado: Str = ""
     modalidad: Str = "comun"
     pin: Str = ""
+}
+
+type EditarPerfilForm {
+    pid: Str = ""
+    nombre: Str = ""
+    grado: Str = ""
+    modalidad: Str = "comun"
+    pin: Str = ""             // "" = dejar el PIN actual como está
 }
 
 type PinForm {
@@ -264,6 +376,62 @@ async fn nuevo_post(session: Str?, lang: Str?, form: NuevoPerfilForm) -> Respons
         Ok(_) => return redirect_a("/perfiles"),
         Err(_) => return responder_html(page(locale, titulo, form_nuevo(locale, form.nombre, "perfiles.error_nombre"), html(""))),
     }
+}
+
+// Editar un perfil (la familia gestiona sus perfiles). El grado se puede cambiar
+// cuando el chico pasa de año — el progreso se conserva (es por profile_id).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/perfiles/editar/{id}")
+async fn editar_get(session: Str?, lang: Str?, id: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let p = match perfil_de_familia(fam.id, id).await {
+        Ok(pr) => pr,
+        Err(_) => return redirect_a("/perfiles"),
+    }
+    return responder_html(page(locale, t(locale, "perfiles.editar") + " — MatHelp", form_editar(locale, p, ""), html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/perfiles/editar")
+async fn editar_post(session: Str?, lang: Str?, form: EditarPerfilForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let pid: Int = match form.pid.to_int() {
+        Ok(n) => n,
+        Err(_) => 0,
+    }
+    let p = match perfil_de_familia(fam.id, pid).await {
+        Ok(pr) => pr,
+        Err(_) => return redirect_a("/perfiles"),
+    }
+    let titulo = t(locale, "perfiles.editar") + " — MatHelp"
+    if (form.nombre == "") {
+        return responder_html(page(locale, titulo, form_editar(locale, p, "perfiles.error_nombre"), html("")))
+    }
+    if (form.pin != "" and form.pin.len() != 4) {
+        return responder_html(page(locale, titulo, form_editar(locale, p, "perfiles.error_pin"), html("")))
+    }
+    let grado: Int = match form.grado.to_int() {
+        Ok(n) => n,
+        Err(_) => 0,
+    }
+    if (grado < 1 or grado > 13) {
+        return responder_html(page(locale, titulo, form_editar(locale, p, "perfiles.error_nombre"), html("")))
+    }
+    let _ = actualizar_perfil(fam.id, pid, form.nombre, grado, form.modalidad).await
+    if (form.pin != "") {
+        let _ = actualizar_pin(fam.id, pid, form.pin).await
+    }
+    return redirect_a("/perfiles")
 }
 
 // Perfil sin PIN: entra directo. Si por lo que sea tiene PIN, lo mandamos

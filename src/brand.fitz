@@ -250,6 +250,16 @@ main:focus \{ outline:none; \}
    botón .mh-profile pasa a ser el ítem de grilla directo, alineado con los <a>. */
 .mh-profiles form \{ display:contents; \}
 .mh-profile \{ width:100%; box-sizing:border-box; \}
+/* Cada perfil real va en un .mh-pcard (relativo) con el lápiz de editar en la
+   esquina, fuera del target de jugar. */
+.mh-pcard \{ position:relative; display:flex; \}
+.mh-pcard .mh-profile \{ width:100%; \}
+.mh-pedit \{ position:absolute; top:8px; right:8px; width:34px; height:34px;
+  display:grid; place-items:center; border-radius:999px; background:var(--mh-panel);
+  border:1px solid var(--mh-borde); color:var(--mh-tinta); text-decoration:none;
+  font-size:.95rem; z-index:2; \}
+.mh-pedit:active \{ transform:scale(.9); \}
+.mh-pedit:focus-visible \{ outline:3px solid var(--mh-naranja); outline-offset:2px; \}
 .mh-profile \{
   display:flex; flex-direction:column; align-items:center; gap:8px;
   min-height:120px; justify-content:center; padding:16px 10px;
