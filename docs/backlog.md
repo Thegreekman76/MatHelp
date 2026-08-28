@@ -48,4 +48,19 @@ Cada feature nueva destapa/endurece bugs del core de Fitz. Se anota en
 
 ## Avance
 
-_(se va completando)_
+### 🎓 Feedback al errar con explicación — Tanda 1 (Cuatro operaciones)
+
+- **2026-08-28** — Patrón establecido + primer juego. Al errar, debajo del "era X"
+  aparece una línea `.q-expl` con el PASO: la cuenta completa (`8 × 7 = 56`), y en
+  la división el inverso (`56 ÷ 7 = 8 (porque 7 × 8 = 56)`). Cubre **Quiz.fitzv**
+  (Contrarreloj / Práctica / Desafío) para las 4 operaciones básicas
+  (add/sub/mul/div); potencias/ecuaciones/secundaria caen al "era X" simple (`""`).
+  - Arquitectura: campo de estado `last_expl` seteado en `event answer()` con
+    `explicar(locale, ex)` (función pura, testeada), threadeado en paralelo a
+    `last_answer` por `quiz_screen` → sub-screens → `feedback_banner`.
+  - i18n: `expl.div` (es/en); las otras 3 ops son ecuación pura (sin texto).
+  - `tests/explicacion.fitz` (6 tests) + E2E en browser real (las 4 ops renderizan,
+    0 errores de página).
+  - **Falta (próximas tandas)**: Escalera (arith, ya pasa `""`), Fracciones
+    (`3/4 de 12 = 12 ÷ 4 × 3 = 9`), Problemas/Kiosco (situación → operación),
+    Porcentaje, Historia, Geometría/Volumen (fórmula), Enteros, Estimar, Series.

@@ -24,7 +24,7 @@ fn escalera_screen(seed: Int, idx: Int, grade: Int, locale: Str, step: Int, meta
     let b = flv(fmt_operando(locale, ex.b))
     let sym = flv(op_symbol(ex.op))
     let opciones = h_join(ex.options.map(fn(o) => opt_button(locale, o, idx)))
-    let banner = feedback_banner(locale, feedback, last_answer, idx)
+    let banner = feedback_banner(locale, feedback, last_answer, "", idx)
     let ladder = escalera_ladder(locale, step, meta, racha)
     return html("""{ladder}
 <div class="q-prompt">{a} {sym} {b} = ?</div>

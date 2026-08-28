@@ -19,7 +19,7 @@
 
 from gen_arith import gen_for
 from engine import puntos, a_int
-from quiz_view import quiz_screen
+from quiz_view import quiz_screen, explicar
 
 component quiz {
   state {
@@ -37,6 +37,7 @@ component quiz {
     phase: Str = "playing"      // "playing" | "done"
     feedback: Str = ""          // "" | "ok" | "bad"
     last_answer: Int = 0        // la respuesta correcta del ejercicio recién fallado
+    last_expl: Str = ""         // explicación del paso del ejercicio recién fallado ("" si no aplica)
     topic: Str = "mix"          // tema fijo en práctica ("add".."div"|"mix"); "mix" en contrarreloj
     band: Int = 2               // banda de dificultad de práctica (1=fácil,2=medio,3=difícil)
     mode: Str = "timed"         // "adaptive" (contrarreloj F3) | "practice" | "timed" (legacy)
@@ -73,6 +74,7 @@ component quiz {
               feedback = "bad"
               racha = 0
               last_answer = ex.answer
+              last_expl = explicar(locale, ex)
             }
             idx = idx + 1
             // Desafío del día: termina al completar N ejercicios (sin reloj).
@@ -110,7 +112,7 @@ component quiz {
 
   <template>
     <div id="quiz-app" class="mh-quiz">
-      {quiz_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, last_answer, topic, band, mode, r_add, r_sub, r_mul, r_div, limit, racha, racha_max, record_prev).raw}
+      {quiz_screen(seed, idx, grade, locale, score, correct, total, time_left, phase, feedback, last_answer, last_expl, topic, band, mode, r_add, r_sub, r_mul, r_div, limit, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

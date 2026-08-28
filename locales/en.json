@@ -35,6 +35,7 @@
   "juego.incorrecto": "So close. The answer was {0}.",
   "juego.incorrecto2": "Oops, it was {0}. Next time! 💪",
   "juego.incorrecto3": "Not quite. It was {0}. Keep going!",
+  "expl.div": "{0} ÷ {1} = {2} (because {1} × {2} = {0})",
   "juego.tiempo": "Time",
   "juego.puntaje": "Score",
   "juego.aciertos": "Correct",

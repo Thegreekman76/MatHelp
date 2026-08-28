@@ -1,0 +1,41 @@
+// tests/explicacion.fitz — la explicación del PASO al errar (feedback pedagógico).
+//
+// explicar(locale, ex) formatea la cuenta completa por operación (las 4 básicas).
+// En la división agrega el inverso ("porque 7 × 8 = 56"). Devuelve "" para el
+// resto (potencias/ecuaciones/…): esas caen al "era X" simple.
+//
+// (Nombre distinto del módulo importado → sin ciclo, FITZ-21.)
+
+from quiz_view import explicar
+from gen_arith import Exercise
+
+@test fn expl_suma() {
+    let ex = Exercise { a: 23, b: 45, op: "add", answer: 68 }
+    assert_eq(explicar("es-AR", ex), "23 + 45 = 68")
+}
+
+@test fn expl_resta() {
+    let ex = Exercise { a: 45, b: 18, op: "sub", answer: 27 }
+    assert_eq(explicar("es-AR", ex), "45 − 18 = 27")
+}
+
+@test fn expl_mult() {
+    let ex = Exercise { a: 8, b: 7, op: "mul", answer: 56 }
+    assert_eq(explicar("es-AR", ex), "8 × 7 = 56")
+}
+
+@test fn expl_div_con_inverso() {
+    let ex = Exercise { a: 56, b: 7, op: "div", answer: 8 }
+    assert_eq(explicar("es-AR", ex), "56 ÷ 7 = 8 (porque 7 × 8 = 56)")
+}
+
+@test fn expl_potencia_vacia() {
+    // Potencias/ecuaciones no tienen explicación básica: cae al "era X" simple.
+    let ex = Exercise { a: 2, b: 5, op: "pot", answer: 32 }
+    assert_eq(explicar("es-AR", ex), "")
+}
+
+@test fn expl_en_ingles() {
+    let ex = Exercise { a: 56, b: 7, op: "div", answer: 8 }
+    assert_eq(explicar("en", ex), "56 ÷ 7 = 8 (because 7 × 8 = 56)")
+}
