@@ -407,6 +407,10 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 
 /* --- Fracciones a la vista (F4) --- */
 .frac-bar \{ display:flex; gap:4px; padding:8px 0; \}
+.frac-op \{ display:flex; align-items:center; justify-content:center; gap:.5em; padding:14px 0; font-size:2rem; font-weight:900; color:var(--mh-tinta); \}
+.frac-op .frac \{ font-size:1.6rem; \}
+.frac-op-sym \{ color:var(--mh-suave); \}
+.frac-op-q \{ color:var(--mh-naranja); \}
 .fseg \{
   flex:1; height:68px; border-radius:8px;
   background:var(--mh-panel); border:2px solid var(--mh-borde);

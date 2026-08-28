@@ -210,6 +210,7 @@
   "kiosco.jugo": "a juice",
   "kiosco.turron": "a nougat bar",
   "frac.pregunta": "Which fraction is shaded?",
+  "frac.pregunta_op": "How much is it? Pick the result (reduced fraction).",
   "frac.era": "Almost. It was {0}.",
   "panel.hijo": "Child",
   "panel.stat.ejercicios": "Exercises",

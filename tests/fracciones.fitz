@@ -6,7 +6,7 @@
 // pueden ser EQUIVALENTES al correcto ni entre sí (si aparecen 2/4 y 1/2, hay dos
 // respuestas correctas). Se verifica comparando por valor (cross-mult).
 
-from gen_frac import gen_frac, frac_den_max, FracItem
+from gen_frac import gen_frac, frac_den_max, gcd, FracItem
 
 // Parsea "n/d" a (num, den). Los tests sólo pasan strings del generador, siempre
 // bien formados.
@@ -15,6 +15,54 @@ fn parse_num(s: Str) -> Int {
     return match parts[0].to_int() {
         Ok(n) => n,
         Err(_) => -1,
+    }
+}
+
+// Parsea un Str a Int (para el test del modo operación).
+fn pint(s: Str) -> Int {
+    return match s.to_int() {
+        Ok(n) => n,
+        Err(_) => -1,
+    }
+}
+
+// Modo operación (secundaria, grade >= 8): la operación del prompt da el correcto
+// REDUCIDO, hay 4 opciones distintas y el correcto está entre ellas.
+@test fn frac_op_secundaria() {
+    for grade in [8, 11, 13] {
+        let idx = 0
+        while (idx < 25) {
+            let it = gen_frac(707, idx, grade)
+            assert_eq(it.mode, "op")
+            assert_eq(it.options.len(), 4)
+            assert_eq(contiene(it.options, it.correct), true)
+            // Recomputar la operación desde el prompt y verificar el reducido.
+            let parts = it.prompt.split(" ")
+            let f1 = parts[0].split("/")
+            let op = parts[1]
+            let f2 = parts[2].split("/")
+            let n1 = pint(f1[0])
+            let d1 = pint(f1[1])
+            let n2 = pint(f2[0])
+            let d2 = pint(f2[1])
+            let rden = d1 * d2
+            let rnum = match op {
+                "+" => n1 * d2 + n2 * d1,
+                "-" => n1 * d2 - n2 * d1,
+                _ => n1 * n2,
+            }
+            assert(rnum > 0)
+            let gg = gcd(rnum, rden)
+            let esperado = "{rnum / gg}/{rden / gg}"
+            assert_eq(it.correct, esperado)
+            // Opciones sin repetidos (por string; al ser reducidas, valor distinto).
+            let vistas: List<Str> = []
+            for o in it.options {
+                assert_eq(contiene(vistas, o), false)
+                vistas.push(o)
+            }
+            idx = idx + 1
+        }
     }
 }
 

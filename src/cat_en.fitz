@@ -63,6 +63,7 @@ fn cat_en(key: Str) -> Str {
         "footer.y" => "and",
         "frac.era" => "Almost. It was \{0\}.",
         "frac.pregunta" => "Which fraction is shaded?",
+        "frac.pregunta_op" => "How much is it? Pick the result (reduced fraction).",
         "func.evaluar" => "What is f(\{0\})?",
         "geo.area" => "What is the area?",
         "geo.era" => "Almost. It was \{0\}.",

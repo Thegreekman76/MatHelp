@@ -41,7 +41,7 @@ de secundaria).
   - [x] `mul_max`: rampa en secundaria (15/20/25 por tramo 8-9/10-11/12-13) → destraba Escalera + división
   - [~] `add_max`: ya tenía 3 pasos en secundaria (200/500/999) — suficiente por ahora
 - [x] **Historia** — `gen_historia.fitz`: niveles 6 (multiplicación grande) y 7 (reparto/división) para secundaria + rebandeo + objetos adultos (libros/monedas/láminas/puntos) + i18n `hist.reparto`. Ya no es "2×6" narrado para un 6° de secundaria. _(Follow-up: multi-paso y % narrados, más objetos.)_
-- [x] **Fracciones** — `gen_frac.fitz`: denominadores más finos por grado (12/16/20 en secundaria) + rampa que arranca más fina. _(Follow-up: OPERACIONES con fracciones — suma/resta/multiplicación — es un rediseño del juego, no solo del generador.)_
+- [x] **Fracciones** — `gen_frac.fitz`: denominadores más finos por grado (12/16/20). **+ OPERACIONES** (Tanda 2): en secundaria (grade≥8) el modo pasa a "op" — suma/resta/multiplicación de fracciones con resultado reducido y distractores plausibles (errores típicos + resultados de otras operaciones). Vista nueva `frac_op_html` (fracciones apiladas). El componente no cambió (compara strings). Verificado en browser: un 6° de secundaria hace "2/5 + 5/7 = 39/35".
 
 ### 🟠 Flojos (meseta grande en secundaria alta 9/10-13)
 
@@ -103,6 +103,19 @@ Enfoque: **escalar magnitudes por grado dentro de cada nivel** (el mayor palanca
   6° de secundaria recibe "14 cajas de 11 puntos" y "120 libros entre 10 amigos",
   no "2 × 6 globos".
 
-**Diferido** (follow-up): operaciones con fracciones (rediseño del juego), multi-paso
-y % narrados en Historia, magnitud dentro de los especiales (potencias/ecuaciones/trig),
-y los bugs puntuales (`grade_teclado`, `difficulty_for`). Hora se deja (defendible).
+**Diferido** (follow-up): multi-paso y % narrados en Historia, magnitud dentro de los
+especiales (potencias/ecuaciones/trig), y los bugs puntuales (`grade_teclado`,
+`difficulty_for`). Hora se deja (defendible).
+
+### 2026-08-27 — Tanda 2 (Fracciones con operaciones)
+
+`gen_frac.fitz` gana el modo "op" para secundaria (grade≥8): dos fracciones + una
+operación (+, −, ×), resultado REDUCIDO (helper `gcd`), distractores por error típico
+(sumar num y den) + resultados de las otras operaciones + corrimientos. La vista
+(`frac_op_html`) muestra la operación con fracciones apiladas en vez de la barra; el
+componente `Fracciones.fitzv` NO cambió (compara strings). i18n `frac.pregunta_op` +
+CSS `.frac-op`. Test `frac_op_secundaria` recomputa la operación desde el prompt. 166
+tests verdes + verificado en browser a grado 13.
+
+**Diferido restante**: multi-paso/% narrados en Historia, magnitud en los especiales,
+bugs puntuales.

@@ -12,13 +12,44 @@
 
 from gen_arith import sub_seed, imin
 
-// Una fracción pintada + 4 opciones "n/d" (una es la correcta), barajadas.
+// Una fracción pintada + 4 opciones "n/d" (una es la correcta), barajadas. En
+// secundaria (grade >= 8) el modo pasa a "op": una operación con fracciones
+// (`prompt` = "1/2 + 1/3") en vez de la barra, y `correct` es el resultado
+// REDUCIDO. La primaria mantiene el modo "identify" (leer la barra).
 type FracItem {
-    num: Int = 0              // partes pintadas
-    den: Int = 0             // partes totales
+    mode: Str = "identify"    // "identify" (barra) | "op" (operación)
+    prompt: Str = ""          // operación a mostrar en modo "op" (ej. "1/2 + 1/3")
+    num: Int = 0              // partes pintadas (modo identify)
+    den: Int = 0             // partes totales (modo identify)
     options: List<Str> = []   // 4 fracciones "n/d", valores distintos, una correcta
-    correct: Str = ""         // "num/den"
+    correct: Str = ""         // "num/den" (identify) o el resultado reducido (op)
     difficulty: Int = 1
+}
+
+// Máximo común divisor (Euclides, positivos) para reducir fracciones.
+fn gcd(a: Int, b: Int) -> Int {
+    let x = a
+    let y = b
+    while (y != 0) {
+        let t = y
+        y = x % y
+        x = t
+    }
+    if (x < 1) {
+        return 1
+    }
+    return x
+}
+
+// Denominador máximo de los operandos en el modo operación, por grado.
+fn frac_op_den_max(grade: Int) -> Int {
+    if (grade <= 9) {
+        return 6               // 1º-2º sec: denominadores chicos
+    }
+    if (grade <= 11) {
+        return 8               // 3º-4º sec
+    }
+    return 12                  // 5º-6º sec
 }
 
 // Denominador máximo por grado. Fracciones más finas a mayor grado. Secundaria
@@ -64,10 +95,111 @@ fn frac_dificultad(den: Int) -> Int {
     return d
 }
 
+// Modo operación (secundaria): dos fracciones propias y una operación (+, −, ×).
+// El resultado va REDUCIDO; los distractores son valores distintos (errores
+// típicos: sumar numeradores y denominadores, o el resultado de otra operación).
+// Determinista desde el mismo `g`.
+fn gen_frac_op(g: RandGen, idx: Int, grade: Int) -> FracItem {
+    let dmax = frac_op_den_max(grade)
+    let ops = ["+", "+", "-", "×"]       // pondera la suma (la más común)
+    let op = ops[g.int(0, 3)]
+    let d1 = g.int(2, dmax)
+    let n1 = g.int(1, d1 - 1)
+    let d2 = g.int(2, dmax)
+    let n2 = g.int(1, d2 - 1)
+    // Resta: mayor − menor (resultado > 0); si son iguales, bajo el sustraendo.
+    if (op == "-") {
+        if (n1 * d2 < n2 * d1) {
+            let sn = n1
+            let sd = d1
+            n1 = n2
+            d1 = d2
+            n2 = sn
+            d2 = sd
+        }
+        if (n1 * d2 == n2 * d1) {
+            if (n2 > 1) {
+                n2 = n2 - 1
+            } else {
+                d2 = d2 + 1
+            }
+        }
+    }
+    let rden = d1 * d2
+    let rnum = match op {
+        "+" => n1 * d2 + n2 * d1,
+        "-" => n1 * d2 - n2 * d1,
+        _ => n1 * n2,
+    }
+    let gg = gcd(rnum, rden)
+    let cnum = rnum / gg
+    let cden = rden / gg
+    let correct = "{cnum}/{cden}"
+    let prompt = "{n1}/{d1} {op} {n2}/{d2}"
+
+    // Distractores: errores típicos + resultados de las otras operaciones +
+    // corrimientos del correcto, filtrados por valor distinto y reducidos.
+    let cand_n: List<Int> = [n1 + n2, n1 * d2 + n2 * d1, n1 * n2, cnum + 1, cnum + 2, cnum + 3]
+    let cand_d: List<Int> = [d1 + d2, rden, rden, cden, cden, cden]
+    let vseen_n: List<Int> = [cnum]
+    let vseen_d: List<Int> = [cden]
+    let dist: List<Str> = []
+    let i = 0
+    while (i < cand_n.len()) {
+        let rawn = cand_n[i]
+        let rawd = cand_d[i]
+        if (rawn > 0 and rawd > 0) {
+            let gk = gcd(rawn, rawd)
+            let kn = rawn / gk
+            let kd = rawd / gk
+            let dup = false
+            let j = 0
+            while (j < vseen_n.len()) {
+                if (kn * vseen_d[j] == vseen_n[j] * kd) {
+                    dup = true
+                }
+                j = j + 1
+            }
+            if (not dup) {
+                dist.push("{kn}/{kd}")
+                vseen_n.push(kn)
+                vseen_d.push(kd)
+            }
+        }
+        i = i + 1
+    }
+
+    let dshuf = g.shuffle(dist)
+    let tres: List<Str> = []
+    for x in dshuf {
+        if (tres.len() < 3) {
+            tres.push(x)
+        }
+    }
+    let raw = [correct]
+    for x in tres {
+        raw.push(x)
+    }
+    let options = g.shuffle(raw)
+
+    return FracItem {
+        mode: "op",
+        prompt: prompt,
+        num: n1,
+        den: d1,
+        options: options,
+        correct: correct,
+        difficulty: 5,
+    }
+}
+
 // Genera una fracción con 4 opciones de valor distinto. Determinista desde
-// (seed, idx, grade).
+// (seed, idx, grade). En secundaria (grade >= 8) delega en el modo operación.
 fn gen_frac(seed: Int, idx: Int, grade: Int) -> FracItem {
     let g = rand.seeded(sub_seed(seed, idx))
+    if (grade >= 8) {
+        return gen_frac_op(g, idx, grade)
+    }
     // F8 rampa: el denominador máximo crece de a poco dentro de la ronda (fracciones
     // más finas al avanzar), sin pasar el máximo del grado.
     let dmax = imin(frac_ramp_base(grade) + idx / 2, frac_den_max(grade))
@@ -130,6 +262,7 @@ fn gen_frac(seed: Int, idx: Int, grade: Int) -> FracItem {
     let options = g.shuffle(raw)
 
     return FracItem {
+        mode: "identify",
         num: num,
         den: den,
         options: options,

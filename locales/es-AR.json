@@ -210,6 +210,7 @@
   "kiosco.jugo": "un jugo",
   "kiosco.turron": "un turrón",
   "frac.pregunta": "¿Qué fracción está pintada?",
+  "frac.pregunta_op": "¿Cuánto es? Elegí el resultado (fracción reducida).",
   "frac.era": "Casi. Era {0}.",
   "panel.hijo": "Hijo/a",
   "panel.stat.ejercicios": "Ejercicios",
