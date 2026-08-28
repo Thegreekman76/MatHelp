@@ -186,3 +186,20 @@ fn contiene(xs: List<Str>, t: Str) -> Bool {
     }
     assert_eq(vio_fino, true)
 }
+
+// La derivación del paso (feedback al errar): en secundaria (modo op) el item
+// trae `expl` con la operación desarrollada; en primaria (identify) queda "".
+@test fn frac_op_tiene_explicacion() {
+    let it = gen_frac(12345, 3, 10)   // grade 10 → modo op
+    assert_eq(it.mode, "op")
+    assert_eq(it.expl != "", true)
+    assert_eq(it.expl.contains(" = "), true)
+    assert_eq(it.expl.contains(it.prompt), true)
+    assert_eq(it.expl.contains(it.correct), true)
+}
+
+@test fn frac_identify_sin_explicacion() {
+    let it = gen_frac(12345, 3, 4)    // grade 4 → modo identify
+    assert_eq(it.mode, "identify")
+    assert_eq(it.expl, "")
+}

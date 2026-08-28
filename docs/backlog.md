@@ -61,6 +61,27 @@ Cada feature nueva destapa/endurece bugs del core de Fitz. Se anota en
   - i18n: `expl.div` (es/en); las otras 3 ops son ecuación pura (sin texto).
   - `tests/explicacion.fitz` (6 tests) + E2E en browser real (las 4 ops renderizan,
     0 errores de página).
-  - **Falta (próximas tandas)**: Escalera (arith, ya pasa `""`), Fracciones
-    (`3/4 de 12 = 12 ÷ 4 × 3 = 9`), Problemas/Kiosco (situación → operación),
-    Porcentaje, Historia, Geometría/Volumen (fórmula), Enteros, Estimar, Series.
+  - **Falta (próximas tandas)**: Escalera (arith, ya pasa `""`), Porcentaje,
+    Historia, Geometría/Volumen (fórmula), Enteros, Estimar, Series.
+
+### 🎓 Feedback al errar con explicación — Tanda 2 (Fracciones + Problemas)
+
+- **2026-08-28** — Dos juegos de alto valor pedagógico (donde el "cómo se llega"
+  pesa más que en las operaciones sueltas).
+  - **Fracciones** (`Fracciones.fitzv` + `gen_frac.fitz` + `frac_view.fitz`): en
+    secundaria (modo `op`), el `FracItem` trae un campo `expl` con la derivación —
+    suma/resta a común denominador (`1/2 + 6/7 = 7/14 + 12/14 = 19/14`), producto
+    cruzado (`1/2 × 1/3 = 1/6`), con reducción sólo si aplica. En primaria (modo
+    `identify`, leer la barra) queda `""` (nada que desarrollar).
+  - **Problemas/Kiosco** (`Kiosco.fitzv` + `kiosco_view.fitz`): `expl_kiosco(locale,
+    k)` mapea cada tipo de UNA operación a su cuenta: total/ahorro (×), suma (+),
+    vuelto/falta/comparar (−), reparto/cuantos/unitario/velocidad (÷), edad (+),
+    cuadras (×2), promedio ((a+b+c)÷3), porcentaje (×÷100), y la **fracción de un
+    monto** (`3/4 de 12 = 12 ÷ 4 × 3 = 9`, el ejemplo del backlog). Los multi-paso
+    (descuento/oferta/combo/iva/interés/regla3/rendimiento/ecuación/trabajo/
+    desc_compuesto/evento) devuelven `""` por ahora → "era X" simple.
+  - Sin claves i18n nuevas (ecuaciones puras). `tests/explicacion_kiosco.fitz` (7) +
+    2 en `tests/fracciones.fitz`. E2E browser real: ambos renderizan, 0 errores.
+  - **Falta (Tanda 3)**: los multi-paso de Kiosco (descuento/iva/interés/…) con
+    derivación de 2 pasos, Historia, Porcentaje (juego propio), Geometría/Volumen
+    (fórmula), Enteros, Estimar, Series, Escalera.

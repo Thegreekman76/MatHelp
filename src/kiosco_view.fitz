@@ -107,7 +107,7 @@ fn kiosco_enunciado(locale: Str, it: KioscoItem) -> Str {
     return t4(locale, "kiosco.p_combo", fmt_int(locale, it.a), prod, fmt_money(locale, it.b), fmt_money(locale, it.c))
 }
 
-fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_money: Bool, entrada: Int, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_money: Bool, last_expl: Str, entrada: Int, racha: Int, racha_max: Int, record_prev: Int) -> Html {
     if (phase == "done") {
         return kiosco_resumen(locale, correct, total, racha_max, record_prev)
     }
@@ -126,7 +126,7 @@ fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, tot
         true => html("""<span class="cg-slot filled">{flv(tipeado)}</span>""").raw,
         false => html("""<span class="cg-slot">{flv(vacio)}</span>""").raw,
     }
-    let banner = kiosco_feedback(locale, feedback, last_answer, last_money, total)
+    let banner = kiosco_feedback(locale, feedback, last_answer, last_money, last_expl, total)
     let hecho = flv(fmt_int(locale, total))
     let de_lbl = flv(t(locale, "juego.de"))
     let de_total = flv(fmt_int(locale, limit))
@@ -148,7 +148,52 @@ fn kiosco_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, tot
 {teclado}""")
 }
 
-fn kiosco_feedback(locale: Str, feedback: Str, last_answer: Int, last_money: Bool, seq: Int) -> Str {
+// Explicación del PASO al errar un problema: muestra la CUENTA que lo resuelve,
+// con números pelados (sin $, la unidad la da el enunciado). Cubre los tipos de
+// una sola operación + fracción ("3/4 de 12 = 12 ÷ 4 × 3 = 9") + porcentaje +
+// promedio. Los multi-paso (descuento/oferta/combo/iva/interés/…) devuelven ""
+// por ahora → caen al "era X" simple. Se computa en el event (donde `it` ES el
+// problema recién errado) y se guarda en `last_expl`.
+fn expl_kiosco(locale: Str, k: KioscoItem) -> Str {
+    let a = fmt_int(locale, k.a)
+    let b = fmt_int(locale, k.b)
+    let c = fmt_int(locale, k.c)
+    let ans = fmt_int(locale, k.answer)
+    if (k.kind == "total" or k.kind == "ahorro") {
+        return a + " × " + b + " = " + ans
+    }
+    if (k.kind == "suma") {
+        return a + " + " + b + " + " + c + " = " + ans
+    }
+    if (k.kind == "vuelto") {
+        return b + " − " + a + " = " + ans
+    }
+    if (k.kind == "falta" or k.kind == "comparar") {
+        return a + " − " + b + " = " + ans
+    }
+    if (k.kind == "reparto" or k.kind == "cuantos" or k.kind == "unitario" or k.kind == "velocidad") {
+        return a + " ÷ " + b + " = " + ans
+    }
+    if (k.kind == "edad") {
+        return a + " + " + b + " = " + ans
+    }
+    if (k.kind == "cuadras") {
+        return a + " × 2 = " + ans
+    }
+    if (k.kind == "promedio") {
+        return "(" + a + " + " + b + " + " + c + ") ÷ 3 = " + ans
+    }
+    if (k.kind == "porcentaje") {
+        return a + " × " + b + " ÷ 100 = " + ans
+    }
+    if (k.kind == "fraccion") {
+        // {b}/{c} de {a}: dividir por el denominador y multiplicar por el numerador.
+        return a + " ÷ " + c + " × " + b + " = " + ans
+    }
+    return ""
+}
+
+fn kiosco_feedback(locale: Str, feedback: Str, last_answer: Int, last_money: Bool, last_expl: Str, seq: Int) -> Str {
     if (feedback == "ok") {
         return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
     }
@@ -157,7 +202,11 @@ fn kiosco_feedback(locale: Str, feedback: Str, last_answer: Int, last_money: Boo
             true => fmt_money(locale, last_answer),
             false => fmt_int(locale, last_answer),
         }
-        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}</div>""").raw
+        let expl = match last_expl == "" {
+            true => "",
+            false => html("""<div class="q-expl">{flv(last_expl)}</div>""").raw,
+        }
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}{expl}</div>""").raw
     }
     return ""
 }

@@ -1,0 +1,43 @@
+// tests/explicacion_kiosco.fitz — la cuenta que resuelve cada problema (feedback
+// al errar). expl_kiosco(locale, k) devuelve la operación para los tipos de una
+// sola cuenta (+ fracción + porcentaje + promedio); "" para los multi-paso.
+
+from kiosco_view import expl_kiosco
+from gen_kiosco import KioscoItem
+
+@test fn expl_kiosco_fraccion() {
+    // 3/4 de 12: dividir por el denominador, multiplicar por el numerador.
+    let k = KioscoItem { kind: "fraccion", a: 12, b: 3, c: 4, answer: 9 }
+    assert_eq(expl_kiosco("es-AR", k), "12 ÷ 4 × 3 = 9")
+}
+
+@test fn expl_kiosco_total() {
+    let k = KioscoItem { kind: "total", a: 4, b: 50, answer: 200 }
+    assert_eq(expl_kiosco("es-AR", k), "4 × 50 = 200")
+}
+
+@test fn expl_kiosco_vuelto() {
+    let k = KioscoItem { kind: "vuelto", a: 450, b: 500, answer: 50 }
+    assert_eq(expl_kiosco("es-AR", k), "500 − 450 = 50")
+}
+
+@test fn expl_kiosco_reparto() {
+    let k = KioscoItem { kind: "reparto", a: 24, b: 6, answer: 4 }
+    assert_eq(expl_kiosco("es-AR", k), "24 ÷ 6 = 4")
+}
+
+@test fn expl_kiosco_porcentaje() {
+    let k = KioscoItem { kind: "porcentaje", a: 200, b: 25, answer: 50 }
+    assert_eq(expl_kiosco("es-AR", k), "200 × 25 ÷ 100 = 50")
+}
+
+@test fn expl_kiosco_promedio() {
+    let k = KioscoItem { kind: "promedio", a: 100, b: 150, c: 200, answer: 150 }
+    assert_eq(expl_kiosco("es-AR", k), "(100 + 150 + 200) ÷ 3 = 150")
+}
+
+@test fn expl_kiosco_multipaso_vacio() {
+    // Los multi-paso (descuento, iva, …) todavía no tienen cuenta desarrollada.
+    let k = KioscoItem { kind: "descuento", a: 1000, b: 20, answer: 800 }
+    assert_eq(expl_kiosco("es-AR", k), "")
+}

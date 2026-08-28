@@ -11,7 +11,7 @@
 from gen_kiosco import gen_kiosco
 from keypad import kp_append, kp_borrar
 from engine import a_int
-from kiosco_view import kiosco_screen
+from kiosco_view import kiosco_screen, expl_kiosco
 
 component kiosco {
   state {
@@ -28,6 +28,7 @@ component kiosco {
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Int = 0           // la respuesta correcta del problema recién fallado
     last_money: Bool = false       // ¿esa respuesta era plata? (formato del feedback)
+    last_expl: Str = ""            // la cuenta que resuelve el problema recién fallado ("" si no aplica)
     entrada: Int = 0               // la respuesta tipeada (0 = vacío)
     limit: Int = 10                // problemas por ronda
   }
@@ -70,6 +71,7 @@ component kiosco {
                 racha = 0
                 last_answer = it.answer
                 last_money = it.money
+                last_expl = expl_kiosco(locale, it)
               }
               entrada = 0
               idx = idx + 1
@@ -85,7 +87,7 @@ component kiosco {
 
   <template>
     <div id="kiosco-app" class="mh-quiz">
-      {kiosco_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, last_money, entrada, racha, racha_max, record_prev).raw}
+      {kiosco_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, last_money, last_expl, entrada, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }

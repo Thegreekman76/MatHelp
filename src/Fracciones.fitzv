@@ -26,6 +26,7 @@ component fracciones {
     phase: Str = "playing"         // "playing" | "done"
     feedback: Str = ""             // "" | "ok" | "bad"
     last_answer: Str = ""          // la fracción correcta del ejercicio recién fallado
+    last_expl: Str = ""            // derivación del paso del ejercicio recién fallado ("" en identify)
     limit: Int = 10                // ejercicios por ronda
   }
 
@@ -51,6 +52,7 @@ component fracciones {
               feedback = "bad"
               racha = 0
               last_answer = it.correct
+              last_expl = it.expl
             }
             idx = idx + 1
             if (total >= limit) {
@@ -64,7 +66,7 @@ component fracciones {
 
   <template>
     <div id="fracciones-app" class="mh-quiz">
-      {frac_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, racha, racha_max, record_prev).raw}
+      {frac_screen(seed, idx, grade, locale, correct, total, limit, phase, feedback, last_answer, last_expl, racha, racha_max, record_prev).raw}
     </div>
   </template>
 }
