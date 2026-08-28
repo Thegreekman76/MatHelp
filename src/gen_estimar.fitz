@@ -47,6 +47,19 @@ fn nivel_techo_estimar(grade: Int) -> Int {
     return 5
 }
 
+// Factor de escala de los operandos a estimar por grado (solo afecta los niveles
+// de estimación 3-5, que son los que ve la secundaria). Estimar 87×63 es más
+// difícil que 23×17: un 6º de secundaria estima números más grandes.
+fn esc_est(grade: Int) -> Int {
+    if (grade <= 8) {
+        return 1
+    }
+    if (grade <= 10) {
+        return 2
+    }
+    return 3                   // 4º-6º secundaria
+}
+
 // Redondea `n` al múltiplo de `base` más cercano (redondeo hacia arriba en el .5).
 fn redondear(n: Int, base: Int) -> Int {
     let mitad = base / 2
@@ -65,6 +78,7 @@ fn gen_estimar(seed: Int, idx: Int, grade: Int) -> EstItem {
     let piso = nivel_piso_estimar(grade)
     let techo = nivel_techo_estimar(grade)
     let nivel = nivel_por_idx(piso, techo, idx)
+    let e = esc_est(grade)
 
     let kind = "redondeo"
     let a = 0
@@ -94,8 +108,8 @@ fn gen_estimar(seed: Int, idx: Int, grade: Int) -> EstItem {
     if (nivel == 3) {
         // Estimar una suma grande (rango).
         kind = "estimar"
-        a = g.int(120, 880)
-        b = g.int(120, 880)
+        a = g.int(120, 880) * e
+        b = g.int(120, 880) * e
         op = "+"
         answer = a + b
         tol = imax_local(1, answer / 10)
@@ -103,8 +117,8 @@ fn gen_estimar(seed: Int, idx: Int, grade: Int) -> EstItem {
     if (nivel == 4) {
         // Estimar un producto (rango).
         kind = "estimar"
-        a = g.int(11, 49)
-        b = g.int(11, 49)
+        a = g.int(11, 49) * e
+        b = g.int(11, 49) * e
         op = "×"
         answer = a * b
         tol = imax_local(1, answer / 10)
@@ -114,14 +128,14 @@ fn gen_estimar(seed: Int, idx: Int, grade: Int) -> EstItem {
         kind = "estimar"
         let modo = g.int(0, 1)
         if (modo == 0) {
-            a = g.int(21, 99)
-            b = g.int(21, 99)
+            a = g.int(21, 99) * e
+            b = g.int(21, 99) * e
             op = "×"
             answer = a * b
         }
         if (modo == 1) {
             let ps = [10, 25, 50]
-            a = g.int(40, 400)
+            a = g.int(40, 400) * e
             b = ps[g.int(0, 2)]
             op = "%"
             answer = a * b / 100

@@ -43,11 +43,29 @@ fn nivel_techo_geo(grade: Int) -> Int {
     return 5
 }
 
+// Factor de escala de las dimensiones por grado: la figura SVG se normaliza al
+// viewBox (geo_ppu), así que agrandar las medidas solo hace más grande la cuenta
+// (área/perímetro), no la figura. Diferencia la secundaria (un 6º de secundaria
+// calcula áreas de 60×48, no de 12×8) sin tocar los niveles.
+fn esc_geo(grade: Int) -> Int {
+    if (grade <= 7) {
+        return 1
+    }
+    if (grade <= 9) {
+        return 2
+    }
+    if (grade <= 11) {
+        return 3
+    }
+    return 4
+}
+
 fn gen_geo(seed: Int, idx: Int, grade: Int) -> GeoItem {
     let g = rand.seeded(sub_seed(seed, idx))
     let piso = nivel_piso_geo(grade)
     let techo = nivel_techo_geo(grade)
     let nivel = nivel_por_idx(piso, techo, idx)
+    let e = esc_geo(grade)
 
     let shape = "cuadrado"
     let metric = "perimetro"
@@ -60,39 +78,39 @@ fn gen_geo(seed: Int, idx: Int, grade: Int) -> GeoItem {
         // Perímetro de un cuadrado.
         shape = "cuadrado"
         metric = "perimetro"
-        a = g.int(3, 15)
+        a = g.int(3, 15) * e
         answer = 4 * a
     }
     if (nivel == 2) {
         // Perímetro de un rectángulo.
         shape = "rect"
         metric = "perimetro"
-        a = g.int(3, 15)
-        b = g.int(3, 15)
+        a = g.int(3, 15) * e
+        b = g.int(3, 15) * e
         answer = 2 * (a + b)
     }
     if (nivel == 3) {
         // Área de un rectángulo.
         shape = "rect"
         metric = "area"
-        a = g.int(3, 15)
-        b = g.int(3, 12)
+        a = g.int(3, 15) * e
+        b = g.int(3, 12) * e
         answer = a * b
     }
     if (nivel == 4) {
         // Área de un triángulo rectángulo (base par → área entera).
         shape = "triangulo"
         metric = "area"
-        a = g.int(2, 7) * 2
-        b = g.int(3, 12)
+        a = g.int(2, 7) * 2 * e
+        b = g.int(3, 12) * e
         answer = a * b / 2
     }
     if (nivel >= 5) {
         // Área de una figura compuesta en L (rectángulo con un cuadrado recortado).
         shape = "ele"
         metric = "area"
-        a = g.int(8, 14)
-        b = g.int(8, 12)
+        a = g.int(8, 14) * e
+        b = g.int(8, 12) * e
         c = g.int(2, imin(a, b) - 3)
         answer = a * b - c * c
     }

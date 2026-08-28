@@ -81,7 +81,8 @@ fn add_max(grade: Int) -> Int {
 }
 
 // Factor máximo (magnitud) para multiplicación/división (tablas). Grado 3 cierra
-// las tablas hasta 10; 4º-7º llega a 12; secundaria a 15 (con signo).
+// las tablas hasta 10; 4º-7º llega a 12; secundaria escala por tramo de años
+// (con signo), así la Escalera y la división NO son idénticas de 8º a 13º.
 fn mul_max(grade: Int) -> Int {
     if (grade <= 2) {
         return 5
@@ -92,7 +93,13 @@ fn mul_max(grade: Int) -> Int {
     if (grade <= 7) {
         return 12
     }
-    return 15                  // secundaria (multiplicación/división con signo)
+    if (grade <= 9) {
+        return 15               // 1º-2º secundaria
+    }
+    if (grade <= 11) {
+        return 20               // 3º-4º secundaria
+    }
+    return 25                   // 5º-6º secundaria
 }
 
 // Dificultad 1..5 a partir de la operación + el grado. Aproximada; el motor

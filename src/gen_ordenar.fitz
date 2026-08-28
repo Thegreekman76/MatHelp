@@ -81,15 +81,24 @@ fn nivel_ordenar(grade: Int) -> Int {
     if (grade <= 8) {
         return 4
     }
-    return 5
+    if (grade <= 10) {
+        return 5
+    }
+    if (grade <= 12) {
+        return 6               // 3º-4º sec: mezcla decimales + fracciones
+    }
+    return 7                    // 5º-6º sec: mezcla CON negativos
 }
 
 fn gen_ordenar(seed: Int, grade: Int) -> OrdGrid {
     let g = rand.seeded(seed)
     let nivel = nivel_ordenar(grade)
-    let k = match nivel >= 5 {
-        true => 6,
-        false => 5,
+    let k = match nivel >= 6 {
+        true => 7,
+        false => match nivel >= 5 {
+            true => 6,
+            false => 5,
+        },
     }
 
     // K valores con claves DISTINTAS.
@@ -126,7 +135,7 @@ fn gen_ordenar(seed: Int, grade: Int) -> OrdGrid {
             key = n * 120
             text = "{n}"
         }
-        if (nivel >= 5) {
+        if (nivel == 5) {
             let modo = g.int(0, 1)
             if (modo == 0) {
                 let x = g.int(0, 5)
@@ -140,6 +149,74 @@ fn gen_ordenar(seed: Int, grade: Int) -> OrdGrid {
                 let n = g.int(1, 2 * d - 1)
                 key = n * (120 / d)
                 text = "{n}/{d}"
+            }
+        }
+        if (nivel == 6) {
+            // Mezcla positiva: naturales, decimales y fracciones en la MISMA grilla
+            // (comparar formatos distintos es lo difícil). Toda clave = valor·120.
+            let f = g.int(0, 2)
+            if (f == 0) {
+                let n = g.int(1, 20)
+                key = n * 120
+                text = "{n}"
+            }
+            if (f == 1) {
+                let x = g.int(0, 9)
+                let y = g.int(1, 9)
+                key = (x * 10 + y) * 12
+                text = "{x},{y}"
+            }
+            if (f == 2) {
+                let dens = [2, 3, 4, 5, 6, 8]
+                let d = dens[g.int(0, 5)]
+                let n = g.int(1, 2 * d - 1)
+                key = n * (120 / d)
+                text = "{n}/{d}"
+            }
+        }
+        if (nivel >= 7) {
+            // Mezcla CON signo: decimales, fracciones y enteros, positivos y
+            // negativos juntos (el signo invierte el orden → lo más difícil).
+            let f = g.int(0, 2)
+            let neg = g.int(0, 1) == 0
+            if (f == 0) {
+                let n = g.int(1, 20)
+                let base = n * 120
+                key = match neg {
+                    true => 0 - base,
+                    false => base,
+                }
+                text = match neg {
+                    true => "-{n}",
+                    false => "{n}",
+                }
+            }
+            if (f == 1) {
+                let x = g.int(0, 9)
+                let y = g.int(1, 9)
+                let base = (x * 10 + y) * 12
+                key = match neg {
+                    true => 0 - base,
+                    false => base,
+                }
+                text = match neg {
+                    true => "-{x},{y}",
+                    false => "{x},{y}",
+                }
+            }
+            if (f == 2) {
+                let dens = [2, 3, 4, 5, 6]
+                let d = dens[g.int(0, 4)]
+                let n = g.int(1, 2 * d - 1)
+                let base = n * (120 / d)
+                key = match neg {
+                    true => 0 - base,
+                    false => base,
+                }
+                text = match neg {
+                    true => "-{n}/{d}",
+                    false => "{n}/{d}",
+                }
             }
         }
         if (not lista_tiene(keys, key)) {

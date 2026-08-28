@@ -68,7 +68,10 @@ fn nivel_memoria(grade: Int) -> Int {
     if (grade <= 8) {
         return 4
     }
-    return 5
+    if (grade <= 10) {
+        return 5
+    }
+    return 6                   // 4º-6º sec: expresiones de dos cifras / dos pasos
 }
 
 fn pares_por_nivel(nivel: Int) -> Int {
@@ -122,7 +125,7 @@ fn gen_memoria(seed: Int, grade: Int) -> MemGrid {
             val = q
             text = "{a} ÷ {b}"
         }
-        if (nivel >= 5) {
+        if (nivel == 5) {
             let modo = g.int(0, 1)
             if (modo == 0) {
                 let a = g.int(3, 12)
@@ -135,6 +138,30 @@ fn gen_memoria(seed: Int, grade: Int) -> MemGrid {
                 let b = g.int(10, 40)
                 val = a + b
                 text = "{a} + {b}"
+            }
+        }
+        if (nivel >= 6) {
+            // Secundaria alta: dos cifras por una, dos pasos, o división grande.
+            let modo = g.int(0, 2)
+            if (modo == 0) {
+                let a = g.int(11, 25)
+                let b = g.int(3, 9)
+                val = a * b
+                text = "{a} × {b}"
+            }
+            if (modo == 1) {
+                let a = g.int(2, 9)
+                let b = g.int(2, 9)
+                let c = g.int(1, 20)
+                val = a * b + c
+                text = "{a} × {b} + {c}"
+            }
+            if (modo == 2) {
+                let b = g.int(3, 12)
+                let q = g.int(3, 12)
+                let a = b * q
+                val = q
+                text = "{a} ÷ {b}"
             }
         }
         if (not lista_tiene(vals, val)) {

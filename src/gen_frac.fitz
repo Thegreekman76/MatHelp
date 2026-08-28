@@ -21,7 +21,9 @@ type FracItem {
     difficulty: Int = 1
 }
 
-// Denominador máximo por grado. Fracciones más finas a mayor grado.
+// Denominador máximo por grado. Fracciones más finas a mayor grado. Secundaria
+// llega a denominadores mucho más finos (hasta 20 en 6º) — leer/comparar 13/20 es
+// bastante más difícil que 3/6.
 fn frac_den_max(grade: Int) -> Int {
     if (grade <= 4) {
         return 6
@@ -29,7 +31,29 @@ fn frac_den_max(grade: Int) -> Int {
     if (grade <= 5) {
         return 8
     }
-    return 10
+    if (grade <= 7) {
+        return 10              // 6º-7º primaria
+    }
+    if (grade <= 9) {
+        return 12              // 1º-2º secundaria
+    }
+    if (grade <= 11) {
+        return 16              // 3º-4º secundaria
+    }
+    return 20                  // 5º-6º secundaria
+}
+
+// Piso del denominador según el grado: en secundaria las fracciones arrancan más
+// finas dentro de la ronda (no siempre desde 2), así el Ciclo Orientado ve de
+// entrada fracciones que la primaria nunca alcanza.
+fn frac_ramp_base(grade: Int) -> Int {
+    if (grade <= 7) {
+        return 4
+    }
+    if (grade <= 10) {
+        return 6
+    }
+    return 8                   // 4º-6º secundaria
 }
 
 fn frac_dificultad(den: Int) -> Int {
@@ -46,7 +70,7 @@ fn gen_frac(seed: Int, idx: Int, grade: Int) -> FracItem {
     let g = rand.seeded(sub_seed(seed, idx))
     // F8 rampa: el denominador máximo crece de a poco dentro de la ronda (fracciones
     // más finas al avanzar), sin pasar el máximo del grado.
-    let dmax = imin(4 + idx / 2, frac_den_max(grade))
+    let dmax = imin(frac_ramp_base(grade) + idx / 2, frac_den_max(grade))
     let den = g.int(2, dmax)
     let num = g.int(1, den - 1)          // fracción propia (0 < num < den)
 

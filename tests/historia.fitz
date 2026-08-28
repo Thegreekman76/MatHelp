@@ -47,6 +47,10 @@ fn contiene(xs: List<Int>, n: Int) -> Bool {
             if (it.kind == "mult") {
                 esperado = it.a * it.b
             }
+            if (it.kind == "reparto") {
+                assert_eq(it.a % it.b, 0)          // división exacta
+                esperado = it.a / it.b
+            }
             assert_eq(it.answer, esperado)
             assert(it.answer >= 0)
             assert_eq(it.options.len(), 4)
@@ -73,5 +77,5 @@ fn contiene(xs: List<Int>, n: Int) -> Bool {
     let bajo = gen_historia(9, 0, 1)
     assert_eq(bajo.difficulty, 1)
     let alto = gen_historia(9, 30, 13)
-    assert_eq(alto.difficulty, 5)
+    assert_eq(alto.difficulty, 7)      // 6º sec llega a reparto (nivel 7)
 }

@@ -68,5 +68,6 @@ from gen_memoria import gen_memoria, bit_set, bit_add, pow2, nivel_memoria
 
 @test fn memoria_nivel_por_grado() {
     assert_eq(nivel_memoria(1), 1)
-    assert_eq(nivel_memoria(13), 5)
+    assert_eq(nivel_memoria(10), 5)    // 3º sec
+    assert_eq(nivel_memoria(13), 6)    // 6º sec: dos cifras / dos pasos
 }

@@ -44,11 +44,24 @@ fn nivel_techo_vol(grade: Int) -> Int {
     return 5
 }
 
+// Factor de escala de las dimensiones lineales por grado. Gentil (solo ×2 en el
+// Ciclo Orientado) porque el volumen es cúbico y explota rápido: un 5º-6º de
+// secundaria calcula prismas de 3-4 cifras en vez de repetir los del ciclo
+// básico. El SVG se normaliza (proyección oblicua proporcional), así que la
+// figura no se desborda.
+fn esc_vol(grade: Int) -> Int {
+    if (grade <= 10) {
+        return 1
+    }
+    return 2                   // 5º-6º secundaria
+}
+
 fn gen_vol(seed: Int, idx: Int, grade: Int) -> VolItem {
     let g = rand.seeded(sub_seed(seed, idx))
     let piso = nivel_piso_vol(grade)
     let techo = nivel_techo_vol(grade)
     let nivel = nivel_por_idx(piso, techo, idx)
+    let e = esc_vol(grade)
 
     let kind = "cubo"
     let a = 0
@@ -60,7 +73,7 @@ fn gen_vol(seed: Int, idx: Int, grade: Int) -> VolItem {
     if (nivel == 1) {
         // Cubo: lado³.
         kind = "cubo"
-        a = g.int(2, 10)
+        a = g.int(2, 10) * e
         b = a
         c = a
         answer = a * a * a
@@ -68,33 +81,33 @@ fn gen_vol(seed: Int, idx: Int, grade: Int) -> VolItem {
     if (nivel == 2) {
         // Prisma rectangular: a·b·c.
         kind = "prisma"
-        a = g.int(2, 8)
-        b = g.int(2, 8)
-        c = g.int(2, 8)
+        a = g.int(2, 8) * e
+        b = g.int(2, 8) * e
+        c = g.int(2, 8) * e
         answer = a * b * c
     }
     if (nivel == 3) {
         // Prisma más grande.
         kind = "prisma"
-        a = g.int(4, 14)
-        b = g.int(3, 12)
-        c = g.int(3, 12)
+        a = g.int(4, 14) * e
+        b = g.int(3, 12) * e
+        c = g.int(3, 12) * e
         answer = a * b * c
     }
     if (nivel == 4) {
         // Cilindro con π ≈ 3: 3·r²·h.
         kind = "cilindro"
-        a = g.int(2, 8)
-        b = g.int(2, 12)
+        a = g.int(2, 8) * e
+        b = g.int(2, 12) * e
         answer = 3 * a * a * b
     }
     if (nivel >= 5) {
         // Compuesto: prisma + un cubo encima.
         kind = "compuesto"
-        a = g.int(4, 9)
-        b = g.int(3, 8)
-        c = g.int(3, 8)
-        d = g.int(2, 4)
+        a = g.int(4, 9) * e
+        b = g.int(3, 8) * e
+        c = g.int(3, 8) * e
+        d = g.int(2, 4) * e
         answer = a * b * c + d * d * d
     }
 

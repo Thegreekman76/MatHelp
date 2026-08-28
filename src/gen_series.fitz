@@ -29,10 +29,10 @@ fn nivel_piso_series(grade: Int) -> Int {
     if (grade <= 7) {
         return 2
     }
-    if (grade <= 9) {
+    if (grade <= 10) {
         return 3
     }
-    return 3
+    return 4                   // 4º-6º sec arranca en patrones multiplicativos
 }
 
 fn nivel_techo_series(grade: Int) -> Int {
@@ -42,14 +42,11 @@ fn nivel_techo_series(grade: Int) -> Int {
     if (grade <= 4) {
         return 2
     }
-    if (grade <= 6) {
-        return 3
-    }
-    if (grade <= 8) {
+    if (grade <= 7) {
         return 3
     }
     if (grade <= 9) {
-        return 4
+        return 4               // 1º-2º sec: banda 3-4 (arregla la regresión de 8º)
     }
     return 5
 }

@@ -27,7 +27,10 @@ fn nivel_piso_enteros(grade: Int) -> Int {
     if (grade <= 9) {
         return 2
     }
-    return 3
+    if (grade <= 11) {
+        return 3
+    }
+    return 4                   // 5º-6º sec: arranca en multiplicación de signos
 }
 
 fn nivel_techo_enteros(grade: Int) -> Int {

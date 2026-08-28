@@ -45,5 +45,8 @@ from gen_ordenar import gen_ordenar, bit_set, bit_add, pow2, lista_tiene, nivel_
 
 @test fn ordenar_nivel_por_grado() {
     assert_eq(nivel_ordenar(1), 1)
-    assert_eq(nivel_ordenar(13), 5)
+    assert_eq(nivel_ordenar(8), 4)
+    assert_eq(nivel_ordenar(10), 5)    // 3º sec
+    assert_eq(nivel_ordenar(12), 6)    // 5º sec: mezcla de formatos
+    assert_eq(nivel_ordenar(13), 7)    // 6º sec: mezcla con negativos
 }

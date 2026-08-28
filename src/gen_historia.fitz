@@ -32,7 +32,9 @@ fn lista_tiene(xs: List<Int>, n: Int) -> Bool {
     return false
 }
 
-// min_grade del juego es 1° (pre-lectores).
+// min_grade del juego es 1° (pre-lectores). Primaria 1-7 sin cambios; secundaria
+// (8-13) escala a niveles 6-7 (multiplicación grande y reparto/división) con
+// contextos adultos, para que un 6º de secundaria no reciba "2 × 6" narrado.
 fn nivel_piso_hist(grade: Int) -> Int {
     if (grade <= 2) {
         return 1
@@ -40,7 +42,13 @@ fn nivel_piso_hist(grade: Int) -> Int {
     if (grade <= 4) {
         return 2
     }
-    return 3
+    if (grade <= 7) {
+        return 3
+    }
+    if (grade <= 9) {
+        return 5               // 1º-2º sec: ni el primer problema es trivial
+    }
+    return 6                    // 3º-6º sec: arranca en multiplicación grande
 }
 
 fn nivel_techo_hist(grade: Int) -> Int {
@@ -53,7 +61,13 @@ fn nivel_techo_hist(grade: Int) -> Int {
     if (grade <= 5) {
         return 4
     }
-    return 5
+    if (grade <= 7) {
+        return 5               // 6º-7º primaria
+    }
+    if (grade <= 9) {
+        return 6               // 1º-2º sec: multiplicación grande
+    }
+    return 7                    // 3º-6º sec: multiplicación grande + reparto
 }
 
 fn gen_historia(seed: Int, idx: Int, grade: Int) -> HistItem {
@@ -64,8 +78,13 @@ fn gen_historia(seed: Int, idx: Int, grade: Int) -> HistItem {
 
     let nombres = ["Ana", "Beto", "Caro", "Diego", "Emi", "Feli", "Gabi", "Ines"]
     let objs = ["hist.globos", "hist.autitos", "hist.flores", "hist.galletitas", "hist.estrellas", "hist.pelotas"]
+    // La secundaria usa objetos menos infantiles (libros, monedas, láminas, puntos).
+    let objs_sec = ["hist.libros", "hist.monedas", "hist.laminas", "hist.puntos"]
     let nombre = nombres[g.int(0, 7)]
-    let obj = objs[g.int(0, 5)]
+    let obj = match grade >= 8 {
+        true => objs_sec[g.int(0, 3)],
+        false => objs[g.int(0, 5)],
+    }
 
     let kind = "suma"
     let a = 0
@@ -109,12 +128,27 @@ fn gen_historia(seed: Int, idx: Int, grade: Int) -> HistItem {
         a = g.int(b + 1, b + 10)
         answer = a - b
     }
-    if (nivel >= 5) {
+    if (nivel == 5) {
         // Multiplicación simple.
         kind = "mult"
         a = g.int(2, 6)
         b = g.int(2, 6)
         answer = a * b
+    }
+    if (nivel == 6) {
+        // Multiplicación grande (secundaria): cajas de X, cifras más altas.
+        kind = "mult"
+        a = g.int(6, 15)
+        b = g.int(6, 12)
+        answer = a * b
+    }
+    if (nivel >= 7) {
+        // Reparto en partes iguales (división exacta).
+        kind = "reparto"
+        b = g.int(3, 12)
+        let q = g.int(4, 15)
+        a = b * q
+        answer = q
     }
 
     // Opciones: correcta + 3 distractores cercanos, distintos y ≥ 0.
