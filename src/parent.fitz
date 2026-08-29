@@ -76,6 +76,7 @@ fn skill_label_key(sc: Str) -> Str {
         "vol" => "tema.volumen",
         "historia" => "tema.historia",
         "enteros" => "tema.enteros",
+        "estadistica" => "tema.estadistica",
         _ => "tema.mezcla",
     }
 }
@@ -115,6 +116,7 @@ fn skill_icon(sc: Str) -> Str {
         "vol" => "📦",
         "historia" => "📖",
         "enteros" => "±",
+        "estadistica" => "📉",
         _ => "🎲",
     }
 }
@@ -156,6 +158,7 @@ fn skill_accent(sc: Str) -> Str {
         "vol" => "amber",
         "historia" => "blue",
         "enteros" => "green",
+        "estadistica" => "blue",
         _ => "primary",
     }
 }

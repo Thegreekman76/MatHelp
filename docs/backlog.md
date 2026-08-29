@@ -25,10 +25,18 @@ Product / ship it (deploy a dominio + HTTPS, PWA offline pulida, landing page).
 - [ ] **Feedback al errar con explicación** (máximo valor de aprendizaje). Hoy al
   fallar solo muestra "era X". Sumar el PASO: cómo se llega al resultado
   ("3/4 de 12 = 12 ÷ 4 × 3 = 9"). Por tipo de ejercicio / por juego.
-- [ ] **Repaso inteligente afinado** — priorizar por skill más flojo + spaced
-  repetition (base ya está con el Elo + due_at).
-- [ ] **Más contenido** — decimales, probabilidad, estadística con gráficos,
-  ecuaciones con recta/parábola, "pizza" SVG para fracciones. (Elegir 1-2.)
+- [x] **Repaso inteligente afinado** ✅ 2026-08-28. El motor Elo-lite ya escribía
+  `due_at` (repaso espaciado, intervalo [1,3,7,16,35] días) pero NUNCA se leía:
+  `/repaso` elegía solo por `rating ASC`. Ahora `weakest_skill` prioriza las
+  destrezas VENCIDAS (`due_at < NOW()`) y entre ellas la más floja; sin ninguna
+  vencida, cae a la más floja. Verificado contra Postgres.
+- [x] **Más contenido: Estadística** ✅ 2026-08-28. Juego nuevo (promedio / mediana
+  / moda / rango) con respuestas enteras + teclado, escala por grado (6°→6º sec).
+  Cadena completa: `gen_estadistica` + `Estadistica.fitzv` + `estad_view` +
+  `live_estadistica` (@get + @ws) + migración 0017 + fila en `juegos.fitz` + casos
+  en `progreso`/`parent` + i18n ES/EN + CSS. Explicación al errar por tipo
+  ((a+b+c)÷n, máx−mín, mediana ordenada, moda). 3 tests del generador. Verificado
+  E2E en browser + `fitz build`.
 
 ### 👨‍👩‍👧 Familia / retención
 

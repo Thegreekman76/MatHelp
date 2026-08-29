@@ -38,6 +38,7 @@ import live_ecuaciones
 import live_finanzas
 import live_trigonometria
 import live_funciones
+import live_estadistica
 import tema
 import accesibilidad
 import avatares
@@ -70,6 +71,7 @@ from Estimar import estimar, estimar_render, estimar_answer, estimar_digito, est
 from Porcentaje import porcentaje, porcentaje_render, porcentaje_answer, porcentaje_digito, porcentaje_borrar
 from Volumen import volumen, volumen_render, volumen_answer, volumen_digito, volumen_borrar
 from Historia import historia, historia_render, historia_answer
+from Estadistica import estadistica, estadistica_render, estadistica_answer, estadistica_digito, estadistica_borrar
 // F5 — componentes presentacionales del panel del padre. Se importan en el
 // entry (además de en parent.fitz) para el auto-registro + la resolución de la
 // firma cross-módulo a Html (igual que el dashboard del admin de liveviews).
@@ -323,14 +325,18 @@ async fn saludo_html(locale: Str, pid: Int) -> Html {
     return html("""<a class="mh-saludo" href="/avatar"><span class="mh-saludo-av">{em}</span><span>{hola}</span></a>""")
 }
 
-// La destreza con menor rating (con ≥3 intentos, para que sea significativa).
-// "" si no hay datos o falla la DB. La usan el CTA de repaso y /repaso.
+// La destreza a repasar (con ≥3 intentos, para que sea significativa). Prioriza
+// el REPASO ESPACIADO: primero las vencidas (`due_at < NOW()`, la fecha que el
+// motor Elo-lite ya escribe con el intervalo [1,3,7,16,35] días), y entre ellas la
+// más floja (menor rating). Si no hay ninguna vencida, cae a la más floja a secas.
+// Así una destreza que ya se domina pero "toca repasar" gana a una floja que se
+// vio recién. "" si no hay datos o falla la DB. La usan el CTA de repaso y /repaso.
 async fn weakest_skill(pid: Int) -> Str {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(_) => { return "" },
     }
-    let rows = match conn.query("SELECT skill_code FROM mastery WHERE profile_id = $1 AND seen >= 3 ORDER BY rating ASC LIMIT 1", [pid]).await {
+    let rows = match conn.query("SELECT skill_code FROM mastery WHERE profile_id = $1 AND seen >= 3 ORDER BY (due_at IS NOT NULL AND due_at < NOW()) DESC, rating ASC LIMIT 1", [pid]).await {
         Ok(r) => r,
         Err(_) => { return "" },
     }

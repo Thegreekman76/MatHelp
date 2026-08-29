@@ -1,0 +1,174 @@
+// estad_view.fitz — el render de "Estadística" (promedio, mediana, moda, rango).
+//
+// Muestra el conjunto de datos y la pregunta según el tipo; el chico tipea la
+// respuesta (siempre un entero) en el teclado numérico. El item se DERIVA de
+// (seed, idx, grade); el server re-deriva el mismo y compara given == it.answer.
+
+from fitz_liveviews import Html, html, flv
+from game_ui import resumen_estrellas, correcto_msg, progreso_bar, racha_badge, incorrecto_msg, mejor_racha_html
+from gen_estadistica import gen_estadistica, EstadItem
+from i18n import t, t1, t2
+from fmt import fmt_int
+from keypad_view import keypad_html
+
+// Une los datos formateados con un separador ("4, 8, 6" / "4 + 8 + 6").
+fn unir_datos(locale: Str, xs: List<Int>, sep: Str) -> Str {
+    let s = ""
+    let primero = true
+    for x in xs {
+        let num = fmt_int(locale, x)
+        if (primero) {
+            s = num
+            primero = false
+        } else {
+            s = s + sep + num
+        }
+    }
+    return s
+}
+
+// Ordena ascendente (insertion sort) — para mostrar la mediana desarrollada.
+fn orden_asc(xs: List<Int>) -> List<Int> {
+    let out: List<Int> = []
+    for x in xs {
+        let i = 0
+        let puesto = false
+        let res: List<Int> = []
+        for y in out {
+            if (not puesto and x < y) {
+                res.push(x)
+                puesto = true
+            }
+            res.push(y)
+            i = i + 1
+        }
+        if (not puesto) {
+            res.push(x)
+        }
+        out = res
+    }
+    return out
+}
+
+fn minimo(xs: List<Int>) -> Int {
+    let m = xs[0]
+    for x in xs {
+        if (x < m) {
+            m = x
+        }
+    }
+    return m
+}
+
+fn maximo(xs: List<Int>) -> Int {
+    let m = xs[0]
+    for x in xs {
+        if (x > m) {
+            m = x
+        }
+    }
+    return m
+}
+
+// La pregunta localizada según el tipo de medida.
+fn estad_pregunta(locale: Str, kind: Str) -> Str {
+    if (kind == "rango") {
+        return t(locale, "estad.pregunta_rango")
+    }
+    if (kind == "mediana") {
+        return t(locale, "estad.pregunta_mediana")
+    }
+    if (kind == "moda") {
+        return t(locale, "estad.pregunta_moda")
+    }
+    return t(locale, "estad.pregunta_promedio")
+}
+
+// Explicación del paso: cómo se obtiene la medida sobre estos datos.
+fn explicar_estad(locale: Str, it: EstadItem) -> Str {
+    let ans = fmt_int(locale, it.answer)
+    if (it.kind == "promedio") {
+        let n = fmt_int(locale, it.datos.len())
+        return "(" + unir_datos(locale, it.datos, " + ") + ") ÷ " + n + " = " + ans
+    }
+    if (it.kind == "rango") {
+        let mx = fmt_int(locale, maximo(it.datos))
+        let mn = fmt_int(locale, minimo(it.datos))
+        return mx + " − " + mn + " = " + ans
+    }
+    if (it.kind == "mediana") {
+        let ordenados = unir_datos(locale, orden_asc(it.datos), ", ")
+        return t2(locale, "estad.expl_mediana", ordenados, ans)
+    }
+    if (it.kind == "moda") {
+        return t1(locale, "estad.expl_moda", ans)
+    }
+    return ""
+}
+
+fn estad_feedback(locale: Str, feedback: Str, last_answer: Int, last_expl: Str, seq: Int) -> Str {
+    if (feedback == "ok") {
+        return html("""<div class="q-fb ok" role="status" data-fb-seq="{seq}">{flv(correcto_msg(locale, seq))}</div>""").raw
+    }
+    if (feedback == "bad") {
+        let resp = fmt_int(locale, last_answer)
+        let expl = match last_expl == "" {
+            true => "",
+            false => html("""<div class="q-expl">{flv(last_expl)}</div>""").raw,
+        }
+        return html("""<div class="q-fb bad" role="status" data-fb-seq="{seq}">{flv(incorrecto_msg(locale, seq, resp))}{expl}</div>""").raw
+    }
+    return ""
+}
+
+fn estad_screen(seed: Int, idx: Int, grade: Int, locale: Str, correct: Int, total: Int, limit: Int, phase: Str, feedback: Str, last_answer: Int, last_expl: Str, entrada: Int, touched: Bool, racha: Int, racha_max: Int, record_prev: Int) -> Html {
+    if (phase == "done") {
+        return estad_resumen(locale, correct, total, racha_max, record_prev)
+    }
+    let it = gen_estadistica(seed, idx, grade)
+    let datos = flv(unir_datos(locale, it.datos, ", "))
+    let pregunta = flv(estad_pregunta(locale, it.kind))
+    let datos_lbl = flv(t(locale, "estad.datos"))
+    let hueco = match touched {
+        true => html("""<span class="cg-slot filled">{flv(fmt_int(locale, entrada))}</span>""").raw,
+        false => html("""<span class="cg-slot">?</span>""").raw,
+    }
+    let banner = estad_feedback(locale, feedback, last_answer, last_expl, total)
+    let hecho = flv(fmt_int(locale, total))
+    let de_lbl = flv(t(locale, "juego.de"))
+    let de_total = flv(fmt_int(locale, limit))
+    let vas_lbl = flv(t(locale, "juego.aciertos"))
+    let co = flv(fmt_int(locale, correct))
+    let teclado = keypad_html(locale, entrada, idx, touched, false)
+    let rachab = racha_badge(racha)
+    let progb = progreso_bar(total, limit)
+    return html("""<div class="q-hud">
+<div class="q-mode">📉 {hecho} {de_lbl} {de_total}</div>
+<div class="q-score">{vas_lbl}<span class="q-snum">{co}</span>{rachab}</div>
+</div>
+{progb}
+<div class="estad-datos"><span class="estad-datos-lbl">{datos_lbl}</span><span class="estad-set">{datos}</span></div>
+<p class="estad-preg">{pregunta}</p>
+<div class="q-prompt cg-eq">{hueco}</div>
+<div class="q-fbwrap" aria-live="polite">{banner}</div>
+{teclado}""")
+}
+
+fn estad_resumen(locale: Str, correct: Int, total: Int, racha_max: Int, record_prev: Int) -> Html {
+    let co = flv(fmt_int(locale, correct))
+    let to = flv(fmt_int(locale, total))
+    let de = flv(t(locale, "juego.de"))
+    let estrellas = resumen_estrellas(locale, correct, total)
+    let mejor = mejor_racha_html(locale, racha_max, record_prev)
+    return html("""<div class="q-done">
+<div class="q-medal">🧉</div>
+<h2>{flv(t(locale, "juego.resumen"))}</h2>
+<div class="q-stat"><span class="q-big">{co} {de} {to}</span><span class="q-lbl">{flv(t(locale, "juego.aciertos"))}</span></div>
+{estrellas}
+{mejor}
+<div class="q-actions">
+<a class="mh-btn" href="/estadistica">{flv(t(locale, "juego.de_nuevo"))}</a>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>
+</div>""")
+}

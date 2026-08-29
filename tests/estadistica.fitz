@@ -1,0 +1,122 @@
+// tests/estadistica.fitz — el generador de "Estadística" (gen_estadistica).
+//
+// Lo crítico: la respuesta (entera por construcción) coincide con la medida real
+// calculada sobre el conjunto `datos`. Se verifica recomputando cada medida.
+//
+// (Nombre distinto del módulo importado → sin ciclo, FITZ-21.)
+
+from gen_estadistica import gen_estadistica, EstadItem
+
+fn suma(xs: List<Int>) -> Int {
+    let s = 0
+    for x in xs {
+        s = s + x
+    }
+    return s
+}
+
+fn minimo(xs: List<Int>) -> Int {
+    let m = xs[0]
+    for x in xs {
+        if (x < m) {
+            m = x
+        }
+    }
+    return m
+}
+
+fn maximo(xs: List<Int>) -> Int {
+    let m = xs[0]
+    for x in xs {
+        if (x > m) {
+            m = x
+        }
+    }
+    return m
+}
+
+fn cuenta(xs: List<Int>, v: Int) -> Int {
+    let c = 0
+    for x in xs {
+        if (x == v) {
+            c = c + 1
+        }
+    }
+    return c
+}
+
+fn menores(xs: List<Int>, v: Int) -> Int {
+    let c = 0
+    for x in xs {
+        if (x < v) {
+            c = c + 1
+        }
+    }
+    return c
+}
+
+fn mayores(xs: List<Int>, v: Int) -> Int {
+    let c = 0
+    for x in xs {
+        if (x > v) {
+            c = c + 1
+        }
+    }
+    return c
+}
+
+// Mismo (seed, idx, grade) → mismo item (determinista).
+@test fn estad_reproducible() {
+    let a = gen_estadistica(4242, 3, 8)
+    let b = gen_estadistica(4242, 3, 8)
+    assert_eq(a.kind, b.kind)
+    assert_eq(a.answer, b.answer)
+    assert_eq(a.datos.len(), b.datos.len())
+}
+
+// Cada tipo cumple su medida sobre los datos generados, en muchos seeds/grados.
+@test fn estad_cada_medida_es_correcta() {
+    let grados = [6, 7, 8, 9, 10, 11, 12, 13]
+    for grade in grados {
+        let idx = 0
+        while (idx < 20) {
+            let it = gen_estadistica(1000 + idx * 7, idx, grade)
+            let n = it.datos.len()
+            assert_eq(n >= 3, true)
+            if (it.kind == "promedio") {
+                // media entera: suma = n · answer
+                assert_eq(suma(it.datos), n * it.answer)
+            }
+            if (it.kind == "rango") {
+                assert_eq(it.answer, maximo(it.datos) - minimo(it.datos))
+            }
+            if (it.kind == "mediana") {
+                // answer al medio: mismos elementos por debajo que por encima
+                assert_eq(cuenta(it.datos, it.answer) >= 1, true)
+                assert_eq(menores(it.datos, it.answer), mayores(it.datos, it.answer))
+            }
+            if (it.kind == "moda") {
+                // answer aparece >= 2 y más que cualquier otro (moda única)
+                assert_eq(cuenta(it.datos, it.answer) >= 2, true)
+                for x in it.datos {
+                    if (x != it.answer) {
+                        assert_eq(cuenta(it.datos, x) < cuenta(it.datos, it.answer), true)
+                    }
+                }
+            }
+            idx = idx + 1
+        }
+    }
+}
+
+// Todos los datos son positivos (no confunde a los chicos con negativos).
+@test fn estad_datos_positivos() {
+    let idx = 0
+    while (idx < 40) {
+        let it = gen_estadistica(777 + idx, idx, 10)
+        for x in it.datos {
+            assert_eq(x >= 1, true)
+        }
+        idx = idx + 1
+    }
+}

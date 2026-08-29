@@ -37,6 +37,7 @@ fn juegos() -> List<Juego> {
         Juego { code: "memoria", min_grade: 1, icon: "🃏", route: "/memoria", built: true, categoria: "pensar" , nuevo: true },
         Juego { code: "ordenar", min_grade: 1, icon: "📊", route: "/ordenar", built: true, categoria: "pensar" , nuevo: true },
         Juego { code: "estimar", min_grade: 3, icon: "🎯", route: "/estimar", built: true, categoria: "pensar" , nuevo: true },
+        Juego { code: "estadistica", min_grade: 6, icon: "📉", route: "/estadistica", built: true, categoria: "pensar" , nuevo: true },
         Juego { code: "historia", min_grade: 1, icon: "📖", route: "/historia", built: true, categoria: "problemas" , nuevo: true },
         Juego { code: "kiosco", min_grade: 4, icon: "🧮", route: "/problemas", built: true, categoria: "problemas" },
         Juego { code: "finanzas", min_grade: 11, icon: "💰", route: "/finanzas", built: true, modalidad: "comercial", categoria: "problemas" },

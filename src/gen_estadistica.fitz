@@ -1,0 +1,179 @@
+// gen_estadistica.fitz — generador del juego "Estadística" (promedio, mediana,
+// moda, rango sobre un conjunto de datos).
+//
+// Muestra un conjunto de números y el chico TIPEA la medida pedida (siempre un
+// entero por construcción). Escala por nivel (F8): promedio de 3 datos chicos en
+// 6°/7° → moda / promedio de 5 datos grandes en el Ciclo Orientado.
+//
+// Reproducible desde (seed, idx, grade); el RandGen `g` es LOCAL (regla FITZ-01).
+// Cada tipo se construye SIN ordenar: la mediana pone 2 datos abajo + M + 2 arriba
+// (M queda al medio), la moda pone M dos veces + 3 valores distintos.
+
+from gen_arith import sub_seed, nivel_por_idx
+
+type EstadItem {
+    kind: Str = "promedio"     // "promedio" | "mediana" | "moda" | "rango"
+    datos: List<Int> = []      // el conjunto mostrado (ya barajado)
+    answer: Int = 0            // la medida pedida (entera por construcción)
+    skill_code: Str = "estadistica"
+    difficulty: Int = 1        // 1..5 (nivel)
+}
+
+// Piso/techo del nivel por grado. min_grade del juego es 6°.
+fn nivel_piso_estad(grade: Int) -> Int {
+    if (grade <= 7) {
+        return 1
+    }
+    if (grade <= 9) {
+        return 2
+    }
+    if (grade <= 11) {
+        return 3
+    }
+    return 4                   // 5º-6º sec: arranca en moda
+}
+
+fn nivel_techo_estad(grade: Int) -> Int {
+    if (grade <= 7) {
+        return 2
+    }
+    if (grade <= 9) {
+        return 3
+    }
+    if (grade <= 11) {
+        return 4
+    }
+    return 5
+}
+
+// El tipo de medida según el nivel (más variedad y datos al subir).
+fn kind_de_nivel(nivel: Int) -> Str {
+    if (nivel == 1) {
+        return "promedio"
+    }
+    if (nivel == 2) {
+        return "rango"
+    }
+    if (nivel == 3) {
+        return "mediana"
+    }
+    if (nivel == 4) {
+        return "moda"
+    }
+    return "promedio"          // nivel 5: promedio de 5 datos más grandes
+}
+
+// Une los datos crudos con ", " (para el prompt del Attempt en la DB).
+fn datos_str(xs: List<Int>) -> Str {
+    let s = ""
+    let primero = true
+    for x in xs {
+        if (primero) {
+            s = "{x}"
+            primero = false
+        } else {
+            s = s + ", {x}"
+        }
+    }
+    return s
+}
+
+// ¿el valor `x` ya está en la lista?
+fn tiene_int(xs: List<Int>, x: Int) -> Bool {
+    for v in xs {
+        if (v == x) {
+            return true
+        }
+    }
+    return false
+}
+
+fn gen_estadistica(seed: Int, idx: Int, grade: Int) -> EstadItem {
+    let g = rand.seeded(sub_seed(seed, idx))
+    let piso = nivel_piso_estad(grade)
+    let techo = nivel_techo_estad(grade)
+    let nivel = nivel_por_idx(piso, techo, idx)
+    let kind = kind_de_nivel(nivel)
+    let datos: List<Int> = []
+    let answer = 0
+
+    if (kind == "promedio") {
+        // Promedio entero por construcción: los desvíos respecto de la media suman
+        // 0. Con nivel 5 son 5 datos (magnitud mayor); si no, 3.
+        let n = match nivel >= 5 {
+            true => 5,
+            false => 3,
+        }
+        let m = match nivel >= 5 {
+            true => g.int(16, 26),
+            false => g.int(7, 15),
+        }
+        let acum = 0
+        let i = 0
+        while (i < n - 1) {
+            let d = g.int(-3, 3)
+            datos.push(m + d)
+            acum = acum + d
+            i = i + 1
+        }
+        datos.push(m - acum)   // el último cierra la suma en n·m → media = m
+        answer = m
+    }
+
+    if (kind == "rango") {
+        // 4 datos: el mínimo, el máximo y dos intermedios. rango = máx − mín.
+        let lo = g.int(2, 12)
+        let hi = lo + g.int(4, 14)
+        datos.push(lo)
+        datos.push(lo + g.int(1, hi - lo - 1))
+        datos.push(lo + g.int(1, hi - lo - 1))
+        datos.push(hi)
+        answer = hi - lo
+    }
+
+    if (kind == "mediana") {
+        // 5 datos: 2 por debajo de M, M, y 2 por encima → M queda al medio.
+        let m = g.int(8, 20)
+        datos.push(g.int(1, m - 1))
+        datos.push(g.int(1, m - 1))
+        datos.push(m)
+        datos.push(g.int(m + 1, m + 8))
+        datos.push(g.int(m + 1, m + 8))
+        answer = m
+    }
+
+    if (kind == "moda") {
+        // 5 datos: M aparece 2 veces; 3 valores distintos (≠ M, distintos entre sí)
+        // aparecen 1 vez → M es la moda única.
+        let m = g.int(3, 15)
+        datos.push(m)
+        datos.push(m)
+        let usados: List<Int> = [m]
+        let puestos = 0
+        let intentos = 0
+        while (puestos < 3 and intentos < 60) {
+            let cand = g.int(1, 25)
+            if (not tiene_int(usados, cand)) {
+                datos.push(cand)
+                usados.push(cand)
+                puestos = puestos + 1
+            }
+            intentos = intentos + 1
+        }
+        // Defensa: si el RNG no llenó los 3 (muy raro), completo con valores lejanos.
+        let extra = 30
+        while (datos.len() < 5) {
+            datos.push(extra)
+            extra = extra + 1
+        }
+        answer = m
+    }
+
+    return EstadItem {
+        kind: kind,
+        datos: g.shuffle(datos),
+        answer: answer,
+        skill_code: "estadistica",
+        difficulty: nivel,
+    }
+}
