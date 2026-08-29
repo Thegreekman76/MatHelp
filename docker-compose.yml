@@ -33,6 +33,16 @@ services:
       DATABASE_URL: "postgres://${POSTGRES_USER:-mathelp}:${POSTGRES_PASSWORD:-mathelp}@db:5432/${POSTGRES_DB:-mathelp}?sslmode=disable"
       JWT_SECRET: ${JWT_SECRET:-mathelp-dev-cambiame-en-produccion}
       MATHELP_DEFAULT_LOCALE: ${MATHELP_DEFAULT_LOCALE:-es-AR}
+      # Reporte semanal por email (apagado por default). Para activarlo, setealo
+      # en el .env del host: MATHELP_WEEKLY_REPORT=1 + las SMTP_* de tu proveedor.
+      MATHELP_WEEKLY_REPORT: ${MATHELP_WEEKLY_REPORT:-0}
+      MATHELP_PUBLIC_URL: ${MATHELP_PUBLIC_URL:-https://mathelp.example}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TLS: ${SMTP_TLS:-starttls}
     ports:
       - "${MATHELP_PORT:-3000}:3000"
     depends_on:
