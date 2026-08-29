@@ -213,6 +213,26 @@ fn barra_tema(locale: Str, sc: Str, rating: Float) -> Html {
     return html("""{pb}""")
 }
 
+// Una barra de PRECISIÓN por destreza (aciertos / vistas). El color señala el
+// nivel de un vistazo: verde ≥80%, ámbar ≥60%, azul si necesita práctica. Muestra
+// dónde el chico es certero vs dónde falla, algo que el rating Elo no dice directo.
+fn barra_precision(locale: Str, sc: Str, seen: Int, hits: Int) -> Html {
+    let pct = match seen > 0 {
+        true => hits * 100 / seen,
+        false => 0,
+    }
+    let acc = match pct >= 80 {
+        true => "green",
+        false => match pct >= 60 {
+            true => "amber",
+            false => "blue",
+        },
+    }
+    let etiqueta = skill_icon(sc) + " " + t(locale, skill_label_key(sc))
+    let pb = progress_bar_render(progress_bar { label: etiqueta, value: hits, max: seen, pct: pct, accent: acc }).raw
+    return html("""{pb}""")
+}
+
 // Una fila de la lista de errores: prompt, la correcta y lo que respondió.
 fn fila_error(locale: Str, prompt: Str, expected: Str, given: Str, veces: Int) -> Html {
     let p = flv(prompt)
@@ -300,6 +320,17 @@ async fn render_panel(fam_id: Int, pid: Int, locale: Str, perfiles: List<Profile
         false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "panel.sin_temas"))}</p>""").raw,
     }
 
+    // Precisión por destreza (aciertos / vistas) — usa mastery.seen/hits.
+    let prows = conn.query("SELECT skill_code, seen, hits FROM mastery WHERE profile_id = $1 AND seen >= 3 ORDER BY skill_code", [pid]).await?
+    let precisiones: List<Html> = []
+    for r in prows {
+        precisiones.push(barra_precision(locale, r.get_str("skill_code")?, r.get_int("seen")?, r.get_int("hits")?))
+    }
+    let precision_html = match precisiones.len() > 0 {
+        true => h_join(precisiones),
+        false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "panel.sin_temas"))}</p>""").raw,
+    }
+
     // Errores frecuentes: bar_chart (por prompt) + lista (con detalle).
     let ebars_rows = conn.query("SELECT prompt AS label, COUNT(*)::int AS n FROM attempts WHERE profile_id = $1 AND correct = false GROUP BY prompt ORDER BY n DESC LIMIT 8", [pid]).await?
     let err_bars: List<Bar> = []
@@ -350,6 +381,10 @@ async fn render_panel(fam_id: Int, pid: Int, locale: Str, perfiles: List<Profile
 <div class="mh-card">
 <h2>{flv(t(locale, "panel.progreso_titulo"))}</h2>
 {temas_html}
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "panel.precision_titulo"))}</h2>
+{precision_html}
 </div>
 <div class="mh-card">
 <h2>{flv(t(locale, "panel.errores_titulo"))}</h2>

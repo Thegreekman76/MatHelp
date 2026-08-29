@@ -46,6 +46,7 @@ from avatares import avatar_emoji
 import menu
 import progreso
 import parent
+import reporte
 from progreso import skill_a_route, skill_label_key, skill_icon, skill_a_practica_op
 // Los juegos viven en sus live_*.fitz (@get + @ws). Importar los símbolos de cada
 // componente acá es lo que dispara el auto-registro del LiveComponent (el

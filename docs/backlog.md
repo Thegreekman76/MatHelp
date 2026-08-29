@@ -40,14 +40,29 @@ Product / ship it (deploy a dominio + HTTPS, PWA offline pulida, landing page).
 
 ### 👨‍👩‍👧 Familia / retención
 
-- [ ] **Reporte semanal por email a los padres** — `smtp.send` nativo del core de
-  Fitz. "Esta semana Aurora hizo 45 ejercicios, mejoró en división". @cron semanal.
-- [ ] **Panel de familia más rico** — gráficos de progreso por chico, por skill.
+- [x] **Reporte semanal por email a los padres** ✅ 2026-08-28. `@cron("0 9 * * 1")`
+  (lunes 9:00 UTC) + `smtp.send` del core. Módulo `reporte.fitz`: itera las
+  familias con actividad esta semana, arma un resumen por hijo (ejercicios,
+  % aciertos, destreza a reforzar) y lo manda al email del padre (HTML + texto,
+  i18n ES/EN). APAGADO por default (`MATHELP_WEEKLY_REPORT=1` + config SMTP para
+  activar); no spamea familias sin actividad; best-effort (un fallo no corta las
+  demás). Config nueva en `config.fitz` + `.env.example` (SMTP_* + flags).
+  Verificado: contenido del email renderizado + iteración por familia + `fitz build`.
+- [x] **Panel de familia más rico** ✅ 2026-08-28. Sección nueva "Precisión por
+  destreza" (`aciertos / vistas` por skill como ProgressBars coloreadas: verde
+  ≥80%, ámbar ≥60%, azul si necesita práctica). Usa `mastery.seen/hits` que ya
+  existían pero el panel nunca leía. Muestra dónde el chico es certero vs dónde
+  falla (el rating Elo no lo dice directo). Verificado en browser.
 
 ### ✅ Calidad
 
-- [ ] **Ampliar el harness E2E** — cubrir auth, perfiles, forms, y el escalado por
-  grado. Eventualmente screenshots de regresión visual en CI.
+- [x] **Ampliar el harness E2E** ✅ 2026-08-28. 4 tests nuevos con asserts en
+  `harness.mjs`: `testAuth` (registro deja sesión + ruta protegida + email
+  duplicado da error + login OK + password mala falla), `testEditProfile` (crear
+  grado 4 → editar a grado 10 → la card refleja el cambio), `testGradeGating` (un
+  perfil de grado 4 ve los juegos de secundaria bloqueados), `testPanel` (tras
+  jugar, /panel monta con la sección de precisión). Usan contextos aislados para
+  probar login sin sesión. `/estadistica` sumado al smoke. Harness verde entero.
 
 ### 🐛 Dogfooding (transversal, no un ítem)
 

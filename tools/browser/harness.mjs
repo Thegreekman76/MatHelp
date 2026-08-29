@@ -51,7 +51,7 @@ const GAMES = [
   "/jugar", "/vf", "/completa", "/escalera", "/problemas", "/fracciones",
   "/series", "/hora", "/geometria", "/memoria", "/enteros", "/ordenar",
   "/estimar", "/porcentaje", "/volumen", "/historia", "/potencias",
-  "/ecuaciones", "/finanzas", "/trigonometria", "/funciones",
+  "/ecuaciones", "/finanzas", "/trigonometria", "/funciones", "/estadistica",
 ];
 const TIMED = ["/jugar", "/vf"];   // los que tienen reloj (parpadeo)
 
@@ -215,6 +215,169 @@ async function testModal(browser) {
   }
 }
 
+// --- helpers parametrizados (registro / perfil / elegir) ---------------------
+async function isolatedCtx(browser) {
+  if (browser.createBrowserContext) return await browser.createBrowserContext();
+  if (browser.createIncognitoBrowserContext) return await browser.createIncognitoBrowserContext();
+  return browser.defaultBrowserContext();
+}
+async function registrar(page, tag) {
+  await page.goto(BASE + "/registro", { waitUntil: "networkidle2", timeout: 20000 });
+  await page.type('input[name="familia"]', "E2E " + tag);
+  const email = `e2e_${tag}@mathelp.test`;
+  await page.type('input[name="email"]', email);
+  await page.type('input[name="password"]', "clave-e2e-123");
+  await Promise.all([page.waitForNavigation({ waitUntil: "networkidle2" }), page.click('button[type="submit"], input[type="submit"]')]);
+  return email;
+}
+async function crearPerfil(page, nombre, grado, modalidad) {
+  await page.goto(BASE + "/perfiles/nuevo", { waitUntil: "networkidle2", timeout: 20000 });
+  await page.type('input[name="nombre"]', nombre);
+  await page.select('select[name="grado"]', String(grado)).catch(() => {});
+  if (modalidad) await page.select('select[name="modalidad"]', modalidad).catch(() => {});
+  await Promise.all([page.waitForNavigation({ waitUntil: "networkidle2" }), page.click('button[type="submit"], input[type="submit"]')]);
+}
+async function elegirPerfil(page) {
+  await page.goto(BASE + "/perfiles", { waitUntil: "networkidle2", timeout: 20000 });
+  await Promise.all([page.waitForNavigation({ waitUntil: "networkidle2" }), page.click('form[action="/perfiles/elegir"] button[type="submit"], .mh-profile')]);
+}
+
+// Auth: registro exitoso deja sesión (ruta protegida accesible); email duplicado
+// muestra error; login con las credenciales funciona y con password mala falla.
+async function testAuth(browser) {
+  const ctx = await isolatedCtx(browser);
+  const page = await ctx.newPage();
+  try {
+    const tag = Math.random().toString(36).slice(2, 10);
+    const email = await registrar(page, tag);
+    const trasRegistro = page.url();
+    const sesionOk = !trasRegistro.endsWith("/registro"); // redirigió (a /perfiles)
+    // ruta protegida accesible con sesión (no rebota a /login)
+    await page.goto(BASE + "/perfiles/nuevo", { waitUntil: "networkidle2" });
+    const protegidaOk = page.url().includes("/perfiles");
+    // email duplicado → error visible
+    await page.goto(BASE + "/registro", { waitUntil: "networkidle2" });
+    await page.type('input[name="familia"]', "Dup");
+    await page.type('input[name="email"]', email);
+    await page.type('input[name="password"]', "clave-e2e-123");
+    await Promise.all([page.waitForNavigation({ waitUntil: "networkidle2" }).catch(() => {}), page.click('button[type="submit"], input[type="submit"]')]);
+    const dupError = await page.$(".mh-error").then((e) => !!e).catch(() => false);
+    // login en un contexto NUEVO (sin sesión): con las mismas credenciales
+    const ctx2 = await isolatedCtx(browser);
+    const p2 = await ctx2.newPage();
+    await p2.goto(BASE + "/login", { waitUntil: "networkidle2" });
+    await p2.type('input[name="email"]', email);
+    await p2.type('input[name="password"]', "clave-e2e-123");
+    await Promise.all([p2.waitForNavigation({ waitUntil: "networkidle2" }), p2.click('button[type="submit"], input[type="submit"]')]);
+    const loginOk = !p2.url().endsWith("/login");
+    // password incorrecta → error, se queda en /login
+    await p2.goto(BASE + "/logout", { waitUntil: "networkidle2" }).catch(() => {});
+    await p2.goto(BASE + "/login", { waitUntil: "networkidle2" });
+    await p2.type('input[name="email"]', email);
+    await p2.type('input[name="password"]', "password-mala-xxx");
+    await Promise.all([p2.waitForNavigation({ waitUntil: "networkidle2" }).catch(() => {}), p2.click('button[type="submit"], input[type="submit"]')]);
+    const badLogin = await p2.$(".mh-error").then((e) => !!e).catch(() => false);
+    await ctx2.close();
+    const ok = sesionOk && protegidaOk && dupError && loginOk && badLogin;
+    return { ok, detail: `registro->sesion=${sesionOk} protegida=${protegidaOk} dupEmail=${dupError ? "error" : "NO"} login=${loginOk} passMala=${badLogin ? "error" : "NO"}` };
+  } catch (e) {
+    return { ok: false, detail: "excepcion: " + String(e).split("\n")[0] };
+  } finally {
+    await ctx.close();
+  }
+}
+
+// Editar perfil: crea grado 4, edita a grado 10, la card refleja el grado nuevo.
+async function testEditProfile(browser) {
+  const ctx = await isolatedCtx(browser);
+  const page = await ctx.newPage();
+  try {
+    const tag = Math.random().toString(36).slice(2, 10);
+    await registrar(page, tag);
+    await crearPerfil(page, "Editable", 4, null);
+    await page.goto(BASE + "/perfiles", { waitUntil: "networkidle2" });
+    const href = await page.evaluate(() => { const e = document.querySelector(".mh-pedit"); return e ? e.getAttribute("href") : ""; });
+    const abrio = href && href.includes("/perfiles/editar/");
+    await page.goto(BASE + href, { waitUntil: "networkidle2" });
+    const preGrado = await page.evaluate(() => { const g = document.querySelector('select[name="grado"]'); return g ? g.value : null; });
+    await page.select('select[name="grado"]', "10").catch(() => {});
+    await page.select('select[name="modalidad"]', "industrial").catch(() => {});
+    await Promise.all([page.waitForNavigation({ waitUntil: "networkidle2" }), page.click('button[type="submit"], input[type="submit"]')]);
+    await page.goto(BASE + "/perfiles", { waitUntil: "networkidle2" });
+    const cardText = await page.evaluate(() => document.body.textContent.replace(/\s+/g, " "));
+    // grado 10 = 3º secundaria
+    const reflejado = cardText.includes("3º secundaria") || cardText.includes("3° secundaria");
+    const ok = abrio && preGrado === "4" && reflejado;
+    return { ok, detail: `abre=${abrio ? "si" : "NO"} preSel=${preGrado} tras-editar-3ºsec=${reflejado ? "si" : "NO"}` };
+  } catch (e) {
+    return { ok: false, detail: "excepcion: " + String(e).split("\n")[0] };
+  } finally {
+    await ctx.close();
+  }
+}
+
+// Gating por grado: un perfil de grado 4 ve juegos de secundaria BLOQUEADOS
+// (.mh-juego.lock) y los primarios jugables.
+async function testGradeGating(browser) {
+  const ctx = await isolatedCtx(browser);
+  const page = await ctx.newPage();
+  try {
+    const tag = Math.random().toString(36).slice(2, 10);
+    await registrar(page, tag);
+    await crearPerfil(page, "Chico", 4, null);
+    await elegirPerfil(page);
+    await page.goto(BASE + "/juegos", { waitUntil: "networkidle2" });
+    const info = await page.evaluate(() => ({
+      bloqueados: document.querySelectorAll(".mh-juego.lock").length,
+      jugables: document.querySelectorAll('.mh-juego a[href="/jugar"], a.mh-juego[href="/jugar"]').length,
+      hayContrarreloj: document.body.innerHTML.includes('href="/jugar"'),
+    }));
+    // grado 4: enteros(7)/potencias(8)/trigonometria(10)/etc. deben estar bloqueados
+    const ok = info.bloqueados > 0 && info.hayContrarreloj;
+    return { ok, detail: `bloqueados=${info.bloqueados} contrarreloj=${info.hayContrarreloj ? "si" : "NO"}` };
+  } catch (e) {
+    return { ok: false, detail: "excepcion: " + String(e).split("\n")[0] };
+  } finally {
+    await ctx.close();
+  }
+}
+
+// Panel del padre: tras jugar, /panel monta con StatCards + la sección de
+// precisión por destreza (barras de progreso).
+async function testPanel(browser) {
+  const ctx = await isolatedCtx(browser);
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(String(e)));
+  try {
+    const tag = Math.random().toString(36).slice(2, 10);
+    await registrar(page, tag);
+    await crearPerfil(page, "Jugador", 4, null);
+    await elegirPerfil(page);
+    // jugar ~14 respuestas para generar mastery
+    await page.goto(BASE + "/jugar", { waitUntil: "networkidle2" });
+    await page.waitForSelector(".q-opt", { timeout: 12000 });
+    await sleep(700);
+    for (let i = 0; i < 14; i++) { const b = await page.$$(".q-opt"); if (b.length) { await b[i % b.length].click(); await sleep(340); } }
+    // abrir el panel
+    await page.goto(BASE + "/panel", { waitUntil: "networkidle2" });
+    const info = await page.evaluate(() => {
+      const txt = document.body.textContent;
+      return {
+        precision: txt.includes("Precisión por destreza"),
+        stats: document.querySelectorAll('.mh-card [class*="stat"], .mh-card [class*="flv-stat"]').length,
+        barras: document.querySelectorAll('.mh-card [class*="progress"], .mh-card [class*="flv-pb"]').length,
+      };
+    });
+    const ok = info.precision && info.barras > 0 && errs.length === 0;
+    return { ok, detail: `precision=${info.precision ? "si" : "NO"} barras=${info.barras} errores=${errs.length}` };
+  } catch (e) {
+    return { ok: false, detail: "excepcion: " + String(e).split("\n")[0] };
+  } finally {
+    await ctx.close();
+  }
+}
+
 (async () => {
   const chrome = findChrome();
   if (!chrome) { console.error("✗ No encontré Chrome. Seteá CHROME_PATH."); process.exit(2); }
@@ -244,6 +407,16 @@ async function testModal(browser) {
     for (const route of GAMES) {
       const r = await smokeGame(browser, route);
       console.log(`  ${r.ok ? "✓" : "✗"} ${route.padEnd(14)} ${r.detail}`);
+      if (!r.ok) fails++;
+    }
+
+    // Auth/perfiles/panel usan contextos AISLADOS (para probar login sin sesión):
+    // van al final porque el churn de crear/cerrar contextos puede desestabilizar
+    // el browser compartido que usan el flicker/modal/smoke.
+    console.log("\n=== Auth / perfiles / panel ===");
+    for (const [nombre, fn] of [["auth", testAuth], ["editar perfil", testEditProfile], ["gating x grado", testGradeGating], ["panel", testPanel]]) {
+      const r = await fn(browser);
+      console.log(`  ${r.ok ? "✓" : "✗"} ${nombre.padEnd(16)} ${r.detail}`);
       if (!r.ok) fails++;
     }
   } finally {

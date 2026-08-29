@@ -1,0 +1,168 @@
+// reporte.fitz — reporte semanal por email a las familias (@cron + smtp.send).
+//
+// Cada lunes 9:00 (UTC), si MATHELP_WEEKLY_REPORT=1 y el SMTP está configurado,
+// arma un resumen de la semana por cada familia (un párrafo por hijo: ejercicios,
+// aciertos, qué reforzar) y lo manda al email del padre con smtp.send del core.
+//
+// APAGADO por default (reporte_habilitado() lee MATHELP_WEEKLY_REPORT). El envío
+// se saltea las familias sin actividad en la semana (no spamear). El SMTP lo lee
+// el core solo (SMTP_HOST/PORT/USER/PASSWORD/FROM/TLS); acá solo llamamos send.
+
+from config import db_url, reporte_habilitado, app_url
+from models import Family, Profile
+from i18n import t, t1, t2, t3
+from progreso import skill_label_key
+
+// El resumen de UN hijo esta semana.
+type ResumenHijo {
+    nombre: Str = ""
+    ejercicios: Int = 0
+    accuracy: Int = 0        // % de aciertos (0..100)
+    reforzar: Str = ""       // skill_code a reforzar ("" si no hay dato)
+    activo: Bool = false     // ¿jugó algo esta semana?
+}
+
+// Calcula el resumen semanal de un hijo (ejercicios de streaks, aciertos de
+// attempts, y la destreza más floja con >= 3 intentos).
+async fn resumen_de_hijo(conn: DbConn, nombre: Str, pid: Int) -> Result<ResumenHijo> {
+    let ex = conn.query("SELECT COALESCE(SUM(exercises),0)::int AS n FROM streaks WHERE profile_id = $1 AND day >= date_trunc('week', CURRENT_DATE)", [pid]).await?
+    let ejercicios = match ex.len() > 0 {
+        true => ex[0].get_int("n")?,
+        false => 0,
+    }
+    let acc = conn.query("SELECT COUNT(*)::int AS n, COALESCE(SUM(CASE WHEN correct THEN 1 ELSE 0 END),0)::int AS ok FROM attempts WHERE profile_id = $1 AND created_at >= date_trunc('week', CURRENT_DATE)", [pid]).await?
+    let total = match acc.len() > 0 {
+        true => acc[0].get_int("n")?,
+        false => 0,
+    }
+    let ok = match acc.len() > 0 {
+        true => acc[0].get_int("ok")?,
+        false => 0,
+    }
+    let accuracy = match total > 0 {
+        true => ok * 100 / total,
+        false => 0,
+    }
+    let flojas = conn.query("SELECT skill_code AS sc FROM mastery WHERE profile_id = $1 AND seen >= 3 ORDER BY rating ASC LIMIT 1", [pid]).await?
+    let reforzar = match flojas.len() > 0 {
+        true => flojas[0].get_str("sc")?,
+        false => "",
+    }
+    return Ok(ResumenHijo {
+        nombre: nombre,
+        ejercicios: ejercicios,
+        accuracy: accuracy,
+        reforzar: reforzar,
+        activo: ejercicios > 0,
+    })
+}
+
+// Un párrafo del email por hijo (HTML).
+fn linea_hijo_html(locale: Str, r: ResumenHijo) -> Str {
+    if (not r.activo) {
+        return "<p style=\"margin:.5rem 0;color:#475569\">" + t1(locale, "reporte.hijo_inactivo", r.nombre) + "</p>"
+    }
+    let base = t3(locale, "reporte.hijo_activo", r.nombre, "{r.ejercicios}", "{r.accuracy}")
+    let refuerzo = match r.reforzar == "" {
+        true => "",
+        false => " <span style=\"color:#b45309\">" + t1(locale, "reporte.hijo_reforzar", t(locale, skill_label_key(r.reforzar))) + "</span>",
+    }
+    return "<p style=\"margin:.5rem 0;color:#0f172a\"><b>" + base + "</b>" + refuerzo + "</p>"
+}
+
+// Versión texto plano de la línea (para clientes sin HTML).
+fn linea_hijo_text(locale: Str, r: ResumenHijo) -> Str {
+    if (not r.activo) {
+        return "- " + t1(locale, "reporte.hijo_inactivo", r.nombre)
+    }
+    let base = t3(locale, "reporte.hijo_activo", r.nombre, "{r.ejercicios}", "{r.accuracy}")
+    let refuerzo = match r.reforzar == "" {
+        true => "",
+        false => " " + t1(locale, "reporte.hijo_reforzar", t(locale, skill_label_key(r.reforzar))),
+    }
+    return "- " + base + refuerzo
+}
+
+// Envía el reporte a TODAS las familias con actividad esta semana. Devuelve
+// cuántos emails salieron. Best-effort: un fallo de una familia no corta las demás.
+async fn enviar_reportes() -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let familias = Family.all(conn).await?
+    let enviados = 0
+    for fam in familias {
+        let hijos = Profile.where(fn(p) => p.family_id == fam.id).all(conn).await?
+        let lineas_html: List<Str> = []
+        let lineas_text: List<Str> = []
+        let algo = false
+        for h in hijos {
+            let r = resumen_de_hijo(conn, h.name, h.id).await?
+            if (r.activo) {
+                algo = true
+            }
+            lineas_html.push(linea_hijo_html(fam.locale, r))
+            lineas_text.push(linea_hijo_text(fam.locale, r))
+        }
+        // No spamear: solo si hubo actividad de al menos un hijo.
+        if (algo) {
+            let saludo = t1(fam.locale, "reporte.saludo", fam.display_name)
+            let intro = t(fam.locale, "reporte.intro")
+            let cta = t(fam.locale, "reporte.cta")
+            let cierre = t(fam.locale, "reporte.cierre")
+            let cuerpo_html = h_email_html(saludo, intro, lineas_html, cta, cierre)
+            let cuerpo_text = h_email_text(saludo, intro, lineas_text, cta, cierre)
+            let r = smtp.send({
+                "to": fam.email,
+                "subject": t(fam.locale, "reporte.subject"),
+                "body_html": cuerpo_html,
+                "body_text": cuerpo_text,
+            }).await
+            match r {
+                Ok(_) => {
+                    log.info("reporte.enviado", email: fam.email)
+                    enviados = enviados + 1
+                }
+                Err(e) => log.error("reporte.error", email: fam.email, err: e),
+            }
+        }
+    }
+    return Ok(enviados)
+}
+
+// Arma el HTML del email (inline styles, seguro para clientes de correo).
+fn h_email_html(saludo: Str, intro: Str, lineas: List<Str>, cta: Str, cierre: Str) -> Str {
+    let panel = app_url() + "/panel"
+    let s = "<div style=\"font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:20px\">"
+    s = s + "<h2 style=\"color:#0E7A63;margin:0 0 .3rem\">MatHelp</h2>"
+    s = s + "<p style=\"margin:.2rem 0 1rem;color:#0f172a\">" + saludo + "</p>"
+    s = s + "<p style=\"margin:0 0 .6rem;color:#475569\">" + intro + "</p>"
+    for l in lineas {
+        s = s + l
+    }
+    s = s + "<p style=\"margin:1.2rem 0 .3rem\"><a href=\"" + panel + "\" style=\"background:#0E7A63;color:#fff;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:700\">" + cta + "</a></p>"
+    s = s + "<p style=\"margin:1.4rem 0 0;color:#94a3b8;font-size:.85rem\">" + cierre + "</p>"
+    s = s + "</div>"
+    return s
+}
+
+// Versión texto plano.
+fn h_email_text(saludo: Str, intro: Str, lineas: List<Str>, cta: Str, cierre: Str) -> Str {
+    let s = "MatHelp\n\n" + saludo + "\n" + intro + "\n\n"
+    for l in lineas {
+        s = s + l + "\n"
+    }
+    s = s + "\n" + cta + ": " + app_url() + "/panel\n\n" + cierre + "\n"
+    return s
+}
+
+// El @cron: cada lunes 9:00 UTC. Apagado salvo MATHELP_WEEKLY_REPORT=1.
+@cron("0 9 * * 1")
+async fn reporte_semanal_cron() -> Result<Null> {
+    if (reporte_habilitado()) {
+        let n = enviar_reportes().await
+        match n {
+            Ok(cnt) => log.info("reporte.semanal", familias: cnt),
+            Err(e) => log.error("reporte.semanal.error", err: e),
+        }
+    }
+    return Ok(null)
+}

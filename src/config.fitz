@@ -29,3 +29,17 @@ fn repo_liveviews() -> Str => "https://github.com/Thegreekman76/fitz-liveviews"
 // Puerto: lo lee el compose. @server() necesita literal, así que si lo
 // cambiás, cambialo también en main.fitz y en docker-compose.yml.
 fn app_port() -> Int => 3000
+
+// --- Reporte semanal por email ------------------------------------------------
+//
+// El @cron lee SÓLO estas env vars (el core del lenguaje lee SMTP_HOST/PORT/USER/
+// PASSWORD/FROM/TLS por su cuenta al hacer smtp.send). El reporte está APAGADO por
+// default: hay que setear MATHELP_WEEKLY_REPORT=1 y configurar el SMTP.
+fn reporte_habilitado() -> Bool {
+    return env_or("MATHELP_WEEKLY_REPORT", "0") == "1"
+}
+
+// La URL pública de la app (para el link "Ver el panel" del email).
+fn app_url() -> Str {
+    return env_or("MATHELP_PUBLIC_URL", "https://mathelp.example")
+}
