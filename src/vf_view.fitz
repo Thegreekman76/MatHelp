@@ -25,7 +25,7 @@ fn vf_screen(seed: Int, idx: Int, grade: Int, locale: Str, score: Int, correct: 
     if (mode == "desafio") {
         return vf_jugando(mode, seed, idx, grade, locale, correct, total, limit, feedback, correct_last, r_add, r_sub, r_mul, r_div, true, racha)
     }
-    return vf_jugando(mode, seed, idx, grade, locale, score, time_left, 0, feedback, correct_last, r_add, r_sub, r_mul, r_div, false, racha)
+    return vf_jugando(mode, seed, idx, grade, locale, time_left, score, 0, feedback, correct_last, r_add, r_sub, r_mul, r_div, false, racha)
 }
 
 // Pantalla de juego. `es_desafio` decide el HUD (progreso X/N vs reloj+puntaje).

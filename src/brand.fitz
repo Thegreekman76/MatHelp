@@ -668,5 +668,67 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
   background:var(--mh-verde-suave); font-weight:700;
 \}
 .mh-record-n \{ color:var(--mh-naranja); font-weight:900; white-space:nowrap; \}
+
+/* Trucos de matemática (sección de aprendizaje) */
+.mh-trucos-sub \{ color:var(--mh-suave); font-size:.92rem; line-height:1.45; margin:.1rem 0 1rem; \}
+.mh-trucos \{ display:flex; flex-direction:column; gap:10px; \}
+.mh-truco-card \{
+  display:flex; align-items:center; gap:12px; text-decoration:none;
+  padding:12px 14px; border:2px solid var(--mh-borde); border-radius:var(--mh-radio);
+  background:var(--mh-panel); color:var(--mh-tinta); transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+\}
+.mh-truco-card:hover \{ transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,.08); border-color:var(--mh-verde-claro); \}
+.mh-truco-card:active \{ transform:scale(.98); \}
+.mh-truco-card-em \{ font-size:2rem; line-height:1; flex:0 0 auto; \}
+.mh-truco-card-txt \{ display:flex; flex-direction:column; gap:2px; \}
+.mh-truco-card-tit \{ font-weight:800; font-size:1.02rem; \}
+.mh-truco-card-sub \{ color:var(--mh-suave); font-size:.82rem; line-height:1.35; \}
+.mh-truco-head \{ display:flex; align-items:center; gap:10px; margin-bottom:.3rem; \}
+.mh-truco-head h2 \{ margin:0; \}
+.mh-truco-em \{ font-size:2rem; line-height:1; \}
+.mh-truco-intro \{ color:var(--mh-suave); font-size:.95rem; line-height:1.45; margin:.1rem 0 .8rem; \}
+.mh-truco-fig \{ display:flex; justify-content:center; margin:.2rem 0 .6rem; padding:.6rem; background:var(--mh-verde-suave); border-radius:14px; \}
+.mh-truco-h \{ font-size:.82rem; text-transform:uppercase; letter-spacing:.04em; color:var(--mh-suave); margin:.6rem 0 .3rem; \}
+.mh-truco-pasos \{ margin:.2rem 0 .8rem; padding-left:1.3rem; display:flex; flex-direction:column; gap:.4rem; \}
+.mh-truco-pasos li \{ line-height:1.45; color:var(--mh-tinta); \}
+.mh-truco-ej \{ background:var(--mh-crema); border:1px solid var(--mh-borde); border-radius:12px; padding:.6rem .8rem; margin-bottom:1rem; \}
+.mh-truco-ej-lbl \{ display:block; font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--mh-suave); font-weight:800; margin-bottom:.15rem; \}
+.mh-truco-ej-txt \{ font-weight:800; font-size:1.1rem; color:var(--mh-tinta); \}
+/* SVG de los trucos */
+.tk-svg \{ width:min(90vw, 340px); height:auto; \}
+.tk-finger \{ fill:var(--mh-verde-claro); stroke:var(--mh-verde); stroke-width:2; \}
+.tk-finger.tk-down \{ fill:var(--mh-borde); stroke:var(--mh-suave); \}
+.tk-fnum \{ fill:var(--mh-suave); font-size:12px; font-weight:800; text-anchor:middle; \}
+.tk-big \{ fill:var(--mh-naranja); font-size:22px; font-weight:900; text-anchor:middle; \}
+.tk-down-mark \{ fill:var(--mh-naranja); font-size:22px; font-weight:900; text-anchor:middle; \}
+.tk-dot \{ fill:var(--mh-panel); stroke:var(--mh-verde); stroke-width:2.5; \}
+.tk-dot.on \{ fill:var(--mh-verde); \}
+.tk-eq \{ fill:var(--mh-tinta); font-size:22px; font-weight:800; text-anchor:middle; dominant-baseline:middle; \}
+.tk-eq.strong \{ fill:var(--mh-verde); font-size:26px; font-weight:900; \}
+.tk-arrow-line \{ stroke:var(--mh-suave); stroke-width:2; \}
+.tk-arrow-lbl \{ fill:var(--mh-naranja); font-size:14px; font-weight:800; text-anchor:middle; \}
+.tk-num \{ fill:var(--mh-tinta); font-size:32px; font-weight:900; text-anchor:middle; \}
+.tk-hidig \{ fill:var(--mh-naranja); \}
+.tk-sub \{ fill:var(--mh-suave); font-size:15px; font-weight:800; text-anchor:middle; \}
+/* SVG de los trucos de secundaria */
+.tk-signo \{ fill:var(--mh-tinta); font-size:20px; font-weight:800; text-anchor:middle; \}
+.tk-pos \{ fill:var(--mh-verde); font-weight:900; \}
+.tk-neg \{ fill:var(--mh-naranja); font-weight:900; \}
+.tk-arc \{ fill:none; stroke:var(--mh-naranja); stroke-width:2; \}
+.tk-tri \{ fill:var(--mh-verde-suave); stroke:var(--mh-verde); stroke-width:2.5; \}
+.tk-tri-ra \{ fill:none; stroke:var(--mh-suave); stroke-width:1.5; \}
+.tk-tri-th \{ fill:var(--mh-naranja); font-size:16px; font-weight:900; text-anchor:middle; \}
+.tk-tri-lbl \{ fill:var(--mh-tinta); font-size:17px; font-weight:900; text-anchor:middle; \}
+/* barra de equivalencia (½ = 50%) */
+.tk-bar \{ fill:var(--mh-panel); stroke:var(--mh-verde); stroke-width:2.5; \}
+.tk-bar-fill \{ fill:var(--mh-verde); \}
+.tk-bar-lbl \{ fill:#fff; font-size:24px; font-weight:900; text-anchor:middle; dominant-baseline:middle; \}
+.tk-bar-lbl.dim \{ fill:var(--mh-tinta); \}
+/* regiones del binomio al cuadrado */
+.tk-reg \{ stroke:var(--mh-verde); stroke-width:2; \}
+.tk-reg.a \{ fill:var(--mh-verde-suave); \}
+.tk-reg.ab \{ fill:var(--mh-crema); \}
+.tk-reg.b \{ fill:#FBE3D8; \}
+.tk-reg-lbl \{ fill:var(--mh-tinta); font-size:20px; font-weight:900; text-anchor:middle; dominant-baseline:middle; \}
 """
 }

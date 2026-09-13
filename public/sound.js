@@ -269,6 +269,19 @@ if ("serviceWorker" in navigator) {
     if (num && num.textContent !== String(rem)) { num.textContent = String(rem); }
   }
   setInterval(tick, 250);
+  // Parpadeo al responder (fix 2026-09-13): al contestar, el server empuja el
+  // frame de feedback y el cliente RECREA el componente (outerHTML) — el .q-tnum
+  // vuelve a su valor inicial pintado (data-q-total = total, p.ej. 60), y hasta el
+  // próximo tick (≤250ms) se ve el salto a 60. Corregimos SINCRÓNICAMENTE apenas el
+  // DOM cambia: el callback del MutationObserver corre en el microtask, ANTES del
+  // paint, así que el número ya sale con el tiempo real y no se ve el salto. El
+  // deadline NO se resetea (total no cambió), sólo se re-pinta el valor correcto.
+  function observar() {
+    var root = document.getElementById("main") || document.body;
+    if (!root) { return; }
+    new MutationObserver(function () { tick(); }).observe(root, { subtree: true, childList: true, characterData: true });
+  }
+  if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", observar); } else { observar(); }
 })();
 
 // --- Salir de un juego avisa que se pierde la partida -------------------------

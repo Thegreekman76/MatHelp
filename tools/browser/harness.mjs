@@ -85,43 +85,53 @@ async function testFlicker(browser, route) {
   page.on("pageerror", (e) => errs.push(String(e)));
   try {
     await page.goto(BASE + route, { waitUntil: "networkidle2", timeout: 20000 });
-    // esperar a que el socket pinte un botón de acción del juego
+    // esperar a que el socket pinte un botón de acción del juego + el reloj
     await page.waitForSelector("[data-flv-click]", { timeout: 12000 });
-    await sleep(900);
-    // responder (clickear la primera acción) → aparece el feedback
+    await page.waitForSelector(".q-timer[data-q-total]", { timeout: 12000 }).catch(() => {});
+    // esperar a que el countdown baje unos segundos (arranca en `total`)
+    const total = await page.evaluate(() => { const t = document.querySelector(".q-timer[data-q-total]"); return t ? parseInt(t.getAttribute("data-q-total"), 10) : null; });
+    if (total && total > 1) {
+      await page.waitForFunction((t) => { const n = document.querySelector(".q-tnum"); return n && parseInt(n.textContent) <= t - 2; }, { timeout: 12000 }, total).catch(() => {});
+    }
+    // instalar un observer que capture TODOS los valores del reloj y responder.
+    // Parpadeo (bug 2026-09-13): al responder, el server empuja el frame de feedback,
+    // el cliente recrea el .q-tnum con su valor inicial (=total) y hasta el próximo
+    // tick se ve el salto p.ej. 57->60->57. Un muestreo before/after NO lo caza.
+    const pre = await page.evaluate(() => {
+      window.__vals = [];
+      const rec = () => { const n = document.querySelector(".q-tnum"); if (n) window.__vals.push(parseInt(n.textContent)); };
+      rec();
+      window.__obs = new MutationObserver(rec);
+      window.__obs.observe(document.getElementById("main") || document.body, { subtree: true, childList: true, characterData: true });
+      window.__iv = setInterval(rec, 30);
+      const n = document.querySelector(".q-tnum");
+      return n ? parseInt(n.textContent) : null;
+    });
     await page.click("[data-flv-click]");
     await page.waitForSelector(".q-fbwrap", { timeout: 5000 }).catch(() => {});
-    await sleep(400);
-    const before = await page.evaluate(() => {
+    await sleep(500);
+    const flash = await page.evaluate(() => {
+      clearInterval(window.__iv); window.__obs.disconnect();
       const fb = document.querySelector(".q-fbwrap");
       const opt = document.querySelector("[data-flv-click]");
       if (fb) fb.__mark = "FB";
       if (opt) opt.__mark = "OPT";
-      const t = document.querySelector(".q-tnum");
-      return { fb: !!fb, opt: !!opt, secs: t ? t.textContent : null };
+      return { vals: window.__vals };
     });
-    await sleep(3500); // varios ticks del reloj
+    // parpadeo = tras el click apareció un valor MAYOR que el pre-click (saltó arriba)
+    const salto = (pre != null && !isNaN(pre)) ? flash.vals.filter((v) => !isNaN(v) && v > pre) : [];
+    const parpadeo = salto.length > 0;
+    await sleep(3200); // varios ticks: los nodos marcados deben SOBREVIVIR
     const after = await page.evaluate(() => {
       const fb = document.querySelector(".q-fbwrap");
       const opt = document.querySelector("[data-flv-click]");
       const t = document.querySelector(".q-tnum");
-      return {
-        fb_ok: fb ? fb.__mark === "FB" : false,
-        opt_ok: opt ? opt.__mark === "OPT" : false,
-        secs: t ? t.textContent : null,
-      };
+      return { fb_ok: fb ? fb.__mark === "FB" : false, opt_ok: opt ? opt.__mark === "OPT" : false, secs: t ? t.textContent : null };
     });
-    // El chequeo QUE IMPORTA (parpadeo): los nodos SOBREVIVEN. El del reloj es
-    // secundario y a veces el read llega en 0 (timing del JS client-side): solo
-    // exigimos que BAJE si se pudo leer un valor >1.
-    const beforeN = parseInt(before.secs);
-    const afterN = parseInt(after.secs);
-    const legible = !isNaN(beforeN) && beforeN > 1;
-    const bajo = legible ? afterN < beforeN : true;
-    const ok = after.fb_ok && after.opt_ok && bajo && errs.length === 0;
+    const ok = after.fb_ok && after.opt_ok && !parpadeo && errs.length === 0;
     return {
       ok,
-      detail: `feedback=${after.fb_ok ? "vive" : "RECREADO"} opcion=${after.opt_ok ? "vive" : "RECREADO"} reloj=${before.secs}->${after.secs}${legible ? "" : "(read flaky)"} errores=${errs.length}`,
+      detail: `feedback=${after.fb_ok ? "vive" : "RECREADO"} opcion=${after.opt_ok ? "vive" : "RECREADO"} parpadeo=${parpadeo ? "SÍ (saltó a " + Math.max(...salto) + ")" : "no"} reloj=${pre}->${after.secs} errores=${errs.length}`,
     };
   } catch (e) {
     return { ok: false, detail: "excepcion: " + String(e).split("\n")[0] };

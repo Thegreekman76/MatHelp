@@ -1,0 +1,487 @@
+// trucos.fitz — sección "Trucos de matemática" (aprendizaje).
+//
+// A diferencia de los 21 juegos (práctica + feedback reactivo), acá se ENSEÑA
+// proactivamente la estrategia: el atajo para ×9 con las manos, los amigos del
+// 10, etc. Cada truco es una FICHA ilustrada con un SVG (mismo patrón que reloj/
+// recta/figuras), 3 pasos y un botón "Probalo" que linkea al juego que lo
+// entrena — así el chico entiende el atajo y después lo practica.
+//
+// Contenido 100 % estático (páginas F0, `page()` del layout). Los textos van por
+// t(locale, ...) (regla 1); los números de los ejemplos viven DENTRO de las
+// claves i18n (contenido que traduce el catálogo, no números crudos formateados);
+// los números de los SVG son rótulos de gráfico, literales, igual que en
+// reloj_svg / recta_svg / geo_svg.
+
+from fitz_liveviews import Html, html, flv, h_join
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from live_game import resolver_contexto
+from auth import read_session
+
+// Todos los trucos, ordenados por grado (primaria primero, secundaria después).
+// La grilla de /trucos filtra por el grado del perfil (min_grade <= grade), igual
+// que el menú de juegos: un chico de primaria no ve SOH-CAH-TOA y uno de
+// secundaria ve todo (los de cálculo mental siguen siendo útiles a cualquier edad).
+fn trucos() -> List<Str> {
+    return ["amigos10", "x9manos", "x5mitad", "x11", "x4doble", "divis", "redondear", "divis39", "equiv", "jerarquia", "simplificar", "pctmental", "regla3", "pruebanueve", "signos", "despejar", "potencias", "cuad5", "binomio", "sohcahtoa", "terna345"]
+}
+
+fn truco_valido(c: Str) -> Bool {
+    for x in trucos() {
+        if (x == c) {
+            return true
+        }
+    }
+    return false
+}
+
+// El grado a partir del cual la ficha aparece en la grilla (mismo criterio que el
+// min_grade de los juegos: primaria 1..3, enteros/% 6..7, álgebra/potencias 8, trig 11).
+fn truco_min_grade(c: Str) -> Int {
+    return match c {
+        "amigos10" => 1,
+        "x9manos" => 2,
+        "x5mitad" => 2,
+        "x11" => 3,
+        "x4doble" => 3,
+        "divis" => 3,
+        "redondear" => 3,
+        "divis39" => 4,
+        "equiv" => 4,
+        "jerarquia" => 5,
+        "simplificar" => 5,
+        "pctmental" => 6,
+        "regla3" => 6,
+        "pruebanueve" => 6,
+        "signos" => 7,
+        "despejar" => 8,
+        "potencias" => 8,
+        "cuad5" => 8,
+        "binomio" => 9,
+        "sohcahtoa" => 11,
+        "terna345" => 11,
+        _ => 1,
+    }
+}
+
+fn truco_emoji(c: Str) -> Str {
+    return match c {
+        "x9manos" => "🖐️",
+        "amigos10" => "🤝",
+        "x5mitad" => "✋",
+        "x11" => "✖️",
+        "x4doble" => "✌️",
+        "divis" => "🔎",
+        "redondear" => "🎯",
+        "divis39" => "➗",
+        "equiv" => "½",
+        "jerarquia" => "🧮",
+        "simplificar" => "✂️",
+        "pctmental" => "％",
+        "regla3" => "⚖️",
+        "pruebanueve" => "✅",
+        "signos" => "±",
+        "despejar" => "🟰",
+        "potencias" => "🔷",
+        "cuad5" => "🔢",
+        "binomio" => "🔣",
+        "sohcahtoa" => "🔺",
+        "terna345" => "📐",
+        _ => "💡",
+    }
+}
+
+// El juego que entrena la destreza del truco (respeta las rutas existentes).
+fn truco_route(c: Str) -> Str {
+    return match c {
+        "x9manos" => "/escalera",
+        "amigos10" => "/jugar",
+        "x5mitad" => "/escalera",
+        "x11" => "/escalera",
+        "x4doble" => "/escalera",
+        "divis" => "/jugar",
+        "redondear" => "/estimar",
+        "divis39" => "/jugar",
+        "equiv" => "/fracciones",
+        "jerarquia" => "/jugar",
+        "simplificar" => "/fracciones",
+        "pctmental" => "/porcentaje",
+        "regla3" => "/porcentaje",
+        "pruebanueve" => "/jugar",
+        "signos" => "/enteros",
+        "despejar" => "/ecuaciones",
+        "potencias" => "/potencias",
+        "cuad5" => "/potencias",
+        "binomio" => "/ecuaciones",
+        "sohcahtoa" => "/trigonometria",
+        "terna345" => "/trigonometria",
+        _ => "/juegos",
+    }
+}
+
+// --- Ilustraciones SVG (números = rótulos de gráfico, literales) --------------
+
+// ×9 con las manos: 10 dedos, el nº4 bajado. Izquierda = decenas (3), derecha =
+// unidades (6) → 36.
+fn svg_x9manos() -> Str {
+    let dedos = ""
+    let i = 0
+    while (i < 10) {
+        let x = 12 + i * 32
+        let baja = i == 3
+        let cls = match baja {
+            true => "tk-finger tk-down",
+            false => "tk-finger",
+        }
+        let fy = match baja {
+            true => 92,
+            false => 20,
+        }
+        let fh = match baja {
+            true => 33,
+            false => 105,
+        }
+        let num = i + 1
+        let tx = x + 12
+        dedos = dedos + html("""<rect x="{x}" y="{fy}" width="24" height="{fh}" rx="10" class="{cls}" /><text x="{tx}" y="150" class="tk-fnum">{num}</text>""").raw
+        i = i + 1
+    }
+    return html("""<svg viewBox="0 0 340 168" class="tk-svg" role="img" aria-label="9 × 4">
+<text x="56" y="14" class="tk-big">3</text>
+<text x="232" y="14" class="tk-big">6</text>
+{dedos}
+<text x="120" y="86" class="tk-down-mark">↓</text>
+</svg>""").raw
+}
+
+// Amigos del 10: cuadro de diez con 7 llenos + 3 vacíos (7 + 3 = 10).
+fn svg_amigos10() -> Str {
+    let puntos = ""
+    let k = 0
+    while (k < 10) {
+        let col = k % 5
+        let row = k / 5
+        let cx = 30 + col * 48
+        let cy = 32 + row * 48
+        let cls = match k < 7 {
+            true => "tk-dot on",
+            false => "tk-dot",
+        }
+        puntos = puntos + html("""<circle cx="{cx}" cy="{cy}" r="18" class="{cls}" />""").raw
+        k = k + 1
+    }
+    return html("""<svg viewBox="0 0 252 118" class="tk-svg" role="img" aria-label="7 + 3 = 10">
+{puntos}
+<text x="246" y="66" class="tk-eq">= 10</text>
+</svg>""").raw
+}
+
+// ×5 = mitad de ×10: 6 × 10 = 60, sacar la mitad → 30.
+fn svg_x5mitad() -> Str {
+    return html("""<svg viewBox="0 0 300 130" class="tk-svg" role="img" aria-label="6 × 5">
+<text x="150" y="34" class="tk-eq">6 × 10 = 60</text>
+<line x1="150" y1="48" x2="150" y2="82" class="tk-arrow-line" />
+<text x="150" y="70" class="tk-arrow-lbl">÷ 2</text>
+<text x="150" y="112" class="tk-eq strong">6 × 5 = 30</text>
+</svg>""").raw
+}
+
+// Divisibilidad por 2/5/10: última cifra resaltada.
+fn svg_divis() -> Str {
+    return html("""<svg viewBox="0 0 300 128" class="tk-svg" role="img" aria-label="24 ÷ 2, 35 ÷ 5, 70 ÷ 10">
+<text x="52" y="58" class="tk-num">2<tspan class="tk-hidig">4</tspan></text>
+<text x="52" y="98" class="tk-sub">÷ 2</text>
+<text x="150" y="58" class="tk-num">3<tspan class="tk-hidig">5</tspan></text>
+<text x="150" y="98" class="tk-sub">÷ 5</text>
+<text x="248" y="58" class="tk-num">7<tspan class="tk-hidig">0</tspan></text>
+<text x="248" y="98" class="tk-sub">÷ 10</text>
+</svg>""").raw
+}
+
+// Sumar redondeando: 48≈50, 37≈40, 50+40=90.
+fn svg_redondear() -> Str {
+    return html("""<svg viewBox="0 0 300 130" class="tk-svg" role="img" aria-label="48 + 37 aproximado 90">
+<text x="150" y="32" class="tk-eq">48 ≈ 50</text>
+<text x="150" y="62" class="tk-eq">37 ≈ 40</text>
+<line x1="40" y1="76" x2="260" y2="76" class="tk-arrow-line" />
+<text x="150" y="112" class="tk-eq strong">50 + 40 = 90</text>
+</svg>""").raw
+}
+
+// Porcentajes mentales: 10% (correr la coma) → 5% (la mitad) → 15% (sumar).
+fn svg_pctmental() -> Str {
+    return html("""<svg viewBox="0 0 270 150" class="tk-svg" role="img" aria-label="10%, 5%, 15% de 80">
+<text x="135" y="32" class="tk-eq">10% de 80 = 8</text>
+<text x="135" y="76" class="tk-eq">5% = la mitad = 4</text>
+<line x1="30" y1="92" x2="240" y2="92" class="tk-arrow-line" />
+<text x="135" y="128" class="tk-eq strong">15% = 8 + 4 = 12</text>
+</svg>""").raw
+}
+
+// Regla de los signos: cuatro combinaciones, resultado en verde (+) o naranja (−).
+fn svg_signos() -> Str {
+    return html("""<svg viewBox="0 0 220 168" class="tk-svg" role="img" aria-label="regla de los signos">
+<text x="110" y="30" class="tk-signo">(+) · (+) = <tspan class="tk-pos">+</tspan></text>
+<text x="110" y="70" class="tk-signo">(+) · (−) = <tspan class="tk-neg">−</tspan></text>
+<text x="110" y="110" class="tk-signo">(−) · (+) = <tspan class="tk-neg">−</tspan></text>
+<text x="110" y="150" class="tk-signo">(−) · (−) = <tspan class="tk-pos">+</tspan></text>
+</svg>""").raw
+}
+
+// Despejar: lo que suma pasa restando (x + 5 = 12 → x = 12 − 5 → x = 7).
+fn svg_despejar() -> Str {
+    return html("""<svg viewBox="0 0 300 150" class="tk-svg" role="img" aria-label="despejar x">
+<text x="150" y="36" class="tk-eq">x + 5 = 12</text>
+<path d="M 128 20 Q 175 2 210 24" class="tk-arc" />
+<text x="175" y="66" class="tk-arrow-lbl">cambia de signo</text>
+<text x="150" y="104" class="tk-eq">x = 12 − 5</text>
+<text x="150" y="138" class="tk-eq strong">x = 7</text>
+</svg>""").raw
+}
+
+// Reglas de las potencias (superíndices unicode, sin trig ni tspan de baseline).
+fn svg_potencias() -> Str {
+    return html("""<svg viewBox="0 0 280 150" class="tk-svg" role="img" aria-label="reglas de potencias">
+<text x="140" y="34" class="tk-eq">2³ · 2² = 2⁵</text>
+<text x="140" y="76" class="tk-eq">(2³)² = 2⁶</text>
+<line x1="30" y1="92" x2="250" y2="92" class="tk-arrow-line" />
+<text x="140" y="128" class="tk-eq strong">2⁰ = 1</text>
+</svg>""").raw
+}
+
+// Cuadrado de un número terminado en 5: 35² → 3×4=12, pegar 25 → 1225.
+fn svg_cuad5() -> Str {
+    return html("""<svg viewBox="0 0 300 150" class="tk-svg" role="img" aria-label="35 al cuadrado">
+<text x="150" y="34" class="tk-eq strong">35² = 1225</text>
+<line x1="30" y1="50" x2="270" y2="50" class="tk-arrow-line" />
+<text x="150" y="88" class="tk-eq">3 × 4 = 12</text>
+<text x="150" y="128" class="tk-eq">…y siempre termina en 25</text>
+</svg>""").raw
+}
+
+// SOH-CAH-TOA: triángulo rectángulo con los lados a (opuesto), b (adyacente),
+// c (hipotenusa) y el ángulo θ. La mnemotécnica va en los pasos (localizada).
+fn svg_sohcahtoa() -> Str {
+    return html("""<svg viewBox="0 0 260 190" class="tk-svg" role="img" aria-label="triángulo rectángulo SOH CAH TOA">
+<polygon points="45,160 230,160 45,45" class="tk-tri" />
+<rect x="45" y="140" width="20" height="20" class="tk-tri-ra" />
+<path d="M 210 160 A 25 25 0 0 0 199 141" class="tk-arc" />
+<text x="192" y="152" class="tk-tri-th">θ</text>
+<text x="30" y="105" class="tk-tri-lbl">a</text>
+<text x="140" y="182" class="tk-tri-lbl">b</text>
+<text x="150" y="95" class="tk-tri-lbl">c</text>
+</svg>""").raw
+}
+
+// Multiplicar por 11 (dos cifras): abrir las cifras y sumar en el medio.
+fn svg_x11() -> Str {
+    return html("""<svg viewBox="0 0 300 138" class="tk-svg" role="img" aria-label="24 por 11">
+<text x="150" y="34" class="tk-eq">24 × 11</text>
+<text x="150" y="76" class="tk-eq">2 (2 + 4) 4</text>
+<line x1="30" y1="92" x2="270" y2="92" class="tk-arrow-line" />
+<text x="150" y="126" class="tk-eq strong">= 264</text>
+</svg>""").raw
+}
+
+// ×4 = doblar dos veces.
+fn svg_x4doble() -> Str {
+    return html("""<svg viewBox="0 0 300 138" class="tk-svg" role="img" aria-label="7 por 4 doblando">
+<text x="150" y="34" class="tk-eq">7 × 4</text>
+<text x="150" y="76" class="tk-eq">doblo: 14 · doblo: 28</text>
+<line x1="30" y1="92" x2="270" y2="92" class="tk-arrow-line" />
+<text x="150" y="126" class="tk-eq strong">= 28</text>
+</svg>""").raw
+}
+
+// Divisibilidad por 3 y 9: sumar las cifras.
+fn svg_divis39() -> Str {
+    return html("""<svg viewBox="0 0 300 140" class="tk-svg" role="img" aria-label="531 divisible por 3 y 9">
+<text x="150" y="34" class="tk-eq strong">531</text>
+<text x="150" y="76" class="tk-eq">5 + 3 + 1 = 9</text>
+<line x1="30" y1="92" x2="270" y2="92" class="tk-arrow-line" />
+<text x="150" y="126" class="tk-eq">÷ 3 <tspan class="tk-pos">✓</tspan>   ÷ 9 <tspan class="tk-pos">✓</tspan></text>
+</svg>""").raw
+}
+
+// ½ = 0,5 = 50%: barra a la mitad. El decimal (0,5 / 0.5) va en los pasos
+// (localizado); acá solo ½ y 50%, que no dependen del idioma.
+fn svg_equiv() -> Str {
+    return html("""<svg viewBox="0 0 300 120" class="tk-svg" role="img" aria-label="un medio, cincuenta por ciento">
+<rect x="40" y="34" width="220" height="52" class="tk-bar" />
+<rect x="40" y="34" width="110" height="52" class="tk-bar-fill" />
+<text x="95" y="68" class="tk-bar-lbl">½</text>
+<text x="205" y="68" class="tk-bar-lbl dim">50%</text>
+</svg>""").raw
+}
+
+// Regla de tres directa: 3 → 60, entonces 5 → ?
+fn svg_regla3() -> Str {
+    return html("""<svg viewBox="0 0 300 150" class="tk-svg" role="img" aria-label="regla de tres">
+<text x="150" y="34" class="tk-eq">3 → $60</text>
+<text x="150" y="72" class="tk-eq">5 → ?</text>
+<line x1="30" y1="88" x2="270" y2="88" class="tk-arrow-line" />
+<text x="150" y="124" class="tk-eq strong">60 × 5 ÷ 3 = 100</text>
+</svg>""").raw
+}
+
+// Binomio al cuadrado: el cuadrado de lado (a+b) partido en a², ab, ab, b².
+fn svg_binomio() -> Str {
+    return html("""<svg viewBox="0 0 240 200" class="tk-svg" role="img" aria-label="binomio al cuadrado">
+<rect x="30" y="20" width="100" height="100" class="tk-reg a" />
+<rect x="130" y="20" width="60" height="100" class="tk-reg ab" />
+<rect x="30" y="120" width="100" height="60" class="tk-reg ab" />
+<rect x="130" y="120" width="60" height="60" class="tk-reg b" />
+<text x="80" y="76" class="tk-reg-lbl">a²</text>
+<text x="160" y="76" class="tk-reg-lbl">ab</text>
+<text x="80" y="156" class="tk-reg-lbl">ab</text>
+<text x="160" y="156" class="tk-reg-lbl">b²</text>
+</svg>""").raw
+}
+
+// Terna pitagórica 3-4-5: triángulo rectángulo con los lados rotulados.
+fn svg_terna345() -> Str {
+    return html("""<svg viewBox="0 0 240 180" class="tk-svg" role="img" aria-label="terna 3 4 5">
+<polygon points="45,155 205,155 45,35" class="tk-tri" />
+<rect x="45" y="135" width="20" height="20" class="tk-tri-ra" />
+<text x="30" y="100" class="tk-tri-lbl">3</text>
+<text x="125" y="176" class="tk-tri-lbl">4</text>
+<text x="135" y="88" class="tk-tri-lbl">5</text>
+</svg>""").raw
+}
+
+// Jerarquía de operaciones (PEMDAS): el orden, del 1 al 4. Los símbolos son
+// neutros de idioma; las palabras (paréntesis, potencias…) van en los pasos.
+fn svg_jerarquia() -> Str {
+    return html("""<svg viewBox="0 0 240 176" class="tk-svg" role="img" aria-label="orden de las operaciones">
+<text x="120" y="34" class="tk-eq"><tspan class="tk-hidig">1</tspan>   ( )</text>
+<text x="120" y="74" class="tk-eq"><tspan class="tk-hidig">2</tspan>   xⁿ  √</text>
+<text x="120" y="114" class="tk-eq"><tspan class="tk-hidig">3</tspan>   ×   ÷</text>
+<text x="120" y="154" class="tk-eq"><tspan class="tk-hidig">4</tspan>   +   −</text>
+</svg>""").raw
+}
+
+// Simplificar fracciones: dividir arriba y abajo por el mismo número.
+fn svg_simplificar() -> Str {
+    return html("""<svg viewBox="0 0 300 130" class="tk-svg" role="img" aria-label="simplificar 6 octavos">
+<text x="150" y="34" class="tk-eq strong">6/8 = 3/4</text>
+<line x1="30" y1="50" x2="270" y2="50" class="tk-arrow-line" />
+<text x="150" y="84" class="tk-eq">6 ÷ 2 = 3</text>
+<text x="150" y="116" class="tk-eq">8 ÷ 2 = 4</text>
+</svg>""").raw
+}
+
+// Prueba del 9: reducir cada número a una cifra sumando y comparar.
+fn svg_pruebanueve() -> Str {
+    return html("""<svg viewBox="0 0 300 138" class="tk-svg" role="img" aria-label="prueba del nueve">
+<text x="150" y="32" class="tk-eq">47 + 38 = 85</text>
+<line x1="30" y1="48" x2="270" y2="48" class="tk-arrow-line" />
+<text x="150" y="82" class="tk-eq">2 + 2 = 4</text>
+<text x="150" y="118" class="tk-eq">8 + 5 → 4 <tspan class="tk-pos">✓</tspan></text>
+</svg>""").raw
+}
+
+fn truco_svg(c: Str) -> Str {
+    return match c {
+        "x9manos" => svg_x9manos(),
+        "amigos10" => svg_amigos10(),
+        "x5mitad" => svg_x5mitad(),
+        "x11" => svg_x11(),
+        "x4doble" => svg_x4doble(),
+        "divis" => svg_divis(),
+        "redondear" => svg_redondear(),
+        "divis39" => svg_divis39(),
+        "equiv" => svg_equiv(),
+        "jerarquia" => svg_jerarquia(),
+        "simplificar" => svg_simplificar(),
+        "pctmental" => svg_pctmental(),
+        "regla3" => svg_regla3(),
+        "pruebanueve" => svg_pruebanueve(),
+        "signos" => svg_signos(),
+        "despejar" => svg_despejar(),
+        "potencias" => svg_potencias(),
+        "cuad5" => svg_cuad5(),
+        "binomio" => svg_binomio(),
+        "sohcahtoa" => svg_sohcahtoa(),
+        "terna345" => svg_terna345(),
+        _ => "",
+    }
+}
+
+// --- Render -------------------------------------------------------------------
+
+fn carta_truco(locale: Str, c: Str) -> Html {
+    let em = flv(truco_emoji(c))
+    let tit = flv(t(locale, "truco.{c}.tit"))
+    let intro = flv(t(locale, "truco.{c}.intro"))
+    return html("""<a class="mh-truco-card" href="/trucos/{c}">
+<span class="mh-truco-card-em" aria-hidden="true">{em}</span>
+<span class="mh-truco-card-txt">
+<span class="mh-truco-card-tit">{tit}</span>
+<span class="mh-truco-card-sub">{intro}</span>
+</span>
+</a>""")
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/trucos")
+async fn trucos_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    // Solo las fichas al alcance del grado (los de secundaria no le aparecen a
+    // primaria); un chico de secundaria ve también las de cálculo mental.
+    let visibles = trucos().filter(fn(c) => truco_min_grade(c) <= ctx.grade)
+    let cartas = h_join(visibles.map(fn(c) => carta_truco(locale, c)))
+    let body = html("""<div class="mh-card">
+<h2>{flv(t(locale, "trucos.titulo"))}</h2>
+<p class="mh-trucos-sub">{flv(t(locale, "trucos.sub"))}</p>
+<div class="mh-trucos">
+{cartas}
+</div>
+</div>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+    let titulo = t(locale, "trucos.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/trucos/{code}")
+async fn truco_detalle(session: Str?, lang: Str?, code: Str) -> Response {
+    let locale = locale_from_cookie(lang)
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not truco_valido(code)) {
+        return redirect_a("/trucos")
+    }
+    let em = flv(truco_emoji(code))
+    let tit = flv(t(locale, "truco.{code}.tit"))
+    let intro = flv(t(locale, "truco.{code}.intro"))
+    let svg = truco_svg(code)
+    let p1 = flv(t(locale, "truco.{code}.p1"))
+    let p2 = flv(t(locale, "truco.{code}.p2"))
+    let p3 = flv(t(locale, "truco.{code}.p3"))
+    let ej = flv(t(locale, "truco.{code}.ej"))
+    let route = truco_route(code)
+    let body = html("""<div class="mh-card mh-truco-ficha">
+<div class="mh-truco-head"><span class="mh-truco-em" aria-hidden="true">{em}</span><h2>{tit}</h2></div>
+<p class="mh-truco-intro">{intro}</p>
+<div class="mh-truco-fig">{svg}</div>
+<h3 class="mh-truco-h">{flv(t(locale, "trucos.como"))}</h3>
+<ol class="mh-truco-pasos">
+<li>{p1}</li>
+<li>{p2}</li>
+<li>{p3}</li>
+</ol>
+<div class="mh-truco-ej"><span class="mh-truco-ej-lbl">{flv(t(locale, "trucos.ejemplo"))}</span> <span class="mh-truco-ej-txt">{ej}</span></div>
+<a class="mh-btn" href="{route}"><span aria-hidden="true">▶️</span>{flv(t(locale, "trucos.probalo"))}</a>
+</div>
+<a class="mh-btn sec" href="/trucos">{flv(t(locale, "trucos.volver"))}</a>""")
+    let titulo = t(locale, "truco.{code}.tit") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
