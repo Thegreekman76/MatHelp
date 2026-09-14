@@ -508,5 +508,14 @@
   "truco.pruebanueve.p1": "Add the digits of each number until one is left. 47 → 4 + 7 = 11 → 1 + 1 = 2.",
   "truco.pruebanueve.p2": "Do the same operation with those small numbers: 2 + 2 = 4.",
   "truco.pruebanueve.p3": "Reduce the result too (85 → 8 + 5 = 13 → 4). If they match, it's almost certainly right.",
-  "truco.pruebanueve.ej": "47 + 38 = 85 → 2 + 2 = 4 = 8 + 5"
+  "truco.pruebanueve.ej": "47 + 38 = 85 → 2 + 2 = 4 = 8 + 5",
+  "home.errores": "Review your mistakes",
+  "errores.titulo": "Review your mistakes",
+  "errores.pendientes": "{0} to review",
+  "errores.responder": "Answer",
+  "errores.siguiente": "Next",
+  "errores.correcto": "Well done! You got it this time.",
+  "errores.incorrecto": "Almost. The correct answer was:",
+  "errores.vacio_titulo": "No mistakes to review!",
+  "errores.vacio_sub": "Keep playing. If you get an exercise wrong, it'll show up here so we can reinforce it."
 }

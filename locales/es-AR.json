@@ -508,5 +508,14 @@
   "truco.pruebanueve.p1": "Sumá las cifras de cada número hasta que quede una sola. 47 → 4 + 7 = 11 → 1 + 1 = 2.",
   "truco.pruebanueve.p2": "Hacé la misma operación con esos números chiquitos: 2 + 2 = 4.",
   "truco.pruebanueve.p3": "Reducí también el resultado (85 → 8 + 5 = 13 → 4). Si coinciden, casi seguro está bien.",
-  "truco.pruebanueve.ej": "47 + 38 = 85 → 2 + 2 = 4 = 8 + 5"
+  "truco.pruebanueve.ej": "47 + 38 = 85 → 2 + 2 = 4 = 8 + 5",
+  "home.errores": "Repasá tus errores",
+  "errores.titulo": "Repasá tus errores",
+  "errores.pendientes": "{0} por repasar",
+  "errores.responder": "Responder",
+  "errores.siguiente": "Siguiente",
+  "errores.correcto": "¡Muy bien! Esta vez lo resolviste.",
+  "errores.incorrecto": "Casi. La respuesta correcta era:",
+  "errores.vacio_titulo": "¡No tenés errores para repasar!",
+  "errores.vacio_sub": "Seguí jugando. Si te equivocás en algún ejercicio, va a aparecer acá para que lo reforcemos."
 }

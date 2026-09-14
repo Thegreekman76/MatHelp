@@ -43,6 +43,7 @@ import tema
 import accesibilidad
 import avatares
 import trucos
+import errores
 from avatares import avatar_emoji
 import menu
 import progreso
@@ -161,6 +162,7 @@ fn home_jugar(locale: Str, saludo: Html, resumen: Html, meta: Html, ultimo: Html
 <a class="mh-btn sec" href="/juegos"><span aria-hidden="true">🎮</span>{flv(t(locale, "home.elegir_juego"))}</a>
 <a class="mh-btn sec" href="/practica"><span aria-hidden="true">📚</span>{flv(t(locale, "home.practica_libre"))}</a>
 <a class="mh-btn sec" href="/trucos"><span aria-hidden="true">💡</span>{flv(t(locale, "home.trucos"))}</a>
+<a class="mh-btn sec" href="/errores"><span aria-hidden="true">🔁</span>{flv(t(locale, "home.errores"))}</a>
 <a class="mh-btn sec" href="/progreso"><span aria-hidden="true">🏅</span>{flv(t(locale, "nav.progreso"))}</a>
 </div>
 

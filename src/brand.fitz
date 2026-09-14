@@ -719,6 +719,18 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .tk-tri-ra \{ fill:none; stroke:var(--mh-suave); stroke-width:1.5; \}
 .tk-tri-th \{ fill:var(--mh-naranja); font-size:16px; font-weight:900; text-anchor:middle; \}
 .tk-tri-lbl \{ fill:var(--mh-tinta); font-size:17px; font-weight:900; text-anchor:middle; \}
+/* Repasá tus errores */
+.mh-errores \{ text-align:center; \}
+.mh-err-sub \{ color:var(--mh-suave); font-size:.9rem; margin:.1rem 0 1rem; \}
+.mh-err-prompt \{ font-size:2.4rem; font-weight:900; color:var(--mh-tinta); margin:.4rem 0 1rem; letter-spacing:.02em; \}
+.mh-err-form \{ display:flex; flex-direction:column; gap:12px; align-items:center; \}
+.mh-err-input \{ text-align:center; font-size:1.6rem; font-weight:800; max-width:8em; \}
+.mh-err-vacio \{ text-align:center; \}
+.mh-err-emoji \{ display:block; font-size:2.8rem; line-height:1; margin-bottom:.3rem; \}
+.mh-err-fb \{ text-align:center; \}
+.mh-err-eq \{ font-size:1.8rem; font-weight:900; color:var(--mh-tinta); margin:.4rem 0 1rem; \}
+.mh-err-fb.ok h2 \{ color:var(--mh-verde); \}
+.mh-err-fb.bad h2 \{ color:var(--mh-naranja); \}
 /* barra de equivalencia (½ = 50%) */
 .tk-bar \{ fill:var(--mh-panel); stroke:var(--mh-verde); stroke-width:2.5; \}
 .tk-bar-fill \{ fill:var(--mh-verde); \}
