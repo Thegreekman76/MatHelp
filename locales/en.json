@@ -525,5 +525,10 @@
   "tienda.avatares": "Avatars",
   "tienda.temas": "Color themes",
   "tienda.usar": "Use",
-  "tienda.comprar": "Buy"
+  "tienda.comprar": "Buy",
+  "home.aventura": "Adventure",
+  "aventura.titulo": "Math adventure",
+  "aventura.sub": "Travel the worlds: complete each one by playing and unlock the next.",
+  "aventura.mundos": "worlds",
+  "aventura.completa": "You finished the adventure!"
 }

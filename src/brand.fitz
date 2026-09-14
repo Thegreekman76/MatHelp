@@ -752,6 +752,22 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .mh-avpick.lock \{ position:relative; opacity:.5; \}
 .mh-avpick-lock \{ position:absolute; right:2px; bottom:2px; font-size:.9rem; \}
 .mh-swatch.lock \{ opacity:.6; \}
+/* Modo aventura / mapa */
+.mh-adv-sub \{ color:var(--mh-suave); font-size:.92rem; line-height:1.4; margin:.1rem 0 .8rem; \}
+.mh-adv-top \{ display:inline-flex; align-items:center; gap:.4em; font-size:1.1rem; font-weight:900; color:var(--mh-tinta); background:var(--mh-verde-suave); border-radius:999px; padding:.3em 1em; margin-bottom:1rem; \}
+.mh-adv-camino \{ display:flex; flex-direction:column; gap:0; position:relative; \}
+.mh-adv-nodo \{ display:flex; align-items:center; gap:12px; text-decoration:none; padding:14px 16px; margin:6px 0; border:2px solid var(--mh-borde); border-radius:16px; background:var(--mh-panel); color:var(--mh-tinta); position:relative; \}
+.mh-adv-nodo::before \{ content:""; position:absolute; left:31px; top:-8px; width:3px; height:8px; background:var(--mh-borde); \}
+.mh-adv-nodo:first-child::before \{ display:none; \}
+.mh-adv-nodo.done \{ border-color:var(--mh-verde-claro); background:var(--mh-verde-suave); \}
+.mh-adv-nodo.current \{ border-color:var(--mh-naranja); box-shadow:0 4px 14px rgba(232,85,47,.18); \}
+.mh-adv-nodo.lock \{ opacity:.55; \}
+.mh-adv-ico \{ font-size:1.9rem; line-height:1; width:34px; text-align:center; flex:0 0 auto; \}
+.mh-adv-lbl \{ font-weight:800; flex:1 1 auto; \}
+.mh-adv-prog \{ font-weight:900; color:var(--mh-naranja); font-variant-numeric:tabular-nums; \}
+.mh-adv-badge \{ font-size:1.3rem; font-weight:900; \}
+.mh-adv-nodo.done .mh-adv-badge \{ color:var(--mh-verde); \}
+.mh-adv-cierre \{ text-align:center; font-size:1.1rem; font-weight:900; color:var(--mh-verde); margin:1rem 0 0; \}
 /* barra de equivalencia (½ = 50%) */
 .tk-bar \{ fill:var(--mh-panel); stroke:var(--mh-verde); stroke-width:2.5; \}
 .tk-bar-fill \{ fill:var(--mh-verde); \}

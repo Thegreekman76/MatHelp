@@ -525,5 +525,10 @@
   "tienda.avatares": "Avatares",
   "tienda.temas": "Temas de color",
   "tienda.usar": "Usar",
-  "tienda.comprar": "Comprar"
+  "tienda.comprar": "Comprar",
+  "home.aventura": "Aventura",
+  "aventura.titulo": "Aventura matemática",
+  "aventura.sub": "Recorré los mundos: completá cada uno jugando y desbloqueá el siguiente.",
+  "aventura.mundos": "mundos",
+  "aventura.completa": "¡Completaste la aventura!"
 }

@@ -1,0 +1,144 @@
+// aventura.fitz — "Modo aventura / mapa" (sistema #3).
+//
+// Un camino de "mundos": cada uno pide N respuestas correctas de una destreza y se
+// completa SOLO jugando los juegos que ya existen (no hay tracking nuevo — es una
+// VISTA sobre attempts, igual que las monedas). Completar un mundo desbloquea el
+// siguiente. Los mundos se filtran por el grado del perfil (min_grade), como el menú.
+//
+// Estados de un nodo: hecho (✓, cuenta >= req) · actual (el primero sin completar,
+// desbloqueado, con progreso cuenta/req y botón jugar) · bloqueado (🔒, el anterior
+// no está completo).
+
+from fitz_liveviews import Html, html, flv
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from live_game import resolver_contexto
+from progreso import skill_label_key, skill_icon
+from fmt import fmt_int
+
+type Nodo {
+    skill: Str = ""
+    min_grade: Int = 1
+    req: Int = 5
+    route: Str = "/jugar"
+}
+
+// El camino, de lo más fácil a lo más difícil. min_grade = el del juego que lo entrena.
+fn nodos() -> List<Nodo> {
+    let out: List<Nodo> = []
+    out.push(Nodo { skill: "add", min_grade: 1, req: 5, route: "/jugar" })
+    out.push(Nodo { skill: "sub", min_grade: 1, req: 5, route: "/jugar" })
+    out.push(Nodo { skill: "patron", min_grade: 1, req: 5, route: "/series" })
+    out.push(Nodo { skill: "reloj", min_grade: 2, req: 5, route: "/hora" })
+    out.push(Nodo { skill: "mul.tabla", min_grade: 2, req: 8, route: "/escalera" })
+    out.push(Nodo { skill: "div.exacta", min_grade: 3, req: 5, route: "/jugar" })
+    out.push(Nodo { skill: "estimar", min_grade: 3, req: 5, route: "/estimar" })
+    out.push(Nodo { skill: "frac.parte", min_grade: 4, req: 5, route: "/fracciones" })
+    out.push(Nodo { skill: "geo", min_grade: 5, req: 5, route: "/geometria" })
+    out.push(Nodo { skill: "pct", min_grade: 6, req: 5, route: "/porcentaje" })
+    return out
+}
+
+// Respuestas correctas de una destreza (best-effort → 0).
+async fn contar_skill(pid: Int, skill: Str) -> Int {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return 0 },
+    }
+    let rows = match conn.query("SELECT COUNT(*)::int AS n FROM attempts WHERE profile_id = $1 AND correct = true AND skill_code = $2", [pid, skill]).await {
+        Ok(r) => r,
+        Err(_) => { return 0 },
+    }
+    if (rows.len() == 0) {
+        return 0
+    }
+    return match rows[0].get_int("n") {
+        Ok(n) => n,
+        Err(_) => 0,
+    }
+}
+
+fn nodo_html(locale: Str, nodo: Nodo, estado: Str, cuenta: Int) -> Html {
+    let icon = flv(skill_icon(nodo.skill))
+    let label = flv(t(locale, skill_label_key(nodo.skill)))
+    if (estado == "done") {
+        return html("""<a class="mh-adv-nodo done" href="{nodo.route}">
+<span class="mh-adv-ico">{icon}</span>
+<span class="mh-adv-lbl">{label}</span>
+<span class="mh-adv-badge">✓</span>
+</a>""")
+    }
+    if (estado == "current") {
+        let c = flv(fmt_int(locale, cuenta))
+        let r = flv(fmt_int(locale, nodo.req))
+        return html("""<a class="mh-adv-nodo current" href="{nodo.route}">
+<span class="mh-adv-ico">{icon}</span>
+<span class="mh-adv-lbl">{label}</span>
+<span class="mh-adv-prog">{c}/{r}</span>
+<span class="mh-adv-badge">▶</span>
+</a>""")
+    }
+    return html("""<div class="mh-adv-nodo lock">
+<span class="mh-adv-ico">{icon}</span>
+<span class="mh-adv-lbl">{label}</span>
+<span class="mh-adv-badge">🔒</span>
+</div>""")
+}
+
+async fn cuerpo_aventura(locale: Str, pid: Int, grade: Int) -> Html {
+    let visibles = nodos().filter(fn(n) => n.min_grade <= grade)
+    let items = ""
+    let abierto = true
+    let hechos = 0
+    let i = 0
+    while (i < visibles.len()) {
+        let nodo = visibles[i]
+        let cuenta = contar_skill(pid, nodo.skill).await
+        let completo = cuenta >= nodo.req
+        let estado = match abierto {
+            true => match completo {
+                true => "done",
+                false => "current",
+            },
+            false => "locked",
+        }
+        items = items + nodo_html(locale, nodo, estado, cuenta).raw
+        if (completo) {
+            hechos = hechos + 1
+        }
+        abierto = abierto and completo
+        i = i + 1
+    }
+    let h = flv(fmt_int(locale, hechos))
+    let tot = flv(fmt_int(locale, visibles.len()))
+    let mundos = flv(t(locale, "aventura.mundos"))
+    let cierre = ""
+    if (hechos == visibles.len() and visibles.len() > 0) {
+        cierre = html("""<p class="mh-adv-cierre">🏆 {flv(t(locale, "aventura.completa"))}</p>""").raw
+    }
+    return html("""<div class="mh-card mh-aventura">
+<h2>{flv(t(locale, "aventura.titulo"))}</h2>
+<p class="mh-adv-sub">{flv(t(locale, "aventura.sub"))}</p>
+<div class="mh-adv-top">🌍 {h} / {tot} {mundos}</div>
+<div class="mh-adv-camino">
+{items}
+</div>
+{cierre}
+</div>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/aventura")
+async fn aventura_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let body = cuerpo_aventura(locale, ctx.profile_id, ctx.grade).await
+    let titulo = t(locale, "aventura.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
