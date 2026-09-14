@@ -1284,6 +1284,53 @@ Requieren mecánica de input distinta al teclado → primer candidato a definir 
 
 ---
 
+## 11.e Sección de aprendizaje — "Trucos" (2026-09-13)
+
+A diferencia de los 21 juegos (práctica + feedback **reactivo** al responder), la
+sección **`/trucos`** enseña **proactivamente la estrategia**: el atajo para ×9 con
+las manos, los amigos del 10, PEMDAS, SOH-CAH-TOA, etc. Cierra el hueco entre "el
+motor sabe qué te cuesta" (rating Elo por destreza) y "acá está el truco para
+mejorarlo". Cada ficha termina con un botón **"Probalo"** que linkea al juego que
+entrena esa destreza (`truco_route`), atando aprendizaje ↔ práctica en los dos
+sentidos.
+
+**Patrón** (`src/trucos.fitz`, ~contenido estático, `page()` del layout): una
+lista `trucos()` + tablas `truco_min_grade`/`truco_emoji`/`truco_route` + un
+`truco_svg(code)` (SVG generado, mismo patrón que reloj/recta/figuras — los
+números son rótulos de gráfico, literales). `/trucos` es la grilla (filtrada por
+grado, como el menú de juegos: `truco_min_grade <= ctx.grade` vía
+`resolver_contexto`); `/trucos/{code}` es la ficha (emoji + intro + SVG + 3 pasos
++ ejemplo + Probalo). Entrada en el home (💡 Trucos). CSS `.tk-*`/`.mh-truco-*` en
+`brand.fitz`. i18n ES/EN (regla 1); **los decimales respetan el locale** (½ = 0,5
+/ 0.5 — regla 2: el SVG muestra sólo `½` y `50%`, neutros, y el decimal vive en el
+texto localizado).
+
+**Catálogo: 21 fichas**, filtradas por grado:
+- **Cálculo mental**: ×9 con las manos, amigos del 10, ×5 = mitad de ×10, ×11, ×4
+  doblando, divisibilidad por 2/5/10, divisibilidad por 3/9, redondear para
+  estimar, prueba del 9.
+- **Sentido numérico / fracciones**: ½ = 0,5 = 50%, simplificar fracciones, regla
+  de tres, porcentajes mentales, orden de las operaciones (PEMDAS).
+- **Secundaria**: regla de los signos, despejar la x, reglas de potencias,
+  cuadrado de los que terminan en 5, binomio al cuadrado, SOH-CAH-TOA (triángulo
+  rectángulo SVG con lados a/b/c neutros), terna 3-4-5.
+
+**Verificado**: `gen_i18n` (510 claves, sin faltantes), `fitz check` + `build`,
+`tools/e2e_trucos.py` (renderiza las 21, valida SVG + 3 pasos + ejemplo + ruta
+Probalo + filtrado por grado + decimal por locale), harness de browser verde.
+
+**Fix del reloj (mismo commit)**: (1) parpadeo a 60s al responder en los
+cronometrados — el frame de feedback recreaba el `.q-tnum` con su valor inicial
+(`data-q-total`); un `MutationObserver` en `public/sound.js` lo corrige
+sincrónicamente (microtask, antes del paint). (2) HUD invertido en V/F
+(`vf_view.fitz`): la llamada a `vf_jugando` pasaba `(score, time_left)` cuando el
+contrato es `(time_left, score)` → el reloj mostraba el puntaje y "Puntaje" el
+tiempo. (3) `tools/browser/harness.mjs` `testFlicker` ahora **captura** el
+parpadeo (observer + detección de saltos hacia arriba), no sólo la supervivencia
+de nodos. Reproducido y verificado en browser real.
+
+---
+
 ## 12. Lo que necesito de tu lado
 
 1. **Versión de Fitz instalada** — `fitz --version`. El plan asume ≥ v0.42.1 (`@every` y `ws_broadcast` desde el scheduler). Si tenés menos, el cronómetro va con `@background`+`spawn`, que anda desde antes.
