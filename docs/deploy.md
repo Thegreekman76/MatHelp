@@ -22,7 +22,7 @@ vieja y los cambios de código NO entran.
 que arregla un check✓/build✗ o agrega un builtin usado, bumpear el `FITZ_IMAGE`
 (la imagen la publica el CI de fitz al taggear) y `docker compose up -d --build app`.
 
-Actual: `FITZ_IMAGE=ghcr.io/thegreekman76/fitz:v0.60.0`, `FLV_TAG=v0.50.0`.
+Actual: `FITZ_IMAGE=ghcr.io/thegreekman76/fitz:v0.60.1`, `FLV_TAG=v0.50.0`.
 
 ## Migraciones de base de datos
 

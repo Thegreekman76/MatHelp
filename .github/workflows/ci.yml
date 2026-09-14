@@ -36,5 +36,5 @@ jobs:
             -v "$PWD:/app" \
             -v "$PWD/vendor-flv:/vendor/fitz-liveviews" \
             -w /app \
-            ghcr.io/thegreekman76/fitz:v0.58.1 \
+            ghcr.io/thegreekman76/fitz:v0.60.1 \
             sh -c "fitz check && fitz test"
