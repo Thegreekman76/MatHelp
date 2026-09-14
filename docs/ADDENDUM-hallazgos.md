@@ -224,7 +224,7 @@ Hubiera cazado los tres solos, y va a cazar el próximo antes de que lo encuentr
 
 ---
 
-## FITZ-23 · `@post` form-urlencoded rompe con valores NO-ASCII (UTF-8) — **ALTO**
+## FITZ-25 · `@post` form-urlencoded rompe con valores NO-ASCII (UTF-8) — **ALTO**
 
 **Estado:** confirmado con repro mínimo, 2026-09-14, construyendo "Repasá tus errores".
 
@@ -254,3 +254,53 @@ dígitos y `-` —, así que la comparación de la respuesta no se ve afectada.)
 
 **Criterio de cierre:** un `@post` con un campo `"10 × 10"` debe cumplir
 `form.campo == "10 × 10"` (byte-idéntico UTF-8).
+
+### FITZ-25 · CAUSA RAÍZ + FIX (localizado 2026-09-14)
+
+El bug está en `src/http.rs`, función `url_decode` (~línea 5009). Al decodificar
+`%XX` hace:
+
+```rust
+// Accumulate bytes for multi-byte UTF-8 chars.   // el comentario dice esto...
+out.push(byte as char);                            // ...pero esto NO acumula: mapea el byte como codepoint (latin-1)
+```
+
+Para `é` (`%C3%A9`) empuja `char(0xC3)`='Ã' y `char(0xA9)`='©' → "Ã©". Es mojibake
+latin-1→utf-8. Afecta TODO campo no-ASCII de un body form-urlencoded.
+
+**Fix (acumular bytes, decodificar UTF-8 al final):**
+
+```rust
+fn url_decode(s: &str) -> Result<String, String> {
+    let mut bytes: Vec<u8> = Vec::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    let mut idx: usize = 0;
+    while let Some(c) = chars.next() {
+        match c {
+            '+' => bytes.push(b' '),
+            '%' => {
+                let h1 = chars.next().ok_or_else(|| format!("urlencoded: incomplete %XX at offset {}", idx))?;
+                let h2 = chars.next().ok_or_else(|| format!("urlencoded: incomplete %XX at offset {}", idx))?;
+                let byte = u8::from_str_radix(&format!("{}{}", h1, h2), 16)
+                    .map_err(|_| format!("urlencoded: %{}{} is not valid hex", h1, h2))?;
+                bytes.push(byte);
+                idx += 3;
+                continue;
+            }
+            other => {
+                let mut buf = [0u8; 4];
+                bytes.extend_from_slice(other.encode_utf8(&mut buf).as_bytes());
+            }
+        }
+        idx += 1;
+    }
+    String::from_utf8(bytes).map_err(|e| format!("urlencoded: invalid UTF-8: {}", e))
+}
+```
+
+Test de cierre: un `@post` con `familia=Jos%C3%A9` debe dar `input.familia == "José"`
+(hex UTF-8 `4a6f73c3a9`, no `4a6f73c383c2a9`).
+
+**Radio en MatHelp:** `/registro` (familia), `/perfiles/nuevo` + `/perfiles/editar`
+(nombre). Login/password son auto-consistentes (funcionan). El resto de los `@post`
+reciben ids/dígitos.
