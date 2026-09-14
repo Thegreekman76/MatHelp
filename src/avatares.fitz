@@ -14,6 +14,7 @@ from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from auth import read_session, pid_from_token
 from engine import a_int
+from economia import comprados, posee, posee_local
 
 fn avatares() -> List<Str> {
     return ["mate", "zorro", "gato", "robot", "cohete", "dino", "estrella", "unicornio", "panda", "pulpo", "rana", "buho"]
@@ -69,8 +70,12 @@ async fn guardar_avatar(pid: Int, code: Str) -> Result<Int> {
     return conn.exec("UPDATE profiles SET avatar = $2 WHERE id = $1", [pid, code]).await
 }
 
-fn carta_avatar(c: Str, activo: Str) -> Html {
+fn carta_avatar(c: Str, activo: Str, owned: Bool) -> Html {
     let em = flv(avatar_emoji(c))
+    if (not owned) {
+        // Bloqueado: se consigue en la tienda.
+        return html("""<a class="mh-avpick lock" href="/tienda" aria-label="{c}"><span class="mh-avpick-em">{em}</span><span class="mh-avpick-lock">🔒</span></a>""")
+    }
     let sel = match c == activo {
         true => " sel",
         false => "",
@@ -92,7 +97,8 @@ async fn avatar_get(session: Str?, lang: Str?) -> Response {
         return redirect_a("/perfiles")
     }
     let activo = leer_avatar(pid).await
-    let cartas = h_join(avatares().map(fn(c) => carta_avatar(c, activo)))
+    let comp = comprados(pid, "avatar").await
+    let cartas = h_join(avatares().map(fn(c) => carta_avatar(c, activo, posee_local(comp, "avatar", c))))
     let body = html("""<div class="mh-card">
 <h2>{flv(t(locale, "avatar.titulo"))}</h2>
 <p style="text-align:center;color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "avatar.sub"))}</p>
@@ -117,6 +123,11 @@ async fn avatar_set(session: Str?, code: Str) -> Response {
     }
     let pid = a_int(pid_from_token(session))
     if (pid > 0) {
+        // Sólo se puede equipar un avatar que se posee (gratis o comprado).
+        let tiene = posee(pid, "avatar", code).await
+        if (not tiene) {
+            return redirect_a("/tienda")
+        }
         let _ = guardar_avatar(pid, code).await
     }
     return redirect_a("/avatar")

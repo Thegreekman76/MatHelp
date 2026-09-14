@@ -517,5 +517,13 @@
   "errores.correcto": "Well done! You got it this time.",
   "errores.incorrecto": "Almost. The correct answer was:",
   "errores.vacio_titulo": "No mistakes to review!",
-  "errores.vacio_sub": "Keep playing. If you get an exercise wrong, it'll show up here so we can reinforce it."
+  "errores.vacio_sub": "Keep playing. If you get an exercise wrong, it'll show up here so we can reinforce it.",
+  "home.tienda": "Shop",
+  "tienda.titulo": "Shop",
+  "tienda.sub": "Earn coins every time you answer correctly. Spend them on new avatars and themes.",
+  "tienda.monedas": "{0} coins",
+  "tienda.avatares": "Avatars",
+  "tienda.temas": "Color themes",
+  "tienda.usar": "Use",
+  "tienda.comprar": "Buy"
 }

@@ -1,0 +1,116 @@
+// tienda.fitz — la vitrina: gastá monedas en avatares y temas (sistema #2).
+//
+// Las monedas y las compras viven en economia.fitz (módulo hoja). Acá está la UI de
+// /tienda y la ruta de compra. Comprar sólo agrega la posesión; para EQUIPAR el
+// ítem se usa /avatar o /tema (que ahora gatean por posesión).
+
+from fitz_liveviews import Html, html, flv, h_join
+from i18n import t, t1, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session, pid_from_token
+from engine import a_int
+from fmt import fmt_int
+from economia import asegurar_tabla, comprados, comprar, monedas, precio, posee_local, es_gratis
+from avatares import avatares, avatar_emoji, es_avatar_valido
+from tema import temas, tema_color, es_tema_valido
+
+// --- tarjetas de la vitrina --------------------------------------------------
+
+fn precio_html(locale: Str, p: Int) -> Str {
+    let n = flv(fmt_int(locale, p))
+    return html("""<span class="mh-shop-precio">🪙 {n}</span>""").raw
+}
+
+fn carta_shop_avatar(locale: Str, c: Str, comp: List<Str>, saldo: Int) -> Html {
+    let em = flv(avatar_emoji(c))
+    let owned = posee_local(comp, "avatar", c)
+    if (owned) {
+        return html("""<a class="mh-shop-item owned" href="/avatar/{c}" aria-label="{c}"><span class="mh-shop-em">{em}</span><span class="mh-shop-estado">✓ {flv(t(locale, "tienda.usar"))}</span></a>""")
+    }
+    let p = precio("avatar", c)
+    if (saldo >= p) {
+        return html("""<a class="mh-shop-item buy" href="/tienda/comprar/avatar/{c}" aria-label="{c}"><span class="mh-shop-em">{em}</span>{precio_html(locale, p)}</a>""")
+    }
+    return html("""<div class="mh-shop-item lock" aria-label="{c}"><span class="mh-shop-em">{em}</span><span class="mh-shop-precio lockp">🔒 {flv(fmt_int(locale, p))}</span></div>""")
+}
+
+fn carta_shop_tema(locale: Str, c: Str, comp: List<Str>, saldo: Int) -> Html {
+    let col = tema_color(c)
+    let nombre = flv(t(locale, "tema_color.{c}"))
+    let owned = posee_local(comp, "theme", c)
+    if (owned) {
+        return html("""<a class="mh-shop-item owned" href="/tema/{c}"><span class="mh-shop-sw" style="background:{col}"></span><span class="mh-shop-nom">{nombre}</span><span class="mh-shop-estado">✓ {flv(t(locale, "tienda.usar"))}</span></a>""")
+    }
+    let p = precio("theme", c)
+    if (saldo >= p) {
+        return html("""<a class="mh-shop-item buy" href="/tienda/comprar/theme/{c}"><span class="mh-shop-sw" style="background:{col}"></span><span class="mh-shop-nom">{nombre}</span>{precio_html(locale, p)}</a>""")
+    }
+    return html("""<div class="mh-shop-item lock"><span class="mh-shop-sw" style="background:{col}"></span><span class="mh-shop-nom">{nombre}</span><span class="mh-shop-precio lockp">🔒 {flv(fmt_int(locale, p))}</span></div>""")
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/tienda")
+async fn tienda_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    let pid = a_int(pid_from_token(session))
+    if (pid <= 0) {
+        return redirect_a("/perfiles")
+    }
+    let _ = asegurar_tabla().await
+    let saldo = monedas(pid).await
+    let comp_av = comprados(pid, "avatar").await
+    let comp_tm = comprados(pid, "theme").await
+    let cartas_av = h_join(avatares().map(fn(c) => carta_shop_avatar(locale, c, comp_av, saldo)))
+    let cartas_tm = h_join(temas().map(fn(c) => carta_shop_tema(locale, c, comp_tm, saldo)))
+    let saldo_lbl = flv(t1(locale, "tienda.monedas", "{saldo}"))
+    let body = html("""<div class="mh-card">
+<h2>{flv(t(locale, "tienda.titulo"))}</h2>
+<p class="mh-shop-sub">{flv(t(locale, "tienda.sub"))}</p>
+<div class="mh-coins">🪙 {saldo_lbl}</div>
+<h3 class="mh-shop-h">{flv(t(locale, "tienda.avatares"))}</h3>
+<div class="mh-shop-grid">
+{cartas_av}
+</div>
+<h3 class="mh-shop-h">{flv(t(locale, "tienda.temas"))}</h3>
+<div class="mh-shop-grid temas">
+{cartas_tm}
+</div>
+</div>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+    let titulo = t(locale, "tienda.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
+
+fn tipo_valido(tipo: Str, code: Str) -> Bool {
+    if (tipo == "avatar") {
+        return es_avatar_valido(code)
+    }
+    if (tipo == "theme") {
+        return es_tema_valido(code)
+    }
+    return false
+}
+
+@cookie(name="mathelp_session", into="session")
+@get("/tienda/comprar/{tipo}/{code}")
+async fn tienda_comprar(session: Str?, tipo: Str, code: Str) -> Response {
+    match read_session(session).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/login"),
+    }
+    let pid = a_int(pid_from_token(session))
+    if (pid <= 0) {
+        return redirect_a("/perfiles")
+    }
+    if (not tipo_valido(tipo, code)) {
+        return redirect_a("/tienda")
+    }
+    let _ = asegurar_tabla().await
+    let _ = comprar(pid, tipo, code).await
+    return redirect_a("/tienda")
+}

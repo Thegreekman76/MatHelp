@@ -517,5 +517,13 @@
   "errores.correcto": "¡Muy bien! Esta vez lo resolviste.",
   "errores.incorrecto": "Casi. La respuesta correcta era:",
   "errores.vacio_titulo": "¡No tenés errores para repasar!",
-  "errores.vacio_sub": "Seguí jugando. Si te equivocás en algún ejercicio, va a aparecer acá para que lo reforcemos."
+  "errores.vacio_sub": "Seguí jugando. Si te equivocás en algún ejercicio, va a aparecer acá para que lo reforcemos.",
+  "home.tienda": "Tienda",
+  "tienda.titulo": "Tienda",
+  "tienda.sub": "Ganás monedas cada vez que respondés bien. Gastalas en avatares y temas nuevos.",
+  "tienda.monedas": "{0} monedas",
+  "tienda.avatares": "Avatares",
+  "tienda.temas": "Temas de color",
+  "tienda.usar": "Usar",
+  "tienda.comprar": "Comprar"
 }

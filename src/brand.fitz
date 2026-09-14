@@ -731,6 +731,27 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .mh-err-eq \{ font-size:1.8rem; font-weight:900; color:var(--mh-tinta); margin:.4rem 0 1rem; \}
 .mh-err-fb.ok h2 \{ color:var(--mh-verde); \}
 .mh-err-fb.bad h2 \{ color:var(--mh-naranja); \}
+/* Tienda (monedas + compras) */
+.mh-shop-sub \{ color:var(--mh-suave); font-size:.92rem; line-height:1.4; margin:.1rem 0 .8rem; \}
+.mh-coins \{ display:inline-flex; align-items:center; gap:.4em; font-size:1.3rem; font-weight:900; color:var(--mh-tinta); background:var(--mh-crema); border:2px solid var(--mh-amarillo); border-radius:999px; padding:.3em 1em; margin:0 auto 1rem; \}
+.mh-shop-h \{ font-size:.82rem; text-transform:uppercase; letter-spacing:.04em; color:var(--mh-suave); margin:1rem 0 .5rem; \}
+.mh-shop-grid \{ display:grid; grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); gap:10px; \}
+.mh-shop-grid.temas \{ grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); \}
+.mh-shop-item \{ display:flex; flex-direction:column; align-items:center; gap:6px; text-decoration:none; padding:12px 8px; border:2px solid var(--mh-borde); border-radius:14px; background:var(--mh-panel); color:var(--mh-tinta); transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease; \}
+.mh-shop-item.buy:hover \{ transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,.08); border-color:var(--mh-amarillo); \}
+.mh-shop-item.buy:active \{ transform:scale(.97); \}
+.mh-shop-item.owned \{ border-color:var(--mh-verde-claro); background:var(--mh-verde-suave); \}
+.mh-shop-item.lock \{ opacity:.55; \}
+.mh-shop-em \{ font-size:2.2rem; line-height:1; \}
+.mh-shop-sw \{ width:40px; height:40px; border-radius:999px; border:2px solid var(--mh-borde); \}
+.mh-shop-nom \{ font-size:.82rem; font-weight:700; \}
+.mh-shop-precio \{ font-size:.9rem; font-weight:900; color:var(--mh-tinta); \}
+.mh-shop-precio.lockp \{ color:var(--mh-suave); \}
+.mh-shop-estado \{ font-size:.8rem; font-weight:800; color:var(--mh-verde); \}
+/* avatar/tema bloqueado en sus selectores */
+.mh-avpick.lock \{ position:relative; opacity:.5; \}
+.mh-avpick-lock \{ position:absolute; right:2px; bottom:2px; font-size:.9rem; \}
+.mh-swatch.lock \{ opacity:.6; \}
 /* barra de equivalencia (½ = 50%) */
 .tk-bar \{ fill:var(--mh-panel); stroke:var(--mh-verde); stroke-width:2.5; \}
 .tk-bar-fill \{ fill:var(--mh-verde); \}

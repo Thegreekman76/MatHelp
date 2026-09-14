@@ -1,0 +1,166 @@
+// economia.fitz — monedas y compras (base del sistema "Monedas + tienda").
+//
+// Módulo HOJA (solo db/config): lo importan tanto tienda.fitz como avatares.fitz y
+// tema.fitz (para gatear la selección), sin ciclo de imports.
+//
+// Las monedas NO se guardan ni se incrementan en el hot-path de cada juego: son una
+// VISTA sobre datos que ya existen → monedas = respuestas correctas − gastado. Así
+// no tocamos la persistencia de los 21 juegos ni arriesgamos su lógica.
+//
+// La tabla `purchases` se crea lazy (CREATE TABLE IF NOT EXISTS) igual que
+// review_resolved → anda en bases existentes sin reset (migración 0019 para initdb).
+
+from config import db_url
+
+// Ítems gratis (los tenés desde el arranque). El resto se compran.
+fn es_gratis(tipo: Str, code: Str) -> Bool {
+    if (tipo == "theme") {
+        return code == "default"
+    }
+    return code == "mate" or code == "zorro" or code == "gato" or code == "robot"
+}
+
+// Precio en monedas. 0 = gratis.
+fn precio(tipo: Str, code: Str) -> Int {
+    if (es_gratis(tipo, code)) {
+        return 0
+    }
+    if (tipo == "theme") {
+        return match code {
+            "oceano" => 40,
+            "bosque" => 40,
+            "rosa" => 60,
+            "lavanda" => 60,
+            _ => 40,
+        }
+    }
+    return match code {
+        "cohete" => 25,
+        "dino" => 25,
+        "rana" => 25,
+        "buho" => 25,
+        "estrella" => 50,
+        "unicornio" => 50,
+        "panda" => 50,
+        "pulpo" => 50,
+        _ => 30,
+    }
+}
+
+fn en_lista(l: List<Str>, x: Str) -> Bool {
+    for v in l {
+        if (v == x) {
+            return true
+        }
+    }
+    return false
+}
+
+// ¿El perfil posee el ítem? (gratis o en la lista de comprados ya cargada).
+fn posee_local(comprados: List<Str>, tipo: Str, code: Str) -> Bool {
+    if (es_gratis(tipo, code)) {
+        return true
+    }
+    return en_lista(comprados, code)
+}
+
+async fn asegurar_tabla() -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("CREATE TABLE IF NOT EXISTS purchases (id SERIAL PRIMARY KEY, profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE, item_type TEXT NOT NULL, item_code TEXT NOT NULL, price INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE (profile_id, item_type, item_code))", []).await
+}
+
+// Los códigos comprados de un tipo ("avatar" | "theme"). Best-effort → lista vacía.
+async fn comprados(pid: Int, tipo: Str) -> List<Str> {
+    let out: List<Str> = []
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return out },
+    }
+    let rows = match conn.query("SELECT item_code FROM purchases WHERE profile_id = $1 AND item_type = $2", [pid, tipo]).await {
+        Ok(r) => r,
+        Err(_) => { return out },
+    }
+    for r in rows {
+        let c = match r.get_str("item_code") {
+            Ok(x) => x,
+            Err(_) => "",
+        }
+        if (c != "") {
+            out.push(c)
+        }
+    }
+    return out
+}
+
+// ¿Posee un ítem puntual? (para gatear el setter de avatar/tema).
+async fn posee(pid: Int, tipo: Str, code: Str) -> Bool {
+    if (es_gratis(tipo, code)) {
+        return true
+    }
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return false },
+    }
+    let rows = match conn.query("SELECT 1 AS uno FROM purchases WHERE profile_id = $1 AND item_type = $2 AND item_code = $3", [pid, tipo, code]).await {
+        Ok(r) => r,
+        Err(_) => { return false },
+    }
+    return rows.len() > 0
+}
+
+// Saldo de monedas = respuestas correctas − gastado (nunca negativo).
+async fn monedas(pid: Int) -> Int {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return 0 },
+    }
+    let er = match conn.query("SELECT COUNT(*)::int AS n FROM attempts WHERE profile_id = $1 AND correct = true", [pid]).await {
+        Ok(r) => r,
+        Err(_) => { return 0 },
+    }
+    let earned = 0
+    if (er.len() > 0) {
+        earned = match er[0].get_int("n") {
+            Ok(n) => n,
+            Err(_) => 0,
+        }
+    }
+    let sr = match conn.query("SELECT COALESCE(SUM(price), 0)::int AS s FROM purchases WHERE profile_id = $1", [pid]).await {
+        Ok(r) => r,
+        Err(_) => { return earned },
+    }
+    let spent = 0
+    if (sr.len() > 0) {
+        spent = match sr[0].get_int("s") {
+            Ok(n) => n,
+            Err(_) => 0,
+        }
+    }
+    let bal = earned - spent
+    if (bal < 0) {
+        return 0
+    }
+    return bal
+}
+
+// Intenta comprar: valida precio + saldo + no-poseído; inserta la compra. true si compró.
+async fn comprar(pid: Int, tipo: Str, code: Str) -> Bool {
+    if (es_gratis(tipo, code)) {
+        return false
+    }
+    let ya = posee(pid, tipo, code).await
+    if (ya) {
+        return false
+    }
+    let p = precio(tipo, code)
+    let saldo = monedas(pid).await
+    if (saldo < p) {
+        return false
+    }
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return false },
+    }
+    let _ = conn.exec("INSERT INTO purchases (profile_id, item_type, item_code, price) VALUES ($1, $2, $3, $4) ON CONFLICT (profile_id, item_type, item_code) DO NOTHING", [pid, tipo, code, p]).await
+    return true
+}

@@ -14,6 +14,7 @@ from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from auth import read_session, pid_from_token
 from engine import a_int
+from economia import comprados, posee, posee_local
 
 fn temas() -> List<Str> {
     return ["default", "oceano", "bosque", "rosa", "lavanda"]
@@ -40,9 +41,16 @@ fn tema_color(c: Str) -> Str {
     }
 }
 
-fn carta_tema(locale: Str, c: Str, activo: Str) -> Html {
+fn carta_tema(locale: Str, c: Str, activo: Str, owned: Bool) -> Html {
     let nombre = flv(t(locale, "tema_color.{c}"))
     let col = tema_color(c)
+    if (not owned) {
+        // Bloqueado: se consigue en la tienda.
+        return html("""<a class="mh-swatch lock" href="/tienda">
+<span class="mh-swatch-col" style="background:{col}">🔒</span>
+<span class="mh-swatch-name">{nombre}</span>
+</a>""")
+    }
     let sel = match c == activo {
         true => " sel",
         false => "",
@@ -71,7 +79,9 @@ async fn tema_get(session: Str?, lang: Str?, tema: Str?) -> Response {
         null => "default",
         x => x,
     }
-    let cartas = h_join(temas().map(fn(c) => carta_tema(locale, c, activo)))
+    let pid = a_int(pid_from_token(session))
+    let comp = comprados(pid, "theme").await
+    let cartas = h_join(temas().map(fn(c) => carta_tema(locale, c, activo, posee_local(comp, "theme", c))))
     let body = html("""<div class="mh-card">
 <h2>{flv(t(locale, "tema_color.titulo"))}</h2>
 <p style="text-align:center;color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "tema_color.sub"))}</p>
@@ -102,6 +112,11 @@ async fn tema_set(session: Str?, code: Str) -> Response {
     }
     let pid = a_int(pid_from_token(session))
     if (pid > 0) {
+        // Sólo se puede equipar un tema que se posee (gratis o comprado).
+        let tiene = posee(pid, "theme", code).await
+        if (not tiene) {
+            return redirect_a("/tienda")
+        }
         let _ = guardar_tema(pid, code).await
     }
     return Response {
