@@ -221,3 +221,36 @@ Hubiera cazado los tres solos, y va a cazar el próximo antes de que lo encuentr
 3. Corregí `docs/guide.md:1266` y el comentario de `examples/admin/src/auth.fitz` — los dos están desactualizados y hacen que la gente escriba workarounds al pedo.
 4. Verificá si `examples/admin` compila hoy con `fitz build`.
 5. **Re-priorizá la lista completa** con estos hallazgos adentro, y decime si T2 te parece que sube.
+
+---
+
+## FITZ-23 · `@post` form-urlencoded rompe con valores NO-ASCII (UTF-8) — **ALTO**
+
+**Estado:** confirmado con repro mínimo, 2026-09-14, construyendo "Repasá tus errores".
+
+Un `<form method="POST">` que manda un campo con un carácter multibyte (`×` U+00D7,
+`÷`, `−`, tildes…) llega al handler **mal decodificado**. El valor se renderiza bien
+en el HTML (bytes UTF-8 correctos), el browser lo manda bien (`%C3%97`), pero
+`form.campo` en el `@post` NO es igual al string original → cualquier comparación o
+lookup por ese valor falla en silencio.
+
+**Cómo se manifestó:** la pantalla de repaso mostraba `10 × 10 = ?`, el usuario
+respondía, y el server buscaba el intento por `WHERE prompt = form.prompt` → 0 filas
+(aunque la fila existe: un `SELECT ... WHERE prompt = '10 × 10'` literal la encuentra)
+→ redirigía a la misma pantalla. "Se queda siempre en la misma pantalla."
+
+**Repro (contra el server):** un `<form>` con `<input type="hidden" name="x" value="10 × 10">`;
+en el `@post`, `x == "10 × 10"` da `false`. El byte-dump del valor recibido no coincide
+con el UTF-8 original (parece decodificado como latin-1 o doble-decodificado).
+
+**Distinto de FITZ-04:** aquel era formato de salida; este es **decodificación de
+entrada** del body form-urlencoded. Nota: el bonus de la refutación decía "`@post` ya
+acepta form-urlencoded" — es cierto para ASCII; con no-ASCII se rompe.
+
+**Workaround aplicado en MatHelp:** no round-tripear strings no-ASCII por el form. En
+`/errores` se pasa el **id del intento** (entero) en el hidden y el prompt/expected se
+leen de la DB. Robusto e independiente del encoding. (Los answers son siempre ASCII —
+dígitos y `-` —, así que la comparación de la respuesta no se ve afectada.)
+
+**Criterio de cierre:** un `@post` con un campo `"10 × 10"` debe cumplir
+`form.campo == "10 × 10"` (byte-idéntico UTF-8).

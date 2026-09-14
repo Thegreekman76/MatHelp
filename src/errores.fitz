@@ -22,13 +22,14 @@ from mastery import actualizar_mastery
 from progreso import skill_label_key, skill_icon
 
 type RespuestaError {
-    prompt: Str = ""
+    aid: Str = ""
     respuesta: Str = ""
 }
 
 type ResErr {
     found: Bool = false
     correct: Bool = false
+    prompt: Str = ""
     expected: Str = ""
     skill_code: Str = ""
 }
@@ -51,18 +52,37 @@ fn tarjeta_vacia(locale: Str) -> Html {
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
 }
 
-fn tarjeta_pregunta(locale: Str, prompt: Str, skill_code: Str, n: Int) -> Html {
+// Una tecla del teclado propio (mismo enfoque que los juegos: sin depender del
+// teclado nativo del dispositivo). El JS de public/sound.js las cablea.
+fn ekp_key(k: Str, label: Str, extra: Str) -> Str {
+    return html("""<button type="button" class="ekp-key{extra}" data-ekp="{k}">{flv(label)}</button>""").raw
+}
+
+fn ekp_teclado() -> Str {
+    let filas = ekp_key("7", "7", "") + ekp_key("8", "8", "") + ekp_key("9", "9", "")
+    filas = filas + ekp_key("4", "4", "") + ekp_key("5", "5", "") + ekp_key("6", "6", "")
+    filas = filas + ekp_key("1", "1", "") + ekp_key("2", "2", "") + ekp_key("3", "3", "")
+    filas = filas + ekp_key("sign", "±", " ekp-alt") + ekp_key("0", "0", "") + ekp_key("back", "⌫", " ekp-alt")
+    return filas
+}
+
+fn tarjeta_pregunta(locale: Str, prompt: Str, skill_code: Str, n: Int, aid: Int) -> Html {
     let icon = flv(skill_icon(skill_code))
     let tema = flv(t(locale, skill_label_key(skill_code)))
     let cuenta = flv(t1(locale, "errores.pendientes", "{n}"))
     let prompt_disp = flv(prompt)
+    let teclado = ekp_teclado()
     return html("""<div class="mh-card mh-errores">
 <h2>{flv(t(locale, "errores.titulo"))}</h2>
 <p class="mh-err-sub">{cuenta} · {icon} {tema}</p>
 <div class="mh-err-prompt">{prompt_disp} = ?</div>
-<form method="POST" action="/errores/responder" class="mh-err-form">
-<input type="hidden" name="prompt" value="{prompt}" />
-<input class="mh-input mh-err-input" type="text" name="respuesta" inputmode="numeric" autocomplete="off" autofocus required />
+<form method="POST" action="/errores/responder" class="mh-err-form" id="ekp-form">
+<input type="hidden" name="aid" value="{aid}" />
+<input type="hidden" name="respuesta" id="ekp-input" value="" />
+<div class="ekp-display" id="ekp-display" aria-live="polite"></div>
+<div class="ekp-pad">
+{teclado}
+</div>
 <button class="mh-btn" type="submit">{flv(t(locale, "errores.responder"))}</button>
 </form>
 </div>
@@ -97,7 +117,7 @@ async fn cuerpo_errores(locale: Str, pid: Int) -> Html {
     }
     // Prompts cuyo ÚLTIMO intento es un error (sin acierto posterior) y no repasados
     // desde ese error. DISTINCT ON (prompt) + orden por id DESC = el más reciente.
-    let q = "SELECT DISTINCT ON (a.prompt) a.prompt AS prompt, a.expected AS expected, a.skill_code AS skill_code FROM attempts a WHERE a.profile_id = $1 AND a.correct = false AND NOT EXISTS (SELECT 1 FROM attempts c WHERE c.profile_id = $1 AND c.prompt = a.prompt AND c.correct = true AND c.id > a.id) AND NOT EXISTS (SELECT 1 FROM review_resolved r WHERE r.profile_id = $1 AND r.prompt = a.prompt AND r.resolved_at > a.created_at) ORDER BY a.prompt, a.id DESC LIMIT 30"
+    let q = "SELECT DISTINCT ON (a.prompt) a.prompt AS prompt, a.expected AS expected, a.skill_code AS skill_code, a.id AS aid FROM attempts a WHERE a.profile_id = $1 AND a.correct = false AND NOT EXISTS (SELECT 1 FROM attempts c WHERE c.profile_id = $1 AND c.prompt = a.prompt AND c.correct = true AND c.id > a.id) AND NOT EXISTS (SELECT 1 FROM review_resolved r WHERE r.profile_id = $1 AND r.prompt = a.prompt AND r.resolved_at > a.created_at) ORDER BY a.prompt, a.id DESC LIMIT 30"
     let rows = match conn.query(q, [pid]).await {
         Ok(r) => r,
         Err(_) => { return tarjeta_vacia(locale) },
@@ -113,24 +133,42 @@ async fn cuerpo_errores(locale: Str, pid: Int) -> Html {
         Ok(s) => s,
         Err(_) => "",
     }
-    return tarjeta_pregunta(locale, prompt, sc, rows.len())
+    let aid = match rows[0].get_int("aid") {
+        Ok(x) => x,
+        Err(_) => 0,
+    }
+    return tarjeta_pregunta(locale, prompt, sc, rows.len(), aid)
 }
 
 // Chequea la respuesta, marca el prompt como repasado y (si acertó) sube el rating.
-async fn resolver_error(pid: Int, prompt: Str, given: Str) -> ResErr {
+// Se busca por el ID del intento (entero) — NO por el string del prompt: el
+// round-trip del prompt por el form rompe con caracteres no-ASCII (×, ÷, −) y no
+// matcheaba. El prompt/expected se leen de la DB (fuente confiable).
+async fn resolver_error(pid: Int, aid_str: Str, given: Str) -> ResErr {
     // `return Ident { ... }` se parsea como Response-con-status; devolvemos una
     // variable local para evitarlo (patrón conocido del codegen de Fitz).
     let vacio = ResErr {}
+    let aid = match aid_str.to_int() {
+        Ok(n) => n,
+        Err(_) => 0,
+    }
+    if (aid <= 0) {
+        return vacio
+    }
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(_) => { return vacio },
     }
-    let rows = match conn.query("SELECT expected, skill_code FROM attempts WHERE profile_id = $1 AND prompt = $2 AND correct = false ORDER BY id DESC LIMIT 1", [pid, prompt]).await {
+    let rows = match conn.query("SELECT prompt, expected, skill_code FROM attempts WHERE id = $1 AND profile_id = $2 AND correct = false", [aid, pid]).await {
         Ok(r) => r,
         Err(_) => { return vacio },
     }
     if (rows.len() == 0) {
         return vacio
+    }
+    let prompt = match rows[0].get_str("prompt") {
+        Ok(p) => p,
+        Err(_) => "",
     }
     let expected = match rows[0].get_str("expected") {
         Ok(e) => e,
@@ -146,7 +184,7 @@ async fn resolver_error(pid: Int, prompt: Str, given: Str) -> ResErr {
     if (ok) {
         let _ = actualizar_mastery(pid, sc, 2, true, 0).await
     }
-    let out = ResErr { found: true, correct: ok, expected: expected, skill_code: sc }
+    let out = ResErr { found: true, correct: ok, prompt: prompt, expected: expected, skill_code: sc }
     return out
 }
 
@@ -185,11 +223,11 @@ async fn errores_post(session: Str?, lang: Str?, form: RespuestaError) -> Respon
         return redirect_a("/perfiles")
     }
     let _ = asegurar_tabla().await
-    let res = resolver_error(pid, form.prompt, form.respuesta).await
+    let res = resolver_error(pid, form.aid, form.respuesta).await
     if (not res.found) {
         return redirect_a("/errores")
     }
-    let body = tarjeta_feedback(locale, form.prompt, res.expected, res.correct)
+    let body = tarjeta_feedback(locale, res.prompt, res.expected, res.correct)
     let titulo = t(locale, "errores.titulo") + " — MatHelp"
     return responder_html(page(locale, titulo, body, html("")))
 }

@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
 # tools/e2e_errores.py — E2E de "Repasá tus errores".
 #
-# Siembra errores (attempts con correct=false) vía psql y prueba el flujo completo:
-#   1. Sin errores -> tarjeta "no tenés errores" (sin formulario).
-#   2. La tabla review_resolved se crea LAZY al entrar (anda en bases existentes).
-#   3. Con 3 errores sembrados -> /errores muestra una pregunta + contador "3".
-#   4. Responder BIEN -> feedback correcto, marca resuelto (review_resolved) y sube
-#      el rating (mastery); el prompt sale de la cola (baja a 2).
-#   5. Responder MAL -> feedback con la respuesta correcta; también sale de la cola.
-#   6. Repasar todo -> vuelve a la tarjeta vacía.
-#   7. El home linkea a /errores.
+# Siembra errores (attempts con correct=false) con caracteres NO-ASCII (× y ÷) —
+# esto es clave: el bug del 2026-09-14 era que el round-trip del prompt "10 × 10"
+# por el <form> no matcheaba (Fitz decodifica mal el campo UTF-8), y la pantalla se
+# quedaba clavada. El fix busca por el ID del intento (entero), no por el prompt.
 #
-# Requiere: requests + psql en PATH (o FITZ_PSQL). Server andando en :3000.
-# Uso:  python tools/e2e_errores.py
+# Prueba: teclado propio presente (no input nativo) · resolución por aid con × y ÷ ·
+# avanza · feedback correcto/incorrecto · vacío final.
+#
+# Requiere: requests + psql (o FITZ_PSQL). Server en :3000.  Uso: python tools/e2e_errores.py
 
 import os, re, subprocess, sys, time, uuid
 import requests
@@ -23,11 +20,10 @@ PGUSER = os.environ.get("FITZ_PGUSER", "postgres")
 PGPASS = os.environ.get("FITZ_PGPASS", "123mgp")
 PGDB = os.environ.get("FITZ_PGDB", "mathelp")
 ENV = {**os.environ, "PGPASSWORD": PGPASS}
-EXP = {"7 * 8": "56", "9 + 6": "15", "12 - 5": "7"}
 
 
 def psql(sql):
-    out = subprocess.run([PSQL, "-h", "localhost", "-U", PGUSER, "-d", PGDB, "-tAc", sql], capture_output=True, text=True, env=ENV)
+    out = subprocess.run([PSQL, "-h", "localhost", "-U", PGUSER, "-d", PGDB, "-tAc", sql], capture_output=True, text=True, env=ENV, encoding="utf-8")
     if out.returncode != 0:
         raise RuntimeError("psql falló: " + out.stderr)
     return out.stdout.strip().split("\n")[0].strip()
@@ -43,8 +39,8 @@ def wait_up(timeout=40):
     return False
 
 
-def prompt_actual(html):
-    m = re.search(r'name="prompt" value="([^"]+)"', html)
+def aid_de(html):
+    m = re.search(r'name="aid" value="(\d+)"', html)
     return m.group(1) if m else None
 
 
@@ -56,54 +52,53 @@ def escenario():
     pid = re.findall(r'name="pid"[^>]*value="(\d+)"', s.get(BASE + "/perfiles").text)[-1]
     s.post(BASE + "/perfiles/elegir", data={"pid": pid})
 
-    # 1. sin errores -> vacío, sin formulario
+    # sin errores -> vacío (sin teclado)
     e0 = s.get(BASE + "/errores").text
     assert ("No mistakes" in e0) or ("errores para repasar" in e0), "sin errores no muestra la tarjeta vacía"
-    assert 'name="respuesta"' not in e0, "la tarjeta vacía no debería tener formulario"
-    # 2. la tabla se creó lazy
+    assert 'class="ekp-pad"' not in e0, "la tarjeta vacía no debería tener teclado"
     assert psql("SELECT to_regclass('public.review_resolved') IS NOT NULL") == "t", "no se creó review_resolved (lazy)"
 
-    # sembrar 3 errores (una sesión + 3 attempts correct=false)
+    # sembrar 2 errores con × y ÷ (no-ASCII: reproduce el bug del round-trip)
     psql(
         f"WITH ses AS (INSERT INTO sessions (profile_id, mode, seed) VALUES ({pid},'quiz',1) RETURNING id) "
         f"INSERT INTO attempts (session_id, profile_id, skill_code, prompt, expected, given, correct) "
-        f"SELECT ses.id, {pid}, v.sk, v.p, v.e, v.g, false FROM ses, "
-        f"(VALUES ('mul.tabla','7 * 8','56','54'),('add','9 + 6','15','16'),('sub','12 - 5','7','8')) AS v(sk,p,e,g);"
+        f"SELECT ses.id, {pid}, v.sk, v.p, v.e, '0', false FROM ses, "
+        f"(VALUES ('mul.tabla','10 × 10','100'),('div.exacta','12 ÷ 3','4')) AS v(sk,p,e);"
     )
 
-    # 3. pregunta + contador 3
+    # la vista trae el TECLADO PROPIO (no input nativo) + hidden aid + contador 2
     e1 = s.get(BASE + "/errores").text
-    assert 'name="respuesta"' in e1 and re.search(r"\b3\b", e1), "no muestra pregunta + contador 3"
-    p1 = prompt_actual(e1)
-    assert p1 in EXP, f"prompt inesperado: {p1!r}"
+    assert 'class="ekp-pad"' in e1 and 'data-ekp="7"' in e1, "no está el teclado propio"
+    assert 'type="text"' not in e1, "quedó un input de texto nativo (dependería del teclado del dispositivo)"
+    aid = aid_de(e1)
+    assert aid, "no está el hidden aid"
+    assert re.search(r"\b2\b", e1), "no muestra el contador 2"
 
-    # 4. responder BIEN -> correcto + resuelto + mastery, baja a 2
-    fb = s.post(BASE + "/errores/responder", data={"prompt": p1, "respuesta": EXP[p1]}).text
-    assert ("Well done" in fb) or ("Muy bien" in fb), "no marcó correcto"
-    assert EXP[p1] in fb, "no muestra la cuenta resuelta"
+    # responder BIEN por aid -> resuelve (el × ya NO rompe)
+    exp = psql(f"SELECT expected FROM attempts WHERE id={aid}")
+    fb = s.post(BASE + "/errores/responder", data={"aid": aid, "respuesta": exp}).text
+    assert ("Well done" in fb) or ("Muy bien" in fb), "NO resolvió por aid (fix del × roto)"
     assert psql(f"SELECT COUNT(*) FROM review_resolved WHERE profile_id={pid}") == "1", "no marcó resuelto"
+
+    # avanza al OTRO (aid distinto), contador baja a 1
     e2 = s.get(BASE + "/errores").text
-    assert re.search(r"\b2\b", e2), "no bajó a 2"
-    assert prompt_actual(e2) != p1, "el resuelto reapareció"
+    aid2 = aid_de(e2)
+    assert aid2 and aid2 != aid, "no avanzó (mismo aid)"
+    assert re.search(r"\b1\b", e2), "el contador no bajó a 1"
 
-    # 5. responder MAL -> muestra la respuesta correcta, también sale de la cola
-    p2 = prompt_actual(e2)
-    fb2 = s.post(BASE + "/errores/responder", data={"prompt": p2, "respuesta": "99999"}).text
+    # responder MAL -> muestra la respuesta correcta, también resuelve
+    exp2 = psql(f"SELECT expected FROM attempts WHERE id={aid2}")
+    fb2 = s.post(BASE + "/errores/responder", data={"aid": aid2, "respuesta": "99999"}).text
     assert ("Almost" in fb2) or ("Casi" in fb2), "no marcó incorrecto"
-    assert EXP[p2] in fb2, "no muestra la respuesta correcta en el error"
+    assert exp2 in fb2, "no muestra la respuesta correcta"
 
-    # 6. repasar el último -> vacío
-    e3 = s.get(BASE + "/errores").text
-    p3 = prompt_actual(e3)
-    s.post(BASE + "/errores/responder", data={"prompt": p3, "respuesta": EXP[p3]})
-    assert 'name="respuesta"' not in s.get(BASE + "/errores").text, "tras repasar todo debería quedar vacío"
-
-    # 7. home linkea + mastery subió por el acierto en review
+    # vacío final + home linkea + mastery subió
+    assert 'class="ekp-pad"' not in s.get(BASE + "/errores").text, "tras repasar todo debería quedar vacío"
     assert 'href="/errores"' in s.get(BASE + "/").text, "el home no linkea a /errores"
     assert int(psql(f"SELECT COALESCE(MAX(seen),0) FROM mastery WHERE profile_id={pid}")) >= 1, "el acierto en review no subió mastery"
 
-    print("OK e2e_errores: vacío -> 3 sembrados (pregunta + contador) -> BIEN (resuelve + mastery) -> 2")
-    print("               -> MAL (muestra la respuesta) -> vacío. Lazy CREATE TABLE en base existente OK.")
+    print("OK e2e_errores: teclado propio (sin input nativo); resolución por aid con × y ÷ (fix del round-trip);")
+    print("               avanza; contador baja; feedback correcto/incorrecto; vacío final; mastery sube.")
 
 
 def main():

@@ -284,6 +284,40 @@ if ("serviceWorker" in navigator) {
   if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", observar); } else { observar(); }
 })();
 
+// --- Teclado propio de "Repasá tus errores" (/errores) -----------------------
+// /errores es una página estática (no LiveView), así que el teclado no puede ir por
+// eventos flv. Usamos un teclado en pantalla (como el resto de la app, que NO
+// depende del teclado nativo del dispositivo): las teclas llenan un input oculto y
+// muestran el número. Soporta además el teclado FÍSICO (0-9, ⌫, −, Enter).
+(function () {
+  function init() {
+    var form = document.getElementById("ekp-form");
+    if (!form) { return; }
+    var input = document.getElementById("ekp-input");
+    var disp = document.getElementById("ekp-display");
+    function render() { if (disp) { disp.textContent = input.value; } }
+    function setVal(v) { input.value = v; render(); }
+    function press(k) {
+      if (k === "back") { setVal(input.value.slice(0, -1)); return; }
+      if (k === "sign") { setVal(input.value.charAt(0) === "-" ? input.value.slice(1) : "-" + input.value); return; }
+      if (input.value.replace("-", "").length < 9) { setVal(input.value + k); }
+    }
+    var keys = form.querySelectorAll("[data-ekp]");
+    for (var i = 0; i < keys.length; i++) {
+      (function (b) { b.addEventListener("click", function () { press(b.getAttribute("data-ekp")); }); })(keys[i]);
+    }
+    document.addEventListener("keydown", function (e) {
+      if (!document.body.contains(form)) { return; }
+      if (e.key >= "0" && e.key <= "9") { press(e.key); }
+      else if (e.key === "Backspace") { e.preventDefault(); press("back"); }
+      else if (e.key === "-") { press("sign"); }
+      else if (e.key === "Enter") { e.preventDefault(); if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); } }
+    });
+    render();
+  }
+  if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", init); } else { init(); }
+})();
+
 // --- Salir de un juego avisa que se pierde la partida -------------------------
 // Cualquier navegación fuera de una partida en curso (cambiar idioma, tocar el
 // logo para ir al inicio, etc.) recarga la página y arranca un socket/juego nuevo

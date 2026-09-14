@@ -731,6 +731,12 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .mh-err-eq \{ font-size:1.8rem; font-weight:900; color:var(--mh-tinta); margin:.4rem 0 1rem; \}
 .mh-err-fb.ok h2 \{ color:var(--mh-verde); \}
 .mh-err-fb.bad h2 \{ color:var(--mh-naranja); \}
+/* teclado propio de /errores (no depende del teclado nativo del dispositivo) */
+.ekp-display \{ min-height:2.6rem; font-size:2rem; font-weight:900; text-align:center; color:var(--mh-tinta); background:var(--mh-crema); border:2px solid var(--mh-verde-claro); border-radius:12px; padding:.35rem; margin:.2rem 0 .8rem; font-variant-numeric:tabular-nums; letter-spacing:.05em; display:flex; align-items:center; justify-content:center; \}
+.ekp-pad \{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:1rem; \}
+.ekp-key \{ font-size:1.5rem; font-weight:800; padding:.65em 0; border:2px solid var(--mh-borde); border-radius:12px; background:var(--mh-panel); color:var(--mh-tinta); cursor:pointer; min-height:var(--mh-tap); \}
+.ekp-key:active \{ transform:scale(.95); background:var(--mh-verde-suave); \}
+.ekp-key.ekp-alt \{ background:var(--mh-crema); color:var(--mh-naranja); \}
 /* Tienda (monedas + compras) */
 .mh-shop-sub \{ color:var(--mh-suave); font-size:.92rem; line-height:1.4; margin:.1rem 0 .8rem; \}
 .mh-coins \{ display:inline-flex; align-items:center; gap:.4em; font-size:1.3rem; font-weight:900; color:var(--mh-tinta); background:var(--mh-crema); border:2px solid var(--mh-amarillo); border-radius:999px; padding:.3em 1em; margin:0 auto 1rem; \}
