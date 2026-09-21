@@ -4,6 +4,11 @@ target/
 fitz.lock
 *.log
 
+# Certificados / claves privadas — NUNCA al repo público
+certs-pems/
+*.pem
+*.key
+
 # E2E de browser (puppeteer)
 tools/browser/node_modules/
 tools/browser/package-lock.json

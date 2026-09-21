@@ -12,6 +12,11 @@ target/
 .env.*
 !.env.example
 
+# Certificados / claves privadas
+certs-pems/
+*.pem
+*.key
+
 # Editores
 .vscode/
 .idea/
