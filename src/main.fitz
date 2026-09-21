@@ -112,28 +112,48 @@ async fn home(session: Str?, lang: Str?) -> Response {
     }
 }
 
-// Home sin sesión: hero + entrar / crear cuenta + estado de la base.
+// Home sin sesión: landing de venta para padres. Hero + por qué + cómo
+// empezar + CTA. El entrar/crear-cuenta vive en el header (topbar_publico).
 async fn home_publica(locale: Str) -> Response {
-    let marca = logo_lockup(56, locale).raw
-    let tagline = flv(t(locale, "app.tagline"))
-    let db = estado_db(locale).await.raw
+    let marca = logo_lockup(64, locale).raw
+    let crear = flv(t(locale, "landing.cta_crear"))
 
-    let body = html("""<div class="mh-hero">
-{marca}
-<div class="mh-tagline">{tagline}</div>
+    let body = html("""<section class="mh-land-hero">
+<div class="mh-land-mark">{marca}</div>
+<h1 class="mh-land-title">{flv(t(locale, "landing.hero_title"))}</h1>
+<p class="mh-land-sub">{flv(t(locale, "landing.hero_sub"))}</p>
+<a class="mh-btn mh-land-cta" href="/registro">{crear}</a>
+<p class="mh-land-nota">{flv(t(locale, "landing.hero_nota"))}</p>
+</section>
+
+<section class="mh-land-sec">
+<h2 class="mh-land-h2">{flv(t(locale, "landing.features_title"))}</h2>
+<div class="mh-features-grid">
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🎮</div><h3>{flv(t(locale, "landing.f1_title"))}</h3><p>{flv(t(locale, "landing.f1_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🎯</div><h3>{flv(t(locale, "landing.f2_title"))}</h3><p>{flv(t(locale, "landing.f2_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">📊</div><h3>{flv(t(locale, "landing.f3_title"))}</h3><p>{flv(t(locale, "landing.f3_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🎓</div><h3>{flv(t(locale, "landing.f4_title"))}</h3><p>{flv(t(locale, "landing.f4_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">📲</div><h3>{flv(t(locale, "landing.f5_title"))}</h3><p>{flv(t(locale, "landing.f5_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🛡️</div><h3>{flv(t(locale, "landing.f6_title"))}</h3><p>{flv(t(locale, "landing.f6_text"))}</p></div>
 </div>
+</section>
 
-<div class="mh-card">
-<a class="mh-btn" href="/login">{flv(t(locale, "login.submit"))}</a>
-<a class="mh-btn sec" href="/registro">{flv(t(locale, "login.crear_cuenta"))}</a>
+<section class="mh-land-sec">
+<h2 class="mh-land-h2">{flv(t(locale, "landing.how_title"))}</h2>
+<div class="mh-steps">
+<div class="mh-step"><div class="mh-step-n" aria-hidden="true">1</div><h3>{flv(t(locale, "landing.step1_title"))}</h3><p>{flv(t(locale, "landing.step1_text"))}</p></div>
+<div class="mh-step"><div class="mh-step-n" aria-hidden="true">2</div><h3>{flv(t(locale, "landing.step2_title"))}</h3><p>{flv(t(locale, "landing.step2_text"))}</p></div>
+<div class="mh-step"><div class="mh-step-n" aria-hidden="true">3</div><h3>{flv(t(locale, "landing.step3_title"))}</h3><p>{flv(t(locale, "landing.step3_text"))}</p></div>
 </div>
+</section>
 
-<div class="mh-card">
-<h2>{flv(t(locale, "estado.titulo"))}</h2>
-{db}
-</div>""")
+<section class="mh-land-final">
+<h2 class="mh-land-h2">{flv(t(locale, "landing.final_title"))}</h2>
+<p class="mh-land-sub">{flv(t(locale, "landing.final_text"))}</p>
+<a class="mh-btn mh-land-cta" href="/registro">{crear}</a>
+</section>""")
 
-    return responder_html(page(locale, "MatHelp — " + t(locale, "app.tagline"), body, html("")))
+    return responder_html(page_landing(locale, "MatHelp — " + t(locale, "app.tagline"), body, html("")))
 }
 
 // Home de juego: el menú shallow de §6.5. Cinco accesos de un tap (la

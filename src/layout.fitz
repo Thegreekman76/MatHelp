@@ -20,11 +20,22 @@ from config import app_name
 // `live_js` es el <script> del runtime de LiveViews cuando la página es
 // interactiva; en las páginas estáticas va vacío. Siempre FUERA del root.
 fn page(locale: Str, titulo: Str, body: Html, live_js: Html) -> Html {
+    return page_con_barra(locale, titulo, body, live_js, topbar(locale))
+}
+
+// Igual que page() pero con el header público (logo + Entrar / Crear cuenta +
+// idioma). Lo usa solo la landing (home_publica), que sólo ven los visitantes
+// sin sesión. Así no hay que tocar los 62 call sites de page().
+fn page_landing(locale: Str, titulo: Str, body: Html, live_js: Html) -> Html {
+    return page_con_barra(locale, titulo, body, live_js, topbar_publico(locale))
+}
+
+fn page_con_barra(locale: Str, titulo: Str, body: Html, live_js: Html, barra: Html) -> Html {
     let lang = lang_corto(locale)
     let css = brand_css()
     let head_titulo = flv(titulo)
     let desc = flv(t(locale, "app.description"))
-    let top = topbar(locale).raw
+    let top = barra.raw
     let pie = footer(locale).raw
     let salir = salir_modal(locale).raw
     let js = live_js.raw
@@ -43,8 +54,9 @@ fn page(locale: Str, titulo: Str, body: Html, live_js: Html) -> Html {
 <meta name="apple-mobile-web-app-title" content="MatHelp" />
 <meta name="format-detection" content="telephone=no" />
 <title>{head_titulo}</title>
+<link rel="icon" href="/favicon.ico" sizes="32x32" />
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="apple-touch-icon" href="/favicon.svg" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <script>(function()\{try\{var d=document.documentElement,c=document.cookie;function g(k)\{var m=c.match(new RegExp(k+'=([^;]+)'));return m?m[1]:null;\}var t=g('mathelp_theme');if(t)d.setAttribute('data-theme',t);var k=g('mathelp_contrast');if(k)d.setAttribute('data-contrast',k);var f=g('mathelp_font');if(f)d.setAttribute('data-font',f);\}catch(e)\{\}\})();</script>
 <style>{css}</style>
@@ -81,6 +93,34 @@ fn topbar(locale: Str) -> Html {
 <div class="mh-controls">
 <button id="mh-salir-btn" type="button" class="mh-salir-btn" hidden aria-label="{salir_lbl}" title="{salir_lbl}"><span aria-hidden="true">✕</span> {salir_lbl}</button>
 <button id="mh-sound-btn" type="button" class="mh-sound-btn" aria-pressed="true" aria-label="{son_lbl}" title="{son_lbl}"><span class="mh-sound-ico" aria-hidden="true">🔊</span></button>
+<nav class="mh-langs" aria-label="{flv(t(locale, "idioma.cambiar"))}">
+<a class="mh-lang" href="/lang/es-AR" aria-current="{es_actual}" hreflang="es">ES</a>
+<a class="mh-lang" href="/lang/en" aria-current="{en_actual}" hreflang="en">EN</a>
+</nav>
+</div>
+</header>""")
+}
+
+// Barra pública para la landing: logo + Entrar / Crear cuenta + idioma. Sin los
+// botones de sonido/salir (son del juego, no de la home de venta). La usa
+// page_landing(), que sólo ven los visitantes sin sesión.
+fn topbar_publico(locale: Str) -> Html {
+    let marca = logo_lockup(30, locale).raw
+    let es_actual = match locale == "es-AR" {
+        true => "true",
+        false => "false",
+    }
+    let en_actual = match locale == "en" {
+        true => "true",
+        false => "false",
+    }
+    let entrar = flv(t(locale, "login.submit"))
+    let crear = flv(t(locale, "login.crear_cuenta"))
+    return html("""<header class="mh-topbar mh-topbar-pub">
+<a class="mh-topbar-home" href="/" aria-label="{flv(t(locale, "nav.inicio"))}">{marca}</a>
+<div class="mh-controls">
+<a class="mh-auth-entrar" href="/login">{entrar}</a>
+<a class="mh-btn mh-auth-cta" href="/registro">{crear}</a>
 <nav class="mh-langs" aria-label="{flv(t(locale, "idioma.cambiar"))}">
 <a class="mh-lang" href="/lang/es-AR" aria-current="{es_actual}" hreflang="es">ES</a>
 <a class="mh-lang" href="/lang/en" aria-current="{en_actual}" hreflang="en">EN</a>

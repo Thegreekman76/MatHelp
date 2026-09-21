@@ -21,16 +21,17 @@ fn logo_mark(size: Int) -> Html {
 <defs>
 <linearGradient id="mh-gourd" x1=".2" y1="0" x2=".8" y2="1"><stop offset="0" stop-color="#34BE99"/><stop offset="1" stop-color="#0B6B57"/></linearGradient>
 <linearGradient id="mh-metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE7A6"/><stop offset=".5" stop-color="#F2B705"/><stop offset="1" stop-color="#C98A06"/></linearGradient>
+<linearGradient id="mh-steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#EDF1F4"/><stop offset=".5" stop-color="#AEB9C3"/><stop offset="1" stop-color="#7C8894"/></linearGradient>
 </defs>
-<g stroke-linecap="round">
-<path d="M103 16 L66 40" stroke="url(#mh-metal)" stroke-width="8" fill="none"/>
-<circle cx="104" cy="15" r="6.5" fill="url(#mh-metal)"/>
-<circle cx="104" cy="15" r="2.3" fill="#8A5A08"/>
-</g>
 <path d="M47 44V33c0-3.6 5.8-6.5 13-6.5s13 2.9 13 6.5v11c14 6 23 18 23 32 0 19-16 32-36 32S24 95 24 76c0-14 9-26 23-32z" fill="url(#mh-gourd)"/>
 <path d="M60 26.5c7.2 0 13 2.9 13 6.5v11c14 6 23 18 23 32 0 19-16 32-36 32" fill="#00352B" opacity=".13"/>
 <ellipse cx="60" cy="32" rx="16.5" ry="6.2" fill="url(#mh-metal)"/>
 <ellipse cx="60" cy="31.2" rx="11.5" ry="3.9" fill="#173A1F"/>
+<g stroke-linecap="butt">
+<path d="M78 8 L59 32" stroke="url(#mh-steel)" stroke-width="7.5" fill="none"/>
+<circle cx="78" cy="8" r="6.5" fill="url(#mh-steel)"/>
+<circle cx="78" cy="8" r="2.2" fill="#5A6670"/>
+</g>
 <g fill="#FFF7EC"><rect x="41.5" y="72.5" width="37" height="11.5" rx="5.75"/><rect x="54.25" y="59.75" width="11.5" height="37" rx="5.75"/></g>
 </svg>""")
 }
@@ -785,5 +786,51 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .tk-reg.ab \{ fill:var(--mh-crema); \}
 .tk-reg.b \{ fill:#FBE3D8; \}
 .tk-reg-lbl \{ fill:var(--mh-tinta); font-size:20px; font-weight:900; text-anchor:middle; dominant-baseline:middle; \}
+
+/* ====== Landing pública (home sin sesión) ====== */
+/* Header público: Entrar (link) + Crear cuenta (CTA naranja) + idioma. */
+.mh-topbar-pub .mh-controls \{ gap:10px; \}
+.mh-topbar-pub .mh-auth-entrar \{ color:#fff; text-decoration:none; font-weight:700; font-size:.95rem; padding:8px 10px; border-radius:8px; white-space:nowrap; \}
+.mh-topbar-pub .mh-auth-entrar:hover \{ text-decoration:underline; \}
+.mh-topbar-pub .mh-auth-entrar:focus-visible \{ outline:3px solid #fff; outline-offset:2px; \}
+.mh-topbar-pub .mh-auth-cta \{ display:inline-flex; align-items:center; width:auto; min-height:0; margin:0; padding:9px 16px; font-size:.95rem; background:var(--mh-naranja); white-space:nowrap; \}
+@media (max-width:480px) \{
+  .mh-topbar-pub .mh-controls \{ gap:6px; \}
+  .mh-topbar-pub .mh-auth-cta \{ padding:8px 12px; font-size:.88rem; \}
+  .mh-topbar-pub .mh-auth-entrar \{ padding:8px 6px; font-size:.9rem; \}
+\}
+
+/* Hero */
+.mh-land-hero \{ text-align:center; padding:22px 0 8px; \}
+.mh-land-mark \{ display:inline-flex; margin:0 auto; \}
+.mh-land-mark .mh-word \{ font-size:clamp(2.2rem,10vw,3rem); \}
+.mh-land-title \{ font-size:clamp(1.55rem,6vw,2.2rem); font-weight:900; line-height:1.15; color:var(--mh-tinta); max-width:16em; margin:.7rem auto .4rem; \}
+.mh-land-sub \{ font-size:1.05rem; line-height:1.5; color:var(--mh-suave); max-width:26em; margin:0 auto 1.3rem; \}
+.mh-land-cta \{ display:inline-flex; align-items:center; justify-content:center; width:auto; min-height:0; margin:0 auto; padding:15px 30px; font-size:1.1rem; \}
+.mh-land-nota \{ font-size:.85rem; color:var(--mh-suave); margin:.7rem 0 0; \}
+
+/* Secciones */
+.mh-land-sec \{ margin:2.4rem 0; \}
+.mh-land-h2 \{ font-size:1.35rem; font-weight:900; text-align:center; color:var(--mh-tinta); margin:0 0 1.3rem; \}
+
+/* Grilla de features */
+.mh-features-grid \{ display:grid; grid-template-columns:1fr; gap:12px; \}
+@media (min-width:560px) \{ .mh-features-grid \{ grid-template-columns:1fr 1fr; \} \}
+.mh-feat \{ background:var(--mh-panel); border:1px solid var(--mh-borde); border-radius:var(--mh-radio); padding:16px; \}
+.mh-feat-ico \{ font-size:1.9rem; line-height:1; \}
+.mh-feat h3 \{ font-size:1.05rem; font-weight:800; color:var(--mh-tinta); margin:.5rem 0 .25rem; \}
+.mh-feat p \{ font-size:.95rem; line-height:1.45; color:var(--mh-suave); margin:0; \}
+
+/* Cómo empezar (pasos) */
+.mh-steps \{ display:grid; grid-template-columns:1fr; gap:14px; \}
+@media (min-width:560px) \{ .mh-steps \{ grid-template-columns:1fr 1fr 1fr; \} \}
+.mh-step \{ text-align:center; padding:6px; \}
+.mh-step-n \{ width:42px; height:42px; margin:0 auto .55rem; border-radius:50%; background:var(--mh-verde); color:#fff; font-weight:900; font-size:1.25rem; display:flex; align-items:center; justify-content:center; \}
+.mh-step h3 \{ font-size:1.05rem; font-weight:800; color:var(--mh-tinta); margin:0 0 .25rem; \}
+.mh-step p \{ font-size:.95rem; line-height:1.45; color:var(--mh-suave); margin:0; \}
+
+/* CTA final */
+.mh-land-final \{ text-align:center; background:var(--mh-verde-suave); border-radius:var(--mh-radio); padding:30px 20px; margin:2.4rem 0; \}
+.mh-land-final .mh-land-sub \{ margin-bottom:1.1rem; \}
 """
 }
