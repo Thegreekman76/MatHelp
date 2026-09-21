@@ -832,5 +832,11 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 /* CTA final */
 .mh-land-final \{ text-align:center; background:var(--mh-verde-suave); border-radius:var(--mh-radio); padding:30px 20px; margin:2.4rem 0; \}
 .mh-land-final .mh-land-sub \{ margin-bottom:1.1rem; \}
+
+/* ====== Fix: números de las StatCard del panel (fitz-liveviews) ======
+   El componente stat_card no fija color en el valor grande y lo hereda del
+   tema, así que en dark quedaba casi invisible sobre la card blanca. Forzamos
+   un color oscuro legible. Targeteamos la clase scopeada con [class*=...]. */
+[class*="flv-statcard-value"] \{ color:var(--mh-tinta) !important; \}
 """
 }

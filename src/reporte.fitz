@@ -193,6 +193,21 @@ async fn send_report_email(to: Str, subject: Str, html: Str, text: Str) -> Resul
     return Ok(true)
 }
 
+// Disparo MANUAL del reporte semanal (testing / ops). Gateado por env var:
+// solo corre si MATHELP_MANUAL_REPORT=1; si no, devuelve 404. Apagado por
+// default, así que en prod normal es inerte. Se prende con un recreate del
+// container (sin rebuild) para hacer una corrida a demanda.
+@get("/__ops/run-weekly-report")
+async fn run_weekly_report_manual() -> Response {
+    if (env_or("MATHELP_MANUAL_REPORT", "0") != "1") {
+        return Response { status: 404, content_type: "text/plain", headers: {}, body: "not found\n" }
+    }
+    match enviar_reportes().await {
+        Ok(n) => return Response { status: 200, content_type: "text/plain", headers: {}, body: "reportes enviados: {n}\n" },
+        Err(e) => return Response { status: 500, content_type: "text/plain", headers: {}, body: "error: {e}\n" },
+    }
+}
+
 // El @cron: cada lunes 9:00 UTC. Apagado salvo MATHELP_WEEKLY_REPORT=1.
 @cron("0 9 * * 1")
 async fn reporte_semanal_cron() -> Result<Null> {
