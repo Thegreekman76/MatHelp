@@ -1,0 +1,317 @@
+// familia.fitz — Zona de control familiar (adulto), separada de la zona de juego.
+//
+// Todo lo "de control" (panel por hijo, gestión de perfiles, accesibilidad,
+// logout) vive detrás de un PIN de adulto a nivel CUENTA — distinto del PIN
+// por-perfil (que solo evita que un hermano entre al perfil de otro). Un chico
+// jugando no puede entrar acá sin el PIN.
+//
+// **El PIN de adulto se guarda por SQL crudo, NO en el @table Family.** Así el
+// SELECT del ORM en read_session (que corre en cada request protegido) nunca
+// falla por una columna que la base de producción todavía no tiene: la columna
+// se crea lazy (ALTER ... ADD COLUMN IF NOT EXISTS) la primera vez que se toca
+// la zona familia. La migración 0020 la deja para instalaciones nuevas (initdb).
+//
+// **Gate.** El JWT lleva un claim `adm` ("1" = pasó el PIN). `es_admin(session)`
+// (auth.fitz) lo lee. Los handlers de control cortan con ese check y redirigen
+// a /familia/pin. Al "volver a jugar" o elegir jugador, `adm` vuelve a "0".
+//
+// **Primer arranque (sin PIN configurado):** /familia/pin deja entrar (y ofrece
+// configurar el PIN), para que el adulto pueda crear el primer perfil y setear
+// el PIN sin quedar bloqueado.
+
+from fitz_liveviews import Html, html, flv, h_join
+from config import db_url
+from i18n import t, t1, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session, mint_session, pid_from_token, es_admin, redirect_con_sesion
+from perfiles import perfiles_de
+from avatares import avatar_emoji
+from models import Profile
+
+// --- DB: PIN de adulto (SQL crudo, columna lazy) ------------------------------
+
+// Crea la columna admin_pin si falta (base de prod ya existente). Idempotente.
+async fn asegurar_admin_pin() -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("ALTER TABLE families ADD COLUMN IF NOT EXISTS admin_pin TEXT NOT NULL DEFAULT ''", []).await
+}
+
+// PIN de adulto de la cuenta ("" = no configurado todavía). Best-effort.
+async fn admin_pin_de(email: Str) -> Str {
+    let _ = asegurar_admin_pin().await
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return "" },
+    }
+    let rows = match conn.query("SELECT admin_pin FROM families WHERE email = $1", [email]).await {
+        Ok(r) => r,
+        Err(_) => { return "" },
+    }
+    if (rows.len() == 0) {
+        return ""
+    }
+    return match rows[0].get_str("admin_pin") {
+        Ok(v) => v,
+        Err(_) => "",
+    }
+}
+
+// Setea (o borra con "") el PIN de adulto de la cuenta.
+async fn set_admin_pin(email: Str, pin: Str) -> Result<Int> {
+    let _ = asegurar_admin_pin().await
+    let conn = db.connect(db_url()).await?
+    return conn.exec("UPDATE families SET admin_pin = $2 WHERE email = $1", [email, pin]).await
+}
+
+// --- Render del hub -----------------------------------------------------------
+
+// Una fila de gestión por perfil: avatar + nombre + Editar + Ver panel.
+fn fila_perfil_admin(locale: Str, p: Profile) -> Html {
+    let em = flv(avatar_emoji(p.avatar))
+    let nombre = flv(p.name)
+    let pid = "{p.id}"
+    let ed = flv(t(locale, "perfiles.editar"))
+    let ver = flv(t(locale, "familia.ver_panel"))
+    return html("""<div class="mh-fam-row">
+<span class="mh-fam-av">{em}</span>
+<span class="mh-fam-nom">{nombre}</span>
+<span class="mh-fam-acc">
+<a class="mh-link" href="/perfiles/editar/{pid}">✏️ {ed}</a>
+<a class="mh-link" href="/panel/{pid}">📊 {ver}</a>
+</span>
+</div>""")
+}
+
+// El hub: aviso de PIN (si no está configurado) + gestión de perfiles + accesos
+// de control. `tiene_pin` decide el aviso y la etiqueta del botón de PIN.
+fn render_hub(locale: Str, perfiles: List<Profile>, tiene_pin: Bool) -> Html {
+    let aviso = match tiene_pin {
+        true => "",
+        false => html("""<div class="mh-card" style="border:2px solid #fcd34d">
+<h2 style="color:#b45309">🔑 {flv(t(locale, "familia.pin_sin_titulo"))}</h2>
+<p style="color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "familia.pin_sin_texto"))}</p>
+<a class="mh-btn" href="/familia/pin/cambiar" style="width:auto">{flv(t(locale, "familia.pin_configurar"))}</a>
+</div>""").raw,
+    }
+    let filas = match perfiles.len() > 0 {
+        true => h_join(perfiles.map(fn(p) => fila_perfil_admin(locale, p))),
+        false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "familia.sin_perfiles"))}</p>""").raw,
+    }
+    let pin_btn = match tiene_pin {
+        true => flv(t(locale, "familia.pin_cambiar")),
+        false => flv(t(locale, "familia.pin_configurar")),
+    }
+    return html("""{aviso}
+<div class="mh-card">
+<h2>{flv(t(locale, "familia.perfiles_titulo"))}</h2>
+{filas}
+<a class="mh-btn sec" href="/perfiles/nuevo" style="margin-top:1rem">➕ {flv(t(locale, "perfiles.nuevo"))}</a>
+</div>
+
+<div class="mh-card">
+<h2>{flv(t(locale, "familia.control_titulo"))}</h2>
+<a class="mh-btn sec" href="/panel"><span aria-hidden="true">📊</span> {flv(t(locale, "nav.panel"))}</a>
+<a class="mh-btn sec" href="/accesibilidad"><span aria-hidden="true">🔎</span> {flv(t(locale, "acc.titulo"))}</a>
+<a class="mh-btn sec" href="/familia/pin/cambiar"><span aria-hidden="true">🔑</span> {pin_btn}</a>
+</div>
+
+<a class="mh-btn" href="/familia/volver"><span aria-hidden="true">🔄</span> {flv(t(locale, "familia.volver_jugar"))}</a>
+<form method="POST" action="/logout">
+<button class="mh-btn sec" type="submit"><span aria-hidden="true">🚪</span> {flv(t(locale, "nav.salir"))}</button>
+</form>""")
+}
+
+// Pantalla de PIN. `tiene_pin` = ya hay uno (pedirlo) vs primer arranque (ofrecer
+// configurarlo o entrar sin PIN). `error` marca PIN incorrecto / mal formado.
+fn form_pin_gate(locale: Str, tiene_pin: Bool, error: Bool) -> Html {
+    let err = match error {
+        true => html("""<div class="mh-error">{flv(t(locale, "familia.pin_error"))}</div>""").raw,
+        false => "",
+    }
+    if (tiene_pin) {
+        return html("""<div class="mh-card">
+<h2>🔒 {flv(t(locale, "familia.pin_pedir_titulo"))}</h2>
+<p style="color:var(--mh-suave)">{flv(t(locale, "familia.pin_pedir_texto"))}</p>
+{err}
+<form method="POST" action="/familia/pin">
+<div class="mh-field">
+<label class="mh-label" for="pin">{flv(t(locale, "familia.pin_label"))}</label>
+<input class="mh-input" id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" autofocus required />
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "familia.pin_entrar"))}</button>
+</form>
+<a class="mh-link" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>""")
+    }
+    return html("""<div class="mh-card">
+<h2>👨‍👩‍👧 {flv(t(locale, "familia.zona"))}</h2>
+<p style="color:var(--mh-suave)">{flv(t(locale, "familia.pin_primera_texto"))}</p>
+{err}
+<form method="POST" action="/familia/pin">
+<div class="mh-field">
+<label class="mh-label" for="pin">{flv(t(locale, "familia.pin_nuevo_label"))}</label>
+<input class="mh-input" id="pin" name="pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" />
+<span class="mh-hint">{flv(t(locale, "familia.pin_nuevo_hint"))}</span>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "familia.pin_entrar"))}</button>
+</form>
+<a class="mh-link" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>""")
+}
+
+// Form de cambiar/configurar el PIN de adulto (desde adentro de la zona familia).
+fn form_pin_cambiar(locale: Str, tiene_pin: Bool, error: Bool) -> Html {
+    let err = match error {
+        true => html("""<div class="mh-error">{flv(t(locale, "perfiles.error_pin"))}</div>""").raw,
+        false => "",
+    }
+    let titulo = match tiene_pin {
+        true => flv(t(locale, "familia.pin_cambiar")),
+        false => flv(t(locale, "familia.pin_configurar")),
+    }
+    return html("""<div class="mh-card">
+<h2>🔑 {titulo}</h2>
+{err}
+<form method="POST" action="/familia/pin/cambiar">
+<div class="mh-field">
+<label class="mh-label" for="pin">{flv(t(locale, "familia.pin_nuevo_label"))}</label>
+<input class="mh-input" id="pin" name="pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" autofocus />
+<span class="mh-hint">{flv(t(locale, "familia.pin_cambiar_hint"))}</span>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "perfiles.guardar"))}</button>
+</form>
+<a class="mh-link" href="/familia">{flv(t(locale, "perfiles.volver"))}</a>
+</div>""")
+}
+
+// --- Tipos de form ------------------------------------------------------------
+
+type PinGateForm {
+    pin: Str = ""
+}
+
+// --- Handlers -----------------------------------------------------------------
+
+// /familia → hub de control. Requiere PIN de adulto (adm="1"); si no, a /familia/pin.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/familia")
+async fn familia_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let perfiles: List<Profile> = match perfiles_de(fam.id).await {
+        Ok(ps) => ps,
+        Err(_) => [],
+    }
+    let tiene = admin_pin_de(fam.email).await != ""
+    let titulo = t(locale, "familia.zona") + " — MatHelp"
+    return responder_html(page(locale, titulo, render_hub(locale, perfiles, tiene), html("")))
+}
+
+// /familia/pin (GET) → pantalla del gate. Abierta (no requiere adm).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/familia/pin")
+async fn familia_pin_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (es_admin(session)) {
+        return redirect_a("/familia")
+    }
+    let tiene = admin_pin_de(fam.email).await != ""
+    let titulo = t(locale, "familia.zona") + " — MatHelp"
+    return responder_html(page(locale, titulo, form_pin_gate(locale, tiene, false), html("")))
+}
+
+// /familia/pin (POST) → valida (o configura en el primer arranque) y entra.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/familia/pin")
+async fn familia_pin_post(session: Str?, lang: Str?, form: PinGateForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let titulo = t(locale, "familia.zona") + " — MatHelp"
+    let actual = admin_pin_de(fam.email).await
+
+    // Primer arranque: sin PIN configurado. Si tipeó uno válido, lo seteamos;
+    // si lo dejó vacío, entra sin PIN (con el aviso del hub).
+    if (actual == "") {
+        if (form.pin != "" and form.pin.len() != 4) {
+            return responder_html(page(locale, titulo, form_pin_gate(locale, false, true), html("")))
+        }
+        if (form.pin != "") {
+            let _ = set_admin_pin(fam.email, form.pin).await
+        }
+        let token = mint_session(fam.email, pid_from_token(session), "1")
+        return redirect_con_sesion("/familia", token)
+    }
+
+    // Ya hay PIN: validar.
+    if (form.pin == actual) {
+        let token = mint_session(fam.email, pid_from_token(session), "1")
+        return redirect_con_sesion("/familia", token)
+    }
+    return responder_html(page(locale, titulo, form_pin_gate(locale, true, true), html("")))
+}
+
+// /familia/pin/cambiar (GET) → form para configurar/cambiar el PIN. Requiere adm.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/familia/pin/cambiar")
+async fn familia_pin_cambiar_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let tiene = admin_pin_de(fam.email).await != ""
+    let titulo = t(locale, "familia.pin_cambiar") + " — MatHelp"
+    return responder_html(page(locale, titulo, form_pin_cambiar(locale, tiene, false), html("")))
+}
+
+// /familia/pin/cambiar (POST) → guarda el PIN nuevo (vacío = quitar el PIN).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/familia/pin/cambiar")
+async fn familia_pin_cambiar_post(session: Str?, lang: Str?, form: PinGateForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    if (form.pin != "" and form.pin.len() != 4) {
+        return responder_html(page(locale, t(locale, "familia.pin_cambiar") + " — MatHelp", form_pin_cambiar(locale, true, true), html("")))
+    }
+    let _ = set_admin_pin(fam.email, form.pin).await
+    return redirect_a("/familia")
+}
+
+// /familia/volver → vuelve a la zona de juego (adm="0", conserva el perfil activo).
+@cookie(name="mathelp_session", into="session")
+@get("/familia/volver")
+async fn familia_volver(session: Str?) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let token = mint_session(fam.email, pid_from_token(session), "0")
+    return redirect_con_sesion("/", token)
+}

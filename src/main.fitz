@@ -50,6 +50,7 @@ from avatares import avatar_emoji
 import menu
 import progreso
 import parent
+import familia
 import reporte
 from progreso import skill_a_route, skill_label_key, skill_icon, skill_a_practica_op
 // Los juegos viven en sus live_*.fitz (@get + @ws). Importar los símbolos de cada
@@ -191,16 +192,13 @@ fn home_jugar(locale: Str, saludo: Html, resumen: Html, meta: Html, ultimo: Html
 </div>
 
 <div class="mh-card">
-<a class="mh-btn sec" href="/panel"><span aria-hidden="true">📊</span>{flv(t(locale, "nav.panel"))}</a>
 <a class="mh-btn sec" href="/tienda"><span aria-hidden="true">🪙</span>{flv(t(locale, "home.tienda"))}</a>
 <a class="mh-btn sec" href="/avatar"><span aria-hidden="true">🙂</span>{flv(t(locale, "avatar.titulo"))}</a>
 <a class="mh-btn sec" href="/tema"><span aria-hidden="true">🎨</span>{flv(t(locale, "tema_color.titulo"))}</a>
-<a class="mh-btn sec" href="/accesibilidad"><span aria-hidden="true">🔎</span>{flv(t(locale, "acc.titulo"))}</a>
-<a class="mh-btn sec" href="/perfiles">{flv(t(locale, "perfiles.titulo"))}</a>
-<form method="POST" action="/logout">
-<button class="mh-btn sec" type="submit">{flv(t(locale, "nav.salir"))}</button>
-</form>
-</div>""")
+<a class="mh-btn sec" href="/perfiles"><span aria-hidden="true">🔄</span>{flv(t(locale, "home.cambiar_jugador"))}</a>
+</div>
+
+<a class="mh-btn sec" href="/familia"><span aria-hidden="true">👨‍👩‍👧</span> {flv(t(locale, "familia.zona"))}</a>""")
 
     return responder_html(page(locale, "MatHelp — " + t(locale, "app.tagline"), body, html("")))
 }

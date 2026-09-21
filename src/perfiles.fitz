@@ -13,7 +13,7 @@ from fitz_liveviews import Html, html, flv, h_join
 from config import db_url
 from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
-from auth import read_session, mint_session, redirect_con_sesion_prefs
+from auth import read_session, mint_session, redirect_con_sesion_prefs, es_admin
 from engine import modalidad_valida
 from avatares import avatar_emoji
 from models import Profile
@@ -73,21 +73,20 @@ fn label_grado(locale: Str, grade: Int) -> Str {
     return t(locale, "grado.{grade}")   // 1-7 "Nº grado", 8-13 "Nº secundaria"
 }
 
-// Una tarjeta por perfil. Con PIN → link al form de PIN; sin PIN → form que
-// entra directo. El avatar es un emoji por ahora (los SVG llegan después).
+// Una tarjeta por perfil, SELECTOR puro (elegir quién juega). Con PIN → link al
+// form de PIN; sin PIN → form que entra directo. La edición/borrado vive en la
+// zona familia (gestión de perfiles), no acá: el selector es cara-al-chico.
 fn tarjeta_perfil(locale: Str, p: Profile) -> Html {
     let nombre = flv(p.name)
     let grado = flv(label_grado(locale, p.grade))
     let pid = "{p.id}"
     let em = flv(avatar_emoji(p.avatar))
-    let ed_lbl = flv(t(locale, "perfiles.editar"))
-    // El "target" de jugar: con PIN → link al form de PIN; sin PIN → form directo.
-    let inner = match p.pin != "" {
+    return match p.pin != "" {
         true => html("""<a class="mh-profile" href="/perfiles/pin/{pid}">
 <span class="mh-av">{em}<span class="mh-avlock" aria-hidden="true">🔒</span></span>
 <span>{nombre}</span>
 <span class="mh-pgrado">{grado}</span>
-</a>""").raw,
+</a>"""),
         false => html("""<form method="POST" action="/perfiles/elegir">
 <input type="hidden" name="pid" value="{pid}" />
 <button type="submit" class="mh-profile">
@@ -95,24 +94,17 @@ fn tarjeta_perfil(locale: Str, p: Profile) -> Html {
 <span>{nombre}</span>
 <span class="mh-pgrado">{grado}</span>
 </button>
-</form>""").raw,
+</form>"""),
     }
-    // El lápiz de editar va FUERA del target de jugar (nada de interactivos
-    // anidados): un wrapper relativo con el lápiz posicionado en la esquina.
-    return html("""<div class="mh-pcard">
-{inner}
-<a class="mh-pedit" href="/perfiles/editar/{pid}" aria-label="{ed_lbl}" title="{ed_lbl}"><span aria-hidden="true">✏️</span></a>
-</div>""")
 }
 
+// Selector "¿quién va a jugar?": SOLO elegir perfil. Crear/editar/borrar perfiles,
+// panel y logout viven en la zona familia (bajo el PIN de adulto). El único acceso
+// de control desde acá es el botón "Zona familia" (que pide el PIN).
 fn render_perfiles(locale: Str, perfiles: List<Profile>) -> Html {
     let tarjetas = h_join(perfiles.map(fn(p) => tarjeta_perfil(locale, p)))
-    let nueva = html("""<a class="mh-profile add" href="/perfiles/nuevo">
-<span class="mh-av">+</span>
-<span>{flv(t(locale, "perfiles.nuevo"))}</span>
-</a>""").raw
     let vacio = match perfiles.len() == 0 {
-        true => html("""<p style="color:var(--mh-suave);text-align:center;margin:0 0 12px">{flv(t(locale, "home.sin_perfiles"))}</p>""").raw,
+        true => html("""<p style="color:var(--mh-suave);text-align:center;margin:0 0 12px">{flv(t(locale, "perfiles.vacio_selector"))}</p>""").raw,
         false => "",
     }
     return html("""<div class="mh-card">
@@ -120,13 +112,10 @@ fn render_perfiles(locale: Str, perfiles: List<Profile>) -> Html {
 {vacio}
 <div class="mh-profiles">
 {tarjetas}
-{nueva}
 </div>
 </div>
 
-<form method="POST" action="/logout">
-<button class="mh-btn sec" type="submit">{flv(t(locale, "nav.salir"))}</button>
-</form>""")
+<a class="mh-btn sec" href="/familia"><span aria-hidden="true">👨‍👩‍👧</span> {flv(t(locale, "familia.zona"))}</a>""")
 }
 
 fn form_nuevo(locale: Str, nombre: Str, error_key: Str) -> Html {
@@ -168,7 +157,7 @@ fn form_nuevo(locale: Str, nombre: Str, error_key: Str) -> Html {
 </div>
 <button class="mh-btn" type="submit">{flv(t(locale, "perfiles.crear"))}</button>
 </form>
-<a class="mh-link" href="/perfiles">{flv(t(locale, "perfiles.volver"))}</a>
+<a class="mh-link" href="/familia">{flv(t(locale, "perfiles.volver"))}</a>
 </div>""")
 }
 
@@ -267,7 +256,7 @@ fn form_editar(locale: Str, p: Profile, error_key: Str) -> Html {
 </div>
 <button class="mh-btn" type="submit">{flv(t(locale, "perfiles.guardar"))}</button>
 </form>
-<a class="mh-link" href="/perfiles">{flv(t(locale, "perfiles.volver"))}</a>
+<a class="mh-link" href="/familia">{flv(t(locale, "perfiles.volver"))}</a>
 </div>""")
 }
 
@@ -348,6 +337,9 @@ async fn nuevo_get(session: Str?, lang: Str?) -> Response {
         Ok(_) => 0,
         Err(_) => return redirect_a("/login"),
     }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
     return responder_html(page(locale, t(locale, "perfiles.nuevo") + " — MatHelp", form_nuevo(locale, "", ""), html("")))
 }
 
@@ -359,6 +351,9 @@ async fn nuevo_post(session: Str?, lang: Str?, form: NuevoPerfilForm) -> Respons
     let fam = match read_session(session).await {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
     }
     let titulo = t(locale, "perfiles.nuevo") + " — MatHelp"
 
@@ -373,7 +368,7 @@ async fn nuevo_post(session: Str?, lang: Str?, form: NuevoPerfilForm) -> Respons
         Err(_) => 0,
     }
     match crear_perfil(fam.id, form.nombre, grado, form.modalidad, form.pin, fam.locale).await {
-        Ok(_) => return redirect_a("/perfiles"),
+        Ok(_) => return redirect_a("/familia"),
         Err(_) => return responder_html(page(locale, titulo, form_nuevo(locale, form.nombre, "perfiles.error_nombre"), html(""))),
     }
 }
@@ -389,9 +384,12 @@ async fn editar_get(session: Str?, lang: Str?, id: Int) -> Response {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
     let p = match perfil_de_familia(fam.id, id).await {
         Ok(pr) => pr,
-        Err(_) => return redirect_a("/perfiles"),
+        Err(_) => return redirect_a("/familia"),
     }
     return responder_html(page(locale, t(locale, "perfiles.editar") + " — MatHelp", form_editar(locale, p, ""), html("")))
 }
@@ -405,13 +403,16 @@ async fn editar_post(session: Str?, lang: Str?, form: EditarPerfilForm) -> Respo
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
     let pid: Int = match form.pid.to_int() {
         Ok(n) => n,
         Err(_) => 0,
     }
     let p = match perfil_de_familia(fam.id, pid).await {
         Ok(pr) => pr,
-        Err(_) => return redirect_a("/perfiles"),
+        Err(_) => return redirect_a("/familia"),
     }
     let titulo = t(locale, "perfiles.editar") + " — MatHelp"
     if (form.nombre == "") {
@@ -431,7 +432,7 @@ async fn editar_post(session: Str?, lang: Str?, form: EditarPerfilForm) -> Respo
     if (form.pin != "") {
         let _ = actualizar_pin(fam.id, pid, form.pin).await
     }
-    return redirect_a("/perfiles")
+    return redirect_a("/familia")
 }
 
 // Perfil sin PIN: entra directo. Si por lo que sea tiene PIN, lo mandamos
@@ -452,7 +453,7 @@ async fn elegir_post(session: Str?, form: ElegirForm) -> Response {
             if (p.pin != "") {
                 return redirect_a("/perfiles/pin/{pid}")
             }
-            let token = mint_session(fam.email, form.pid)
+            let token = mint_session(fam.email, form.pid, "0")
             return redirect_con_sesion_prefs("/", token, p.theme, p.contrast, p.font_size)
         }
         Err(_) => return redirect_a("/perfiles"),
@@ -490,7 +491,7 @@ async fn pin_post(session: Str?, lang: Str?, form: PinForm) -> Response {
     match perfil_de_familia(fam.id, pid).await {
         Ok(p) => {
             if (p.pin == form.pin) {
-                let token = mint_session(fam.email, form.pid)
+                let token = mint_session(fam.email, form.pid, "0")
                 return redirect_con_sesion_prefs("/", token, p.theme, p.contrast, p.font_size)
             }
             return responder_html(page(locale, t(locale, "pin.titulo") + " — MatHelp", form_pin(locale, p, true), html("")))

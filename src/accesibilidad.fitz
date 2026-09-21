@@ -9,7 +9,7 @@ from fitz_liveviews import Html, html, flv, h_join
 from config import db_url
 from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
-from auth import read_session, pid_from_token
+from auth import read_session, pid_from_token, es_admin
 from engine import a_int
 
 fn contrastes() -> List<Str> {
@@ -77,6 +77,9 @@ async fn accesibilidad_get(session: Str?, lang: Str?, contrast: Str?, font: Str?
         Ok(_) => 0,
         Err(_) => return redirect_a("/login"),
     }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
     let cont = match contrast {
         null => "normal",
         x => x,
@@ -106,7 +109,7 @@ async fn accesibilidad_get(session: Str?, lang: Str?, contrast: Str?, font: Str?
 <div class="mh-accopts">{op_fnt}</div>
 </div>
 </div>
-<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+<a class="mh-btn sec" href="/familia">{flv(t(locale, "perfiles.volver"))}</a>""")
     let titulo = t(locale, "acc.titulo") + " — MatHelp"
     return responder_html(page(locale, titulo, body, html("")))
 }
@@ -117,6 +120,9 @@ async fn contraste_set(session: Str?, val: Str) -> Response {
     match read_session(session).await {
         Ok(_) => 0,
         Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
     }
     if (not es_contraste(val)) {
         return redirect_a("/accesibilidad")
@@ -134,6 +140,9 @@ async fn fuente_set(session: Str?, val: Str) -> Response {
     match read_session(session).await {
         Ok(_) => 0,
         Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
     }
     if (not es_fuente(val)) {
         return redirect_a("/accesibilidad")

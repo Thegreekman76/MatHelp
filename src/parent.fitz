@@ -31,7 +31,7 @@ from layout import page, responder_html, redirect_a
 from fmt import fmt_int
 from engine import progreso_pct, a_int
 from streaks import racha_actual
-from auth import read_session, mint_session, pid_from_token, redirect_con_sesion
+from auth import read_session, mint_session, pid_from_token, redirect_con_sesion, es_admin
 from perfiles import perfiles_de, perfil_de_familia
 from avatares import avatar_emoji
 from models import Profile
@@ -619,6 +619,9 @@ async fn panel_get(session: Str?, lang: Str?) -> Response {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
     let perfiles: List<Profile> = match perfiles_de(fam.id).await {
         Ok(ps) => ps,
         Err(_) => [],
@@ -639,6 +642,9 @@ async fn panel_hijo_get(session: Str?, lang: Str?, pid: Int) -> Response {
     let fam = match read_session(session).await {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
     }
     let perfiles: List<Profile> = match perfiles_de(fam.id).await {
         Ok(ps) => ps,
@@ -679,6 +685,9 @@ async fn panel_meta_post(session: Str?, form: MetaForm) -> Response {
     let fam = match read_session(session).await {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
     }
     let pid: Int = match form.pid.to_int() {
         Ok(n) => n,
@@ -725,6 +734,9 @@ async fn panel_blanquear_confirm(session: Str?, lang: Str?, pid: Int) -> Respons
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
     let p = match perfil_de_familia(fam.id, pid).await {
         Ok(pr) => pr,
         Err(_) => return redirect_a("/panel"),
@@ -740,6 +752,9 @@ async fn panel_blanquear_post(session: Str?, form: AccionForm) -> Response {
     let fam = match read_session(session).await {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
     }
     let pid: Int = match form.pid.to_int() {
         Ok(n) => n,
@@ -764,6 +779,9 @@ async fn panel_eliminar_confirm(session: Str?, lang: Str?, pid: Int) -> Response
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
     let p = match perfil_de_familia(fam.id, pid).await {
         Ok(pr) => pr,
         Err(_) => return redirect_a("/panel"),
@@ -782,6 +800,9 @@ async fn panel_eliminar_post(session: Str?, form: AccionForm) -> Response {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
     let pid: Int = match form.pid.to_int() {
         Ok(n) => n,
         Err(_) => return redirect_a("/panel"),
@@ -791,7 +812,7 @@ async fn panel_eliminar_post(session: Str?, form: AccionForm) -> Response {
             let _ = eliminar_perfil(fam.id, pid).await
             let activo = a_int(pid_from_token(session))
             if (activo == pid) {
-                let token = mint_session(fam.email, "")
+                let token = mint_session(fam.email, "", "1")
                 return redirect_con_sesion("/panel", token)
             }
             return redirect_a("/panel")

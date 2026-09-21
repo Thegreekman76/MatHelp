@@ -23,9 +23,10 @@ from models import Family
 
 // --- Sesión: emitir y leer ------------------------------------------------
 
-// Emite el JWT de la familia. `pid` vacío = todavía no eligió perfil.
-fn mint_session(email: Str, pid: Str) -> Str {
-    let claims = { "email": email, "pid": pid }
+// Emite el JWT de la familia. `pid` vacío = todavía no eligió perfil. `adm` = "1"
+// cuando la sesión pasó el PIN de adulto (zona familia/control), "0" cuando juega.
+fn mint_session(email: Str, pid: Str, adm: Str) -> Str {
+    let claims = { "email": email, "pid": pid, "adm": adm }
     return jwt.encode(claims, jwt_secret())
 }
 
@@ -62,6 +63,29 @@ fn pid_from_token(session: Str?) -> Str {
         Ok(v) => v,
         Err(_) => "",
     }
+}
+
+// ¿La sesión pasó el PIN de adulto? Claim "adm" == "1". Tokens viejos (sin el
+// claim) devuelven "0" → no admin, deben pasar por /familia/pin. No toca la DB.
+fn adm_from_token(session: Str?) -> Str {
+    let token = match session {
+        null => return "0",
+        s => s,
+    }
+    let claims = match jwt.decode(token, jwt_secret()) {
+        Ok(c) => c,
+        Err(_) => return "0",
+    }
+    return match claims.get("adm") {
+        Ok(v) => v,
+        Err(_) => "0",
+    }
+}
+
+// Gate de la zona de control familiar. Un handler de control corta con este check
+// y, si es false, redirige a /familia/pin.
+fn es_admin(session: Str?) -> Bool {
+    return adm_from_token(session) == "1"
 }
 
 // Response de redirect que setea (o pisa) la cookie de sesión HttpOnly.
@@ -247,7 +271,7 @@ async fn login_post(lang: Str?, creds: LoginForm) -> Response {
     let locale = locale_from_cookie(lang)
     match autenticar(creds.email, creds.password).await {
         Ok(fam) => {
-            let token = mint_session(fam.email, "")
+            let token = mint_session(fam.email, "", "0")
             return redirect_con_sesion("/perfiles", token)
         }
         Err(_) => {
@@ -281,7 +305,7 @@ async fn registro_post(lang: Str?, input: RegistroForm) -> Response {
 
     match crear_familia(input.email, input.familia, input.password, locale).await {
         Ok(fam) => {
-            let token = mint_session(fam.email, "")
+            let token = mint_session(fam.email, "", "0")
             return redirect_con_sesion("/perfiles", token)
         }
         Err(_) => {

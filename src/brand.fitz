@@ -651,6 +651,12 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .mh-rep-row \{ display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin:.5rem 0; font-weight:600; \}
 .mh-rep-row > span:first-of-type \{ color:var(--mh-suave); font-weight:700; \}
 .mh-rep-chip \{ display:inline-flex; align-items:center; gap:.25rem; background:var(--mh-verde-suave); border:1px solid var(--mh-borde); border-radius:99px; padding:.15rem .6rem; font-weight:700; font-size:.9rem; \}
+/* Zona familia: filas de gestión de perfiles (avatar + nombre + acciones). */
+.mh-fam-row \{ display:flex; align-items:center; gap:.6rem; padding:.6rem .2rem; border-bottom:1px solid var(--mh-borde); flex-wrap:wrap; \}
+.mh-fam-av \{ font-size:1.4rem; line-height:1; \}
+.mh-fam-nom \{ font-weight:800; flex:1; min-width:90px; \}
+.mh-fam-acc \{ display:flex; gap:.9rem; flex-wrap:wrap; \}
+.mh-fam-acc .mh-link \{ white-space:nowrap; \}
 
 /* Meta semanal (home): barra de objetivo de la semana */
 .mh-meta \{ background:var(--mh-panel); border:1px solid var(--mh-borde); border-radius:var(--mh-radio); padding:.7rem .9rem; margin:.5rem 0; animation:page-in .35s cubic-bezier(.2,.7,.3,1) both; \}
@@ -838,6 +844,9 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
    El componente stat_card no fija color en el valor grande y lo hereda del
    tema, así que en dark quedaba casi invisible sobre la card blanca. Forzamos
    un color oscuro legible. Targeteamos la clase scopeada con [class*=...]. */
-[class*="flv-statcard-value"] \{ color:var(--mh-tinta) !important; \}
+/* La card de StatCard es SIEMPRE blanca (--flv-surface no definida → #fff), así
+   que el número debe ser oscuro fijo en ambos temas — no la tinta del tema, que
+   en dark es casi blanca y desaparecía sobre la card. */
+[class*="flv-statcard-value"] \{ color:#12212B !important; \}
 """
 }
