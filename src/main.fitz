@@ -9,7 +9,7 @@ from fitz_liveviews import Html, html, flv, html_response, flv_register
 from config import db_url, app_name, lang_cookie_name, default_locale
 from i18n import t, t1, locale_from_cookie, es_locale_valido, nombre_locale
 from brand import logo_lockup
-from layout import page, responder_html, redirect_a
+from layout import page, page_landing, responder_html, redirect_a
 from auth import read_session, pid_from_token
 from engine import a_int
 from fmt import fmt_int
