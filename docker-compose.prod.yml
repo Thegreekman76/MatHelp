@@ -58,6 +58,8 @@ services:
       # SMTP outbound (587/465). Para activarlo hay que refactorizar reporte.fitz
       # a un proveedor HTTP (Resend), igual que fitzwatch. No es blocker del launch.
       MATHELP_WEEKLY_REPORT: ${MATHELP_WEEKLY_REPORT:-0}
+      # Resend HTTP API — la vía real en prod (DigitalOcean bloquea SMTP).
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}

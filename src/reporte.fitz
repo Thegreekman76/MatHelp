@@ -8,7 +8,7 @@
 // se saltea las familias sin actividad en la semana (no spamear). El SMTP lo lee
 // el core solo (SMTP_HOST/PORT/USER/PASSWORD/FROM/TLS); acá solo llamamos send.
 
-from config import db_url, reporte_habilitado, app_url
+from config import db_url, reporte_habilitado, app_url, resend_api_key, report_from
 from models import Family, Profile
 from i18n import t, t1, t2, t3
 from progreso import skill_label_key
@@ -110,12 +110,8 @@ async fn enviar_reportes() -> Result<Int> {
             let cierre = t(fam.locale, "reporte.cierre")
             let cuerpo_html = h_email_html(saludo, intro, lineas_html, cta, cierre)
             let cuerpo_text = h_email_text(saludo, intro, lineas_text, cta, cierre)
-            let r = smtp.send({
-                "to": fam.email,
-                "subject": t(fam.locale, "reporte.subject"),
-                "body_html": cuerpo_html,
-                "body_text": cuerpo_text,
-            }).await
+            let subj = t(fam.locale, "reporte.subject")
+            let r = send_report_email(fam.email, subj, cuerpo_html, cuerpo_text).await
             match r {
                 Ok(_) => {
                     log.info("reporte.enviado", email: fam.email)
@@ -152,6 +148,49 @@ fn h_email_text(saludo: Str, intro: Str, lineas: List<Str>, cta: Str, cierre: St
     }
     s = s + "\n" + cta + ": " + app_url() + "/panel\n\n" + cierre + "\n"
     return s
+}
+
+// Envía un email del reporte. Prioridad: Resend HTTP (prod — el VPS de
+// DigitalOcean bloquea SMTP outbound) → smtp.send del core (dev local con
+// MailHog o relay propio). Mismo patrón que fitzwatch/emails.fitz.
+async fn send_report_email(to: Str, subject: Str, html: Str, text: Str) -> Result<Bool> {
+    let api_key = resend_api_key()
+    let from_addr = report_from()
+
+    // Prioridad 1 — Resend HTTP API REST.
+    if (api_key != "") {
+        let resp = http.request({
+            "url": "https://api.resend.com/emails",
+            "method": "POST",
+            "headers": {
+                "Authorization": "Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "from": from_addr,
+                "to": to,
+                "subject": subject,
+                "html": html,
+                "text": text
+            }
+        }).await?
+        if (resp.status >= 400) {
+            return Err("Resend API status={resp.status} body={resp.body}")
+        }
+        log.info("reporte.resend", email: to, status: resp.status, ms: resp.duration_ms)
+        return Ok(true)
+    }
+
+    // Prioridad 2 — smtp.send del core (dev local).
+    let result = smtp.send({
+        "to": to,
+        "from": from_addr,
+        "subject": subject,
+        "body_html": html,
+        "body_text": text,
+    }).await?
+    log.info("reporte.smtp", email: to, message_id: result.message_id)
+    return Ok(true)
 }
 
 // El @cron: cada lunes 9:00 UTC. Apagado salvo MATHELP_WEEKLY_REPORT=1.

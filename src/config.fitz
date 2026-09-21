@@ -43,3 +43,13 @@ fn reporte_habilitado() -> Bool {
 fn app_url() -> Str {
     return env_or("MATHELP_PUBLIC_URL", "https://mathelp.example")
 }
+
+// Resend HTTP API — usado en prod (el VPS de DigitalOcean bloquea SMTP
+// outbound). Si RESEND_API_KEY está seteada, el reporte se manda por
+// https://api.resend.com/emails; si no, cae al smtp.send del core (dev local).
+fn resend_api_key() -> Str => env_or("RESEND_API_KEY", "")
+
+// From del email del reporte. Con Resend tiene que ser un dominio verificado
+// (mathelp.prothos.com.ar). El core lee SMTP_FROM al hacer smtp.send; acá lo
+// leemos también para pasárselo a Resend explícitamente.
+fn report_from() -> Str => env_or("SMTP_FROM", "MatHelp <no-reply@mathelp.prothos.com.ar>")
