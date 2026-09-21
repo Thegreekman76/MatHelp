@@ -29,9 +29,9 @@ from config import db_url
 from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from fmt import fmt_int
-from engine import progreso_pct
+from engine import progreso_pct, a_int
 from streaks import racha_actual
-from auth import read_session
+from auth import read_session, mint_session, pid_from_token, redirect_con_sesion
 from perfiles import perfiles_de, perfil_de_familia
 from avatares import avatar_emoji
 from models import Profile
@@ -268,6 +268,79 @@ fn form_meta(locale: Str, pid: Int, actual: Int) -> Html {
 </div>""")
 }
 
+// Zona de riesgo del panel: blanquear el progreso o eliminar al miembro. Ambos
+// llevan a una pantalla de confirmación dedicada (nada se borra de un solo click).
+fn zona_peligro(locale: Str, pid: Int) -> Html {
+    let pid_s = "{pid}"
+    return html("""<div class="mh-card" style="border:2px solid #fca5a5">
+<h2 style="color:#dc2626">⚠️ {flv(t(locale, "panel.zona_peligro"))}</h2>
+<p style="color:var(--mh-suave);font-size:.9rem;margin:.2rem 0 1rem">{flv(t(locale, "panel.zona_peligro_hint"))}</p>
+<div style="display:flex;gap:.6rem;flex-wrap:wrap">
+<a class="mh-btn sec" href="/panel/{pid_s}/blanquear" style="width:auto">🧹 {flv(t(locale, "panel.blanquear_btn"))}</a>
+<a class="mh-btn peligro" href="/panel/{pid_s}/eliminar" style="width:auto">🗑️ {flv(t(locale, "panel.eliminar_btn"))}</a>
+</div>
+</div>""")
+}
+
+// Pantalla de confirmación de "blanquear progreso". Explícita sobre qué se borra
+// y qué se conserva (las compras). El POST va a /panel/blanquear con el pid oculto.
+fn confirm_blanquear(locale: Str, p: Profile) -> Html {
+    let pid_s = "{p.id}"
+    return html("""<div class="mh-card">
+<h2>🧹 {flv(t(locale, "panel.blanquear_titulo"))}</h2>
+<p style="font-size:1.05rem">{flv(t1(locale, "panel.blanquear_texto", p.name))}</p>
+<p style="color:var(--mh-suave);font-size:.9rem">{flv(t(locale, "panel.blanquear_detalle"))}</p>
+<form method="POST" action="/panel/blanquear" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem">
+<input type="hidden" name="pid" value="{pid_s}" />
+<button class="mh-btn peligro" type="submit" style="width:auto;margin-top:0">{flv(t(locale, "panel.blanquear_confirmar"))}</button>
+<a class="mh-btn sec" href="/panel/{pid_s}" style="width:auto;margin-top:0">{flv(t(locale, "panel.cancelar"))}</a>
+</form>
+</div>""")
+}
+
+// Pantalla de confirmación de "eliminar miembro". Borra el perfil entero (el
+// CASCADE del esquema arrastra todo su historial y compras). Irreversible.
+fn confirm_eliminar(locale: Str, p: Profile) -> Html {
+    let pid_s = "{p.id}"
+    return html("""<div class="mh-card">
+<h2 style="color:#dc2626">🗑️ {flv(t(locale, "panel.eliminar_titulo"))}</h2>
+<p style="font-size:1.05rem">{flv(t1(locale, "panel.eliminar_texto", p.name))}</p>
+<p style="color:var(--mh-suave);font-size:.9rem">{flv(t(locale, "panel.eliminar_detalle"))}</p>
+<form method="POST" action="/panel/eliminar" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem">
+<input type="hidden" name="pid" value="{pid_s}" />
+<button class="mh-btn peligro" type="submit" style="width:auto;margin-top:0">{flv(t(locale, "panel.eliminar_confirmar"))}</button>
+<a class="mh-btn sec" href="/panel/{pid_s}" style="width:auto;margin-top:0">{flv(t(locale, "panel.cancelar"))}</a>
+</form>
+</div>""")
+}
+
+// --- DB de administración ----------------------------------------------------
+
+// Borra TODO el progreso de aprendizaje de un perfil (validado como de esta
+// familia por el handler). MANTIENE el perfil y sus compras (avatares/temas):
+// las monedas se derivan de attempts, así que caen a 0 solas. Best-effort: una
+// tabla ausente en bases viejas no aborta el reset del resto.
+async fn blanquear_progreso(pid: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("DELETE FROM attempts WHERE profile_id = $1", [pid]).await
+    let _ = conn.exec("DELETE FROM mastery WHERE profile_id = $1", [pid]).await
+    let _ = conn.exec("DELETE FROM mastery_snapshots WHERE profile_id = $1", [pid]).await
+    let _ = conn.exec("DELETE FROM streaks WHERE profile_id = $1", [pid]).await
+    let _ = conn.exec("DELETE FROM awards WHERE profile_id = $1", [pid]).await
+    let _ = conn.exec("DELETE FROM sessions WHERE profile_id = $1", [pid]).await
+    let _ = conn.exec("DELETE FROM profile_game_stats WHERE profile_id = $1", [pid]).await
+    let _ = conn.exec("DELETE FROM review_resolved WHERE profile_id = $1", [pid]).await
+    return Ok(0)
+}
+
+// Elimina un perfil de la familia. El CASCADE del esquema (REFERENCES ... ON
+// DELETE CASCADE) arrastra attempts, sessions, mastery, streaks, awards,
+// snapshots, records, review_resolved y purchases. El family_id es la defensa.
+async fn eliminar_perfil(family_id: Int, pid: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("DELETE FROM profiles WHERE id = $1 AND family_id = $2", [pid, family_id]).await
+}
+
 // --- lectura + composición ---------------------------------------------------
 
 // Arma el panel de UN hijo. Todas las lecturas sobre una sola conexión.
@@ -302,7 +375,8 @@ async fn render_panel(fam_id: Int, pid: Int, locale: Str, perfiles: List<Profile
 <div style="font-size:2.6rem;line-height:1">🌱</div>
 <p style="color:var(--mh-suave);margin:.4rem 0 0">{flv(t1(locale, "panel.sin_datos", perfil.name))}</p>
 </div>
-{form_meta(locale, pid, perfil.daily_goal).raw}""")
+{form_meta(locale, pid, perfil.daily_goal).raw}
+{zona_peligro(locale, pid).raw}""")
         return Ok(vacio)
     }
 
@@ -398,7 +472,8 @@ async fn render_panel(fam_id: Int, pid: Int, locale: Str, perfiles: List<Profile
 <h2>{flv(t(locale, "panel.evolucion_titulo"))}</h2>
 {evo_html}
 </div>
-{meta_html}""")
+{meta_html}
+{zona_peligro(locale, pid).raw}""")
     return Ok(body)
 }
 
@@ -630,6 +705,96 @@ async fn panel_meta_post(session: Str?, form: MetaForm) -> Response {
                 }
                 Err(_) => return redirect_a("/panel/{pid}"),
             }
+        }
+        Err(_) => return redirect_a("/panel"),
+    }
+}
+
+// Form de las acciones de riesgo (blanquear / eliminar): solo el pid oculto.
+type AccionForm {
+    pid: Str = ""
+}
+
+// /panel/{pid}/blanquear → pantalla de confirmación (nada se borra acá).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/panel/{pid}/blanquear")
+async fn panel_blanquear_confirm(session: Str?, lang: Str?, pid: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let p = match perfil_de_familia(fam.id, pid).await {
+        Ok(pr) => pr,
+        Err(_) => return redirect_a("/panel"),
+    }
+    let titulo = t(locale, "panel.blanquear_titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, confirm_blanquear(locale, p), html("")))
+}
+
+// /panel/blanquear (POST) → borra el progreso del hijo (validado) y vuelve al panel.
+@cookie(name="mathelp_session", into="session")
+@post("/panel/blanquear")
+async fn panel_blanquear_post(session: Str?, form: AccionForm) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let pid: Int = match form.pid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/panel"),
+    }
+    match perfil_de_familia(fam.id, pid).await {
+        Ok(_) => {
+            let _ = blanquear_progreso(pid).await
+            return redirect_a("/panel/{pid}")
+        }
+        Err(_) => return redirect_a("/panel"),
+    }
+}
+
+// /panel/{pid}/eliminar → pantalla de confirmación (nada se borra acá).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/panel/{pid}/eliminar")
+async fn panel_eliminar_confirm(session: Str?, lang: Str?, pid: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let p = match perfil_de_familia(fam.id, pid).await {
+        Ok(pr) => pr,
+        Err(_) => return redirect_a("/panel"),
+    }
+    let titulo = t(locale, "panel.eliminar_titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, confirm_eliminar(locale, p), html("")))
+}
+
+// /panel/eliminar (POST) → elimina el perfil (validado). Si era el perfil activo
+// de la sesión, limpia el pid del token para no dejar la app apuntando a un
+// perfil borrado. Vuelve al panel (que redirige al primer hijo o al estado vacío).
+@cookie(name="mathelp_session", into="session")
+@post("/panel/eliminar")
+async fn panel_eliminar_post(session: Str?, form: AccionForm) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let pid: Int = match form.pid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/panel"),
+    }
+    match perfil_de_familia(fam.id, pid).await {
+        Ok(_) => {
+            let _ = eliminar_perfil(fam.id, pid).await
+            let activo = a_int(pid_from_token(session))
+            if (activo == pid) {
+                let token = mint_session(fam.email, "")
+                return redirect_con_sesion("/panel", token)
+            }
+            return redirect_a("/panel")
         }
         Err(_) => return redirect_a("/panel"),
     }

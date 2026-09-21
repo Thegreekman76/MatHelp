@@ -135,6 +135,7 @@ async fn home_publica(locale: Str) -> Response {
 <div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🎓</div><h3>{flv(t(locale, "landing.f4_title"))}</h3><p>{flv(t(locale, "landing.f4_text"))}</p></div>
 <div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">📲</div><h3>{flv(t(locale, "landing.f5_title"))}</h3><p>{flv(t(locale, "landing.f5_text"))}</p></div>
 <div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🛡️</div><h3>{flv(t(locale, "landing.f6_title"))}</h3><p>{flv(t(locale, "landing.f6_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">📬</div><h3>{flv(t(locale, "landing.f7_title"))}</h3><p>{flv(t(locale, "landing.f7_text"))}</p></div>
 </div>
 </section>
 
