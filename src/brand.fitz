@@ -54,13 +54,13 @@ fn footer(locale: Str) -> Html {
     let hecho = flv(t(locale, "footer.hecho_con"))
     let y = flv(t(locale, "footer.y"))
     let contacto = flv(t(locale, "footer.contacto"))
-    let pol_priv = flv(t(locale, "legal.priv.titulo"))
+    let priv = flv(t(locale, "legal.priv.titulo"))
     let pol_terms = flv(t(locale, "legal.terms.titulo"))
     return html("""<footer class="mh-footer">
 {hecho} <a href="{repo_fitz()}" target="_blank" rel="noopener">Fitz</a> {y} <a href="{repo_liveviews()}" target="_blank" rel="noopener">Fitz LiveViews</a>
 <span class="mh-dot">·</span> MatHelp
 <span class="mh-dot">·</span> <a href="/contacto">{contacto}</a>
-<span class="mh-dot">·</span> <a href="/privacidad">{pol_priv}</a>
+<span class="mh-dot">·</span> <a href="/privacidad">{priv}</a>
 <span class="mh-dot">·</span> <a href="/terminos">{pol_terms}</a>
 </footer>""")
 }

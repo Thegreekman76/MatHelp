@@ -60,10 +60,6 @@ import contacto
 import legal
 import referral
 import recordatorio
-// Los tipos del export (/cuenta/export) se importan al entry para que el codegen
-// emita sus impls JSON sin degradar el nominal anidado a Any (patrón W17 del core;
-// ver FITZ-30). Sin esto, `fitz build` rompe con "ExportDataData: __ToFitzJson".
-from cuenta import ExportFamily, ExportProfile, ExportSession, ExportData
 from progreso import skill_a_route, skill_label_key, skill_icon, skill_a_practica_op
 // Los juegos viven en sus live_*.fitz (@get + @ws). Importar los símbolos de cada
 // componente acá es lo que dispara el auto-registro del LiveComponent (el
