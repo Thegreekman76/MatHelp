@@ -24,9 +24,10 @@ modalidades según feedback.**
 > pasos + ejemplo) del más simple al más avanzado, e historia. Todos los métodos
 > visibles; el recomendado para el grado del perfil abre por default (`<details>`,
 > sin JS). Módulo genérico `src/aprender.fitz` + CSS `.ap-*` + botón 📖 en el home +
-> 42 claves i18n ES/EN. **Prototipo cerrado: la Suma** (5 métodos: objetos, recta,
-> descomposición, columna con llevada, mental), verificado E2E con render real. Falta
-> replicar a los ~21 temas restantes. Detalle en `docs/backlog.md` · Pedagógico.
+> i18n ES/EN. **Cerrados: Suma y Resta** (5 métodos c/u: objetos, recta, por partes,
+> columna con llevada/préstamo, mental), verificados E2E con render real. Además, 2
+> feature cards nuevas (📖 Aprendé / 💡 Trucos) en la landing pública. Falta replicar
+> a los ~20 temas restantes. Detalle en `docs/backlog.md` · Pedagógico.
 
 > **F6 (2026-08-23)** — cuatro piezas de pulido:
 > - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo

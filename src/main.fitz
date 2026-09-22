@@ -132,6 +132,8 @@ async fn home_publica(locale: Str) -> Response {
 <h2 class="mh-land-h2">{flv(t(locale, "landing.features_title"))}</h2>
 <div class="mh-features-grid">
 <div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🎮</div><h3>{flv(t(locale, "landing.f1_title"))}</h3><p>{flv(t(locale, "landing.f1_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">📖</div><h3>{flv(t(locale, "landing.f8_title"))}</h3><p>{flv(t(locale, "landing.f8_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">💡</div><h3>{flv(t(locale, "landing.f9_title"))}</h3><p>{flv(t(locale, "landing.f9_text"))}</p></div>
 <div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🎯</div><h3>{flv(t(locale, "landing.f2_title"))}</h3><p>{flv(t(locale, "landing.f2_text"))}</p></div>
 <div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">📊</div><h3>{flv(t(locale, "landing.f3_title"))}</h3><p>{flv(t(locale, "landing.f3_text"))}</p></div>
 <div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🎓</div><h3>{flv(t(locale, "landing.f4_title"))}</h3><p>{flv(t(locale, "landing.f4_text"))}</p></div>

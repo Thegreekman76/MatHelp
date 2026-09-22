@@ -22,18 +22,19 @@ Product / ship it (deploy a dominio + HTTPS, PWA offline pulida, landing page).
 
 ### 🎓 Pedagógico
 
-- [ ] **Sección "Aprendé" (enseñar cada cálculo, no solo practicarlo).** 🚧 Prototipo
-  de la Suma listo (2026-09-22). Nueva `/aprender` + `/aprender/{tema}`, separada y
+- [ ] **Sección "Aprendé" (enseñar cada cálculo, no solo practicarlo).** 🚧 Suma y
+  Resta listas (2026-09-22); + 2 feature cards (📖 Aprendé / 💡 Trucos) en la landing.
+  Nueva `/aprender` + `/aprender/{tema}`, separada y
   complementaria a `/trucos`: qué es la operación, usos en la vida real, **varios
   métodos** (del más simple al más avanzado) cada uno con SVG + 3 pasos + ejemplo, y
   un poco de historia. Todos los métodos quedan visibles; el recomendado para el grado
   del perfil abre por default (`<details>` nativo, sin JS). Módulo genérico
   `src/aprender.fitz` + CSS `.ap-*` en `brand.fitz` + botón 📖 en el home + 42 claves
   i18n ES/EN. Cross-links al juego y al truco relacionado. Verificado E2E (render real
-  de un perfil grado 2 → abre "Separar en decenas y unidades"). **Pendiente:** replicar
-  a los ~21 temas restantes (resta, ×, ÷, fracciones, %, geometría, potencias, etc.) —
-  cada tema ≈ 42 claves × ES/EN + SVGs por método. Deuda menor: parametrizar los emojis
-  de "usos" por tema.
+  de un perfil grado 2 → abre el método recomendado). **Pendiente:** replicar a los
+  ~20 temas restantes (×, ÷, fracciones, %, geometría, potencias, etc.) — cada tema
+  ≈ 32 claves × ES/EN + SVGs por método (las 10 claves de sección son una sola vez).
+  Deuda menor: parametrizar los emojis de "usos" por tema.
 - [ ] **Feedback al errar con explicación** (máximo valor de aprendizaje). Hoy al
   fallar solo muestra "era X". Sumar el PASO: cómo se llega al resultado
   ("3/4 de 12 = 12 ÷ 4 × 3 = 9"). Por tipo de ejercicio / por juego.

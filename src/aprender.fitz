@@ -23,7 +23,7 @@ from live_game import resolver_contexto
 // Todos los temas de "Aprendé", ordenados por grado. La grilla filtra por el
 // grado del perfil (tema_min_grade <= grade), igual que /trucos y el menú.
 fn temas() -> List<Str> {
-    return ["suma"]
+    return ["suma", "resta"]
 }
 
 fn tema_valido(c: Str) -> Bool {
@@ -38,6 +38,7 @@ fn tema_valido(c: Str) -> Bool {
 fn tema_emoji(c: Str) -> Str {
     return match c {
         "suma" => "➕",
+        "resta" => "➖",
         _ => "📘",
     }
 }
@@ -46,6 +47,7 @@ fn tema_emoji(c: Str) -> Str {
 fn tema_min_grade(c: Str) -> Int {
     return match c {
         "suma" => 1,
+        "resta" => 1,
         _ => 1,
     }
 }
@@ -54,6 +56,7 @@ fn tema_min_grade(c: Str) -> Int {
 fn tema_route(c: Str) -> Str {
     return match c {
         "suma" => "/jugar",
+        "resta" => "/jugar",
         _ => "/juegos",
     }
 }
@@ -70,6 +73,7 @@ fn tema_truco(c: Str) -> Str {
 fn metodos_de(c: Str) -> List<Str> {
     return match c {
         "suma" => ["objetos", "recta", "descomp", "columna", "mental"],
+        "resta" => ["objetos", "recta", "descomp", "columna", "mental"],
         _ => [],
     }
 }
@@ -77,7 +81,7 @@ fn metodos_de(c: Str) -> List<Str> {
 // El método recomendado según el grado (se abre por default; los otros quedan
 // colapsados pero visibles).
 fn metodo_destacado(tema: Str, grade: Int) -> Str {
-    if (tema == "suma") {
+    if (tema == "suma" or tema == "resta") {
         if (grade <= 1) {
             return "objetos"
         }
@@ -160,6 +164,70 @@ fn svg_suma_mental() -> Str {
 </svg>""").raw
 }
 
+// Quitar objetos: 5 caramelos, saco 2 (apagados) → quedan 3.
+fn svg_resta_objetos() -> Str {
+    return html("""<svg viewBox="0 0 300 108" class="ap-svg" role="img" aria-label="5 - 2 = 3">
+<circle cx="30" cy="42" r="15" class="ap-dot a" /><circle cx="66" cy="42" r="15" class="ap-dot a" /><circle cx="102" cy="42" r="15" class="ap-dot a" />
+<circle cx="138" cy="42" r="15" class="ap-dot off" /><circle cx="174" cy="42" r="15" class="ap-dot off" />
+<text x="258" y="50" class="tk-eq strong">= 3</text>
+<text x="102" y="90" class="ap-cap">5 − 2</text>
+</svg>""").raw
+}
+
+// Recta numérica 0..10: parado en el 7, salto de −3 hacia atrás hasta el 4.
+fn svg_resta_recta() -> Str {
+    let ticks = ""
+    let labels = ""
+    let n = 0
+    while (n <= 10) {
+        let x = 20 + n * 28
+        ticks = ticks + html("""<line x1="{x}" y1="54" x2="{x}" y2="70" class="rn-tick" />""").raw
+        labels = labels + html("""<text x="{x}" y="88" class="rn-lbl">{n}</text>""").raw
+        n = n + 1
+    }
+    return html("""<svg viewBox="0 0 320 100" class="ap-svg" role="img" aria-label="7 - 3 = 4">
+<line x1="14" y1="62" x2="306" y2="62" class="rn-axis" />
+<polygon points="306,62 298,57 298,67" class="rn-arrow" />
+{ticks}
+{labels}
+<path d="M 216 56 Q 174 10 132 56" class="ap-jump" />
+<text x="174" y="24" class="ap-jump-lbl">−3</text>
+<circle cx="216" cy="62" r="5" class="ap-mark" />
+<circle cx="132" cy="62" r="6" class="ap-mark end" />
+</svg>""").raw
+}
+
+// Restar por partes: 43 − 15 → 43 − 10 = 33 → 33 − 5 = 28.
+fn svg_resta_descomp() -> Str {
+    return html("""<svg viewBox="0 0 300 128" class="ap-svg" role="img" aria-label="43 - 15 = 28">
+<text x="150" y="30" class="tk-eq">43 − 15</text>
+<text x="150" y="66" class="tk-eq">43 − 10 = 33</text>
+<line x1="30" y1="82" x2="270" y2="82" class="tk-arrow-line" />
+<text x="150" y="114" class="tk-eq strong">33 − 5 = 28</text>
+</svg>""").raw
+}
+
+// Restar en columna con préstamo: 43 − 15 = 28 (pido 1 decena a las unidades).
+fn svg_resta_columna() -> Str {
+    return html("""<svg viewBox="0 0 200 172" class="ap-svg" role="img" aria-label="43 - 15 = 28">
+<text x="126" y="46" class="ap-carry">1</text>
+<text x="150" y="68" class="ap-col">43</text>
+<text x="150" y="108" class="ap-col">− 15</text>
+<line x1="60" y1="122" x2="150" y2="122" class="ap-col-line" />
+<text x="150" y="158" class="ap-col strong">28</text>
+</svg>""").raw
+}
+
+// Cálculo mental: 43 − 19 → 43 − 20 = 23 → 23 + 1 = 24.
+fn svg_resta_mental() -> Str {
+    return html("""<svg viewBox="0 0 300 128" class="ap-svg" role="img" aria-label="43 - 19 = 24">
+<text x="150" y="30" class="tk-eq">43 − 19</text>
+<text x="150" y="66" class="tk-eq">43 − 20 = 23</text>
+<line x1="30" y1="82" x2="270" y2="82" class="tk-arrow-line" />
+<text x="150" y="114" class="tk-eq strong">23 + 1 = 24</text>
+</svg>""").raw
+}
+
 fn metodo_svg(tema: Str, metodo: Str) -> Str {
     if (tema == "suma") {
         return match metodo {
@@ -168,6 +236,16 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
             "descomp" => svg_suma_descomp(),
             "columna" => svg_suma_columna(),
             "mental" => svg_suma_mental(),
+            _ => "",
+        }
+    }
+    if (tema == "resta") {
+        return match metodo {
+            "objetos" => svg_resta_objetos(),
+            "recta" => svg_resta_recta(),
+            "descomp" => svg_resta_descomp(),
+            "columna" => svg_resta_columna(),
+            "mental" => svg_resta_mental(),
             _ => "",
         }
     }

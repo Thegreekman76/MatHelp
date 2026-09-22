@@ -761,6 +761,7 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .ap-dot \{ stroke-width:2.5; \}
 .ap-dot.a \{ fill:var(--mh-verde-claro); stroke:var(--mh-verde); \}
 .ap-dot.b \{ fill:var(--mh-amarillo); stroke:var(--mh-naranja); \}
+.ap-dot.off \{ fill:var(--mh-borde); stroke:var(--mh-suave); opacity:.45; \}
 .ap-cap \{ fill:var(--mh-suave); font-size:14px; font-weight:800; text-anchor:middle; \}
 .ap-jump \{ fill:none; stroke:var(--mh-naranja); stroke-width:2.5; \}
 .ap-jump-lbl \{ fill:var(--mh-naranja); font-size:15px; font-weight:900; text-anchor:middle; \}
