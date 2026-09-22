@@ -1,0 +1,84 @@
+// contacto.fitz — formulario de contacto público (Lote D3).
+//
+// Página abierta (sin sesión): un visitante manda nombre + email + mensaje y le
+// llega al dueño (MATHELP_ADMIN_EMAILS) vía mailer. Best-effort: si el email no
+// está configurado, igual se muestra "gracias" (no se expone la infra). Los tres
+// campos son obligatorios; se re-renderiza con error si falta alguno.
+
+from fitz_liveviews import Html, html, flv
+from i18n import t, locale_from_cookie
+from layout import page_landing, responder_html
+from emails import send_contacto
+
+// --- Body type (antes de los handlers — FITZ-28) --------------------------
+
+type ContactoForm {
+    nombre: Str = ""
+    email: Str = ""
+    mensaje: Str = ""
+}
+
+// --- Render ---------------------------------------------------------------
+
+// error_key: clave i18n del error, o "" si no hay.
+fn form_contacto(locale: Str, nombre: Str, email: Str, mensaje: Str, error_key: Str) -> Html {
+    let err = match error_key == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, error_key))}</div>""").raw,
+    }
+    let nombre_esc = flv(nombre)
+    let email_esc = flv(email)
+    let mensaje_esc = flv(mensaje)
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "contacto.titulo"))}</h2>
+<p class="mh-sub">{flv(t(locale, "contacto.sub"))}</p>
+{err}
+<form method="POST" action="/contacto">
+<div class="mh-field">
+<label class="mh-label" for="nombre">{flv(t(locale, "contacto.nombre"))}</label>
+<input class="mh-input" id="nombre" name="nombre" type="text" value="{nombre_esc}" autocomplete="name" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="email">{flv(t(locale, "login.email"))}</label>
+<input class="mh-input" id="email" name="email" type="email" value="{email_esc}" autocomplete="email" inputmode="email" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="mensaje">{flv(t(locale, "contacto.mensaje"))}</label>
+<textarea class="mh-input" id="mensaje" name="mensaje" rows="5" required>{mensaje_esc}</textarea>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "contacto.submit"))}</button>
+</form>
+<a class="mh-link" href="/">{flv(t(locale, "contacto.volver"))}</a>
+</div>""")
+}
+
+fn card_gracias(locale: Str) -> Html {
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "contacto.gracias_titulo"))}</h2>
+<p class="mh-sub">{flv(t(locale, "contacto.gracias"))}</p>
+<a class="mh-btn" href="/">{flv(t(locale, "contacto.volver"))}</a>
+</div>""")
+}
+
+// --- Handlers -------------------------------------------------------------
+
+@cookie(name="mathelp_lang", into="lang")
+@get("/contacto")
+fn contacto_get(lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    return responder_html(page_landing(locale, t(locale, "contacto.titulo") + " — MatHelp", form_contacto(locale, "", "", "", ""), html("")))
+}
+
+@cookie(name="mathelp_lang", into="lang")
+@post("/contacto")
+async fn contacto_post(lang: Str?, input: ContactoForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let titulo = t(locale, "contacto.titulo") + " — MatHelp"
+    if (input.nombre == "" or input.email == "" or input.mensaje == "") {
+        let cuerpo = form_contacto(locale, input.nombre, input.email, input.mensaje, "contacto.error_campos")
+        return responder_html(page_landing(locale, titulo, cuerpo, html("")))
+    }
+    // Best-effort: ignoramos el resultado (no exponemos si el email está configurado).
+    let _ = send_contacto(input.nombre, input.email, input.mensaje).await
+    return responder_html(page_landing(locale, t(locale, "contacto.gracias_titulo") + " — MatHelp", card_gracias(locale), html("")))
+}

@@ -139,8 +139,11 @@ Decisiones: bienvenida **localizada por `family.locale`**; admin gateado por
   endpoint) en ventana de 10 min contra Postgres (tabla `rate_limits`, migración 0022 + lazy); >10 →
   429. IP de `x-forwarded-for`/`x-real-ip` (fallback "local" en dev). Fail-open ante error de DB.
   Verificado E2E: 1-10→200, 11+→429, GET libre, /registro con cubeta independiente.
-- [ ] D3. Formulario de contacto → email al dueño (reusa `mailer.send_email`).
-- [ ] D4. Avisos de hitos al dueño (ej. familia N=100/500) por email.
+- [x] **D3. Formulario de contacto** — ✅ HECHO 2026-09-22 (`contacto.fitz`, página pública `/contacto`
+  linkeada desde el footer). Form nombre+email+mensaje → `emails.send_contacto` al dueño
+  (`MATHELP_ADMIN_EMAILS`, campos escapados con `flv`). Best-effort, 3 campos obligatorios.
+  Verificado E2E (form, footer link, validación, gracias) + `fitz build` OK.
+- [ ] D4. Avisos de hitos al dueño (ej. familia N=100/500) por email — PENDIENTE.
 - [ ] (no elegidos por ahora) Página privacidad/términos + link en registro; PWA push; referral.
 
 ### ✅ Calidad

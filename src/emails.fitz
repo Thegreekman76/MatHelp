@@ -143,3 +143,77 @@ fn reset_text(saludo: Str, intro: Str, cta: Str, expira: Str, ignorar: Str, link
     s = s + expira + "\n" + ignorar + "\n"
     return s
 }
+
+// --- Contacto (mensaje de un visitante al dueño) ------------------------------
+
+async fn send_contacto(nombre: Str, email: Str, mensaje: Str) -> Result<Bool> {
+    let admins = admin_emails()
+    if (admins.len() == 0) {
+        return Ok(false)
+    }
+    // Campos controlados por el visitante → escapados para el HTML del aviso.
+    let nom = flv(nombre)
+    let mail = flv(email)
+    let msg = flv(mensaje)
+    let subj = "MatHelp — contacto de " + nombre
+    let html = "<div style=\"font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:20px\">"
+    html = html + "<h2 style=\"color:#0E7A63;margin:0 0 .6rem\">Nuevo mensaje de contacto</h2>"
+    html = html + "<p style=\"margin:.2rem 0;color:#0f172a\"><b>Nombre:</b> " + nom + "</p>"
+    html = html + "<p style=\"margin:.2rem 0;color:#0f172a\"><b>Email:</b> " + mail + "</p>"
+    html = html + "<p style=\"margin:.6rem 0 .2rem;color:#0f172a\"><b>Mensaje:</b></p>"
+    html = html + "<div style=\"white-space:pre-wrap;color:#334155;background:#f8fafc;border-radius:8px;padding:10px\">" + msg + "</div>"
+    html = html + "</div>"
+    let text = "Nuevo mensaje de contacto\n\nNombre: " + nombre + "\nEmail: " + email + "\n\n" + mensaje + "\n"
+    let ok = false
+    for a in admins {
+        let r = send_email(a, subj, html, text).await
+        match r {
+            Ok(_) => {
+                log.info("contacto.mail", to: a, de: email)
+                ok = true
+            }
+            Err(e) => log.error("contacto.mail.error", to: a, err: e),
+        }
+    }
+    return Ok(ok)
+}
+
+// --- Hitos de crecimiento (aviso al dueño) ------------------------------------
+
+// ¿El total de familias `n` es un hito digno de aviso? Primeros escalones chicos
+// (10/25/50) y después cada 100.
+fn es_hito(n: Int) -> Bool {
+    if (n == 10 or n == 25 or n == 50) {
+        return true
+    }
+    if (n >= 100 and n % 100 == 0) {
+        return true
+    }
+    return false
+}
+
+// Aviso al dueño cuando la app llega a `n` familias registradas.
+async fn send_milestone(n: Int) -> Result<Bool> {
+    let admins = admin_emails()
+    if (admins.len() == 0) {
+        return Ok(false)
+    }
+    let subj = "MatHelp — ¡{n} familias registradas! 🎉"
+    let html = "<div style=\"font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:20px;text-align:center\">"
+    html = html + "<h2 style=\"color:#0E7A63;margin:0 0 .6rem\">🎉 ¡{n} familias en MatHelp!</h2>"
+    html = html + "<p style=\"margin:.2rem 0;color:#475569\">Acabás de superar las {n} familias registradas. ¡Seguí así!</p>"
+    html = html + "</div>"
+    let text = "MatHelp — ¡{n} familias registradas!\n\nAcabás de superar las {n} familias registradas.\n"
+    let ok = false
+    for a in admins {
+        let r = send_email(a, subj, html, text).await
+        match r {
+            Ok(_) => {
+                log.info("milestone.mail", to: a, n: n)
+                ok = true
+            }
+            Err(e) => log.error("milestone.mail.error", to: a, err: e),
+        }
+    }
+    return Ok(ok)
+}

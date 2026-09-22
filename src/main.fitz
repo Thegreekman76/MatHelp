@@ -56,6 +56,7 @@ import reporte
 import recuperar
 import admin
 import cuenta
+import contacto
 // Los tipos del export (/cuenta/export) se importan al entry para que el codegen
 // emita sus impls JSON sin degradar el nominal anidado a Any (patrón W17 del core;
 // ver FITZ-30). Sin esto, `fitz build` rompe con "ExportDataData: __ToFitzJson".
