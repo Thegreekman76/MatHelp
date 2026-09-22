@@ -83,16 +83,32 @@ del core + Resend (sender `no-reply@mathelp.prothos.com.ar`, ver `config.fitz` +
 Decisiones: bienvenida **localizada por `family.locale`**; admin gateado por
 **`MATHELP_ADMIN_EMAILS`** (env, coma-separado). Orden A→B→C, un lote cada uno.
 
-**Fase A — Emails al registrarse** (helper compartido `mailer.send_email` + hook
-`spawn(...)` best-effort en `registro_post`)
-- [ ] A1. Aviso al dueño (MATHELP_ADMIN_EMAILS) con datos del registro (email, familia, locale).
-- [ ] A2. Bienvenida al usuario, localizada, con pasos (crear perfiles, PIN de adulto, jugar/Aprendé).
+**Fase A — Emails al registrarse** — ✅ HECHO 2026-09-22 (`mailer.fitz` + `emails.fitz`, hook inline en `registro_post`)
+- [x] A1. Aviso al dueño (MATHELP_ADMIN_EMAILS) con datos del registro (email, familia, locale).
+- [x] A2. Bienvenida al usuario, localizada, con pasos (crear perfiles, PIN de adulto, jugar/Aprendé).
 
-**Fase B — Recuperación / gestión de acceso** (tabla nueva de tokens, migración 0021)
-- [ ] B1. Recuperar contraseña: form → email con link+token (expira, single-use) → nueva clave; no revelar si el email existe.
-- [ ] B2. Cambiar clave / email desde la cuenta (hoy no existe).
+> **Workarounds a revertir cuando el core cierre los gotchas (fitz `docs/norte-mathelp.md`):**
+> - **FITZ-27** — `registro_post` usa `.await` inline en vez de `spawn(signup_emails(fam))`
+>   porque el spawn desde un `@post` traga los errores de runtime en silencio. Cuando se cierre,
+>   volver a `spawn(...)` para no bloquear el alta con la latencia de Resend.
+> - **FITZ-26** — el checker no cazó `flv(...).raw` (field-access sobre Str de fn importada). No hay
+>   workaround en el código (ya usa `flv(x)` correcto), pero ojo: escribir `.raw` sobre un Str vuelve
+>   a colar en `fitz check` y explota en runtime hasta que se cierre.
+
+**Fase B — Recuperación / gestión de acceso** (tabla `password_reset_tokens`, migración 0021)
+- [x] B1. Recuperar contraseña: ✅ HECHO 2026-09-22 (`recuperar.fitz`). Form `/recuperar` → email con
+  link+token (Uuid, **hasheado en DB**, vence 1h, single-use) → `/recuperar/reset/{id}/{token}` →
+  nueva clave. NO revela si el email existe (mismo mensaje siempre). Email localizado por
+  `family.locale` (`emails.send_reset`). Verificado E2E: reset OK, login con clave nueva 303, clave
+  vieja falla, reuso del link → "Link inválido".
+- [ ] B2. Cambiar clave / email desde la cuenta (hoy no existe) — requiere una página de cuenta; pendiente.
 - [ ] B3. (opcional) Verificación de email al registrarse (mismo mecanismo de token).
 - Nota: "usuario" = email; si lo olvidan del todo, no hay identificador alterno (ofrecer contacto de soporte).
+
+> **Gotcha del core encontrado en Lote B (fitz `docs/norte-mathelp.md` → FITZ-28):** un `type` usado
+> como body de un `@post`, definido DESPUÉS del handler en el mismo módulo, hace 500 en runtime
+> (`fitz check` pasa). Convención aplicada: definir los body types ANTES de los handlers (como en
+> `auth.fitz`). Sin workaround de código pendiente — es orden de declaración.
 
 **Fase C — Administración del sitio (super-admin)**
 - [ ] C1. Gate por `MATHELP_ADMIN_EMAILS` → link "Administración" en el menú + proteger TODAS las rutas /admin (no solo ocultar).

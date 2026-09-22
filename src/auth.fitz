@@ -210,6 +210,7 @@ fn form_login(locale: Str, email: Str, hay_error: Bool) -> Html {
 </div>
 <button class="mh-btn" type="submit">{flv(t(locale, "login.submit"))}</button>
 </form>
+<a class="mh-link" href="/recuperar">{flv(t(locale, "recuperar.link"))}</a>
 <a class="mh-link" href="/registro">{flv(t(locale, "login.crear_cuenta"))}</a>
 </div>""")
 }
@@ -315,6 +316,11 @@ async fn registro_post(lang: Str?, input: RegistroForm) -> Response {
 
     match crear_familia(input.email, input.familia, input.password, locale).await {
         Ok(fam) => {
+            // WORKAROUND FITZ-27 (fitz/docs/norte-mathelp.md): idealmente
+            // `spawn(signup_emails(fam))` para no bloquear el alta, pero el spawn
+            // desde un handler @post traga en silencio los errores de runtime de la
+            // task. Hasta que FITZ-27 se cierre, va inline con .await (best-effort,
+            // rápido por el guard de mailer). Revertir a spawn cuando se resuelva.
             let _e = signup_emails(fam).await
             let token = mint_session(fam.email, "", "0")
             return redirect_con_sesion("/perfiles", token)

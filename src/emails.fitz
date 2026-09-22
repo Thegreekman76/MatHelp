@@ -100,3 +100,46 @@ fn welcome_text(saludo: Str, intro: Str, p1: Str, p2: Str, p3: Str, cta: Str, ci
     s = s + cta + ": " + url + "\n\n" + cierre + "\n"
     return s
 }
+
+// --- Recuperación de contraseña (localizada) ----------------------------------
+
+async fn send_reset(to: Str, display_name: Str, locale: Str, link: Str) -> Result<Bool> {
+    let saludo = t1(locale, "reset.saludo", display_name)
+    let intro = t(locale, "reset.intro")
+    let cta = t(locale, "reset.cta")
+    let expira = t(locale, "reset.expira")
+    let ignorar = t(locale, "reset.ignorar")
+    let subj = t(locale, "reset.subject")
+    let html = reset_html(saludo, intro, cta, expira, ignorar, link)
+    let text = reset_text(saludo, intro, cta, expira, ignorar, link)
+    let r = send_email(to, subj, html, text).await
+    match r {
+        Ok(_) => {
+            log.info("reset.mail", to: to)
+            return Ok(true)
+        }
+        Err(e) => {
+            log.error("reset.mail.error", to: to, err: e)
+            return Ok(false)
+        }
+    }
+}
+
+fn reset_html(saludo: Str, intro: Str, cta: Str, expira: Str, ignorar: Str, link: Str) -> Str {
+    let s = "<div style=\"font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:20px\">"
+    s = s + "<h2 style=\"color:#0E7A63;margin:0 0 .3rem\">MatHelp</h2>"
+    s = s + "<p style=\"margin:0 0 1rem;color:#0f172a;font-weight:700\">" + saludo + "</p>"
+    s = s + "<p style=\"margin:0 0 1rem;color:#475569\">" + intro + "</p>"
+    s = s + "<p style=\"margin:.4rem 0 1rem\"><a href=\"" + link + "\" style=\"background:#0E7A63;color:#fff;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:700\">" + cta + "</a></p>"
+    s = s + "<p style=\"margin:1rem 0 .3rem;color:#475569;font-size:.9rem\">" + expira + "</p>"
+    s = s + "<p style=\"margin:1.2rem 0 0;color:#94a3b8;font-size:.85rem\">" + ignorar + "</p>"
+    s = s + "</div>"
+    return s
+}
+
+fn reset_text(saludo: Str, intro: Str, cta: Str, expira: Str, ignorar: Str, link: Str) -> Str {
+    let s = "MatHelp\n\n" + saludo + "\n" + intro + "\n\n"
+    s = s + cta + ": " + link + "\n\n"
+    s = s + expira + "\n" + ignorar + "\n"
+    return s
+}

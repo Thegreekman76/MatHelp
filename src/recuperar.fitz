@@ -1,0 +1,200 @@
+// recuperar.fitz — recuperación de contraseña por link de email (Lote B).
+//
+// Flujo, sin JavaScript y sin revelar si un email existe:
+//   1. GET  /recuperar                     → form para ingresar el email.
+//   2. POST /recuperar                      → SIEMPRE responde "si existe, te
+//      enviamos un link" (mismo mensaje exista o no). Si existe: crea un token
+//      de un solo uso (Uuid), guarda su HASH (Argon2) + vencimiento (1h) y manda
+//      el email con el link, localizado por el locale guardado de la familia.
+//   3. GET  /recuperar/reset/{id}/{token}   → valida (id indexado + hash.verify)
+//      y muestra el form de nueva contraseña, o "link inválido/expirado".
+//   4. POST /recuperar/reset/{id}/{token}   → revalida, cambia la contraseña,
+//      marca el token usado (y anula los otros pendientes de esa familia).
+//
+// El token se guarda hasheado (no en claro): un dump de la DB no expone tokens
+// vivos. Como el link lleva el `id` de la fila, el lookup es O(1) por índice y
+// después se verifica el token con hash.verify — no hace falta hash determinístico.
+
+from fitz_liveviews import Html, html, flv
+from config import db_url, app_url
+from i18n import t, locale_from_cookie
+from layout import page_landing, responder_html
+from emails import send_reset
+
+// --- Body types (definidos antes de los handlers que los usan) -------------
+
+type PedirForm {
+    email: Str = ""
+}
+
+type ResetForm {
+    password: Str = ""
+}
+
+// --- DB -------------------------------------------------------------------
+
+// Crea la tabla lazy (idempotente) para la base de producción que ya existe;
+// las instalaciones nuevas la traen de migrations/0021_password_reset.sql.
+async fn ensure_reset_table() -> Result<Null> {
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("CREATE TABLE IF NOT EXISTS password_reset_tokens (id BIGSERIAL PRIMARY KEY, family_id BIGINT NOT NULL REFERENCES families(id) ON DELETE CASCADE, token_hash TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, used_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())", []).await?
+    let _ = conn.exec("CREATE INDEX IF NOT EXISTS idx_prt_family ON password_reset_tokens(family_id)", []).await?
+    return Ok(null)
+}
+
+// Best-effort: crea el token y manda el email si la familia existe. El caller
+// ignora el resultado (no revela si el email estaba registrado).
+async fn procesar_pedido(email: Str) -> Result<Bool> {
+    let _ = ensure_reset_table().await?
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT id, email, display_name, locale FROM families WHERE email = $1", [email]).await?
+    if (rows.len() == 0) {
+        return Ok(false)
+    }
+    let fam_id = rows[0].get_int("id")?
+    let fam_email = rows[0].get_str("email")?
+    let fam_name = rows[0].get_str("display_name")?
+    let fam_locale = rows[0].get_str("locale")?
+    let token = Uuid.v4().to_str()
+    let th = hash.password(token)
+    let ins = conn.query("INSERT INTO password_reset_tokens (family_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour') RETURNING id", [fam_id, th]).await?
+    let tid = ins[0].get_int("id")?
+    let link = "{app_url()}/recuperar/reset/{tid}/{token}"
+    let _ = send_reset(fam_email, fam_name, fam_locale, link).await
+    return Ok(true)
+}
+
+// Devuelve el family_id si el token es válido (existe, no usado, no vencido y
+// el token en claro verifica contra el hash guardado). Err en cualquier otro caso.
+async fn validar_token(id: Int, token: Str) -> Result<Int> {
+    let _ = ensure_reset_table().await?
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT family_id, token_hash FROM password_reset_tokens WHERE id = $1 AND used_at IS NULL AND expires_at > NOW()", [id]).await?
+    if (rows.len() == 0) {
+        return Err("link inválido")
+    }
+    let th = rows[0].get_str("token_hash")?
+    if (not hash.verify(token, th)) {
+        return Err("link inválido")
+    }
+    return rows[0].get_int("family_id")
+}
+
+async fn aplicar_reset(fam_id: Int, token_id: Int, password: Str) -> Result<Bool> {
+    let ph = hash.password(password)
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("UPDATE families SET password_hash = $2 WHERE id = $1", [fam_id, ph]).await?
+    let _ = conn.exec("UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1", [token_id]).await?
+    // Anular cualquier otro token pendiente de la misma familia.
+    let _ = conn.exec("UPDATE password_reset_tokens SET used_at = NOW() WHERE family_id = $1 AND used_at IS NULL", [fam_id]).await?
+    return Ok(true)
+}
+
+// --- Forms / cards HTML ---------------------------------------------------
+
+fn form_pedir(locale: Str, email: Str) -> Html {
+    let email_esc = flv(email)
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "recuperar.titulo"))}</h2>
+<p class="mh-sub">{flv(t(locale, "recuperar.sub"))}</p>
+<form method="POST" action="/recuperar">
+<div class="mh-field">
+<label class="mh-label" for="email">{flv(t(locale, "login.email"))}</label>
+<input class="mh-input" id="email" name="email" type="email" value="{email_esc}" autocomplete="email" inputmode="email" required />
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "recuperar.submit"))}</button>
+</form>
+<a class="mh-link" href="/login">{flv(t(locale, "recuperar.volver_login"))}</a>
+</div>""")
+}
+
+fn card_enviado(locale: Str) -> Html {
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "recuperar.enviado_titulo"))}</h2>
+<p class="mh-sub">{flv(t(locale, "recuperar.enviado"))}</p>
+<a class="mh-btn" href="/login">{flv(t(locale, "recuperar.volver_login"))}</a>
+</div>""")
+}
+
+// error_key: clave i18n del error, o "" si no hay.
+fn form_reset(locale: Str, id: Int, token: Str, error_key: Str) -> Html {
+    let err = match error_key == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, error_key))}</div>""").raw,
+    }
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "recuperar.reset_titulo"))}</h2>
+{err}
+<form method="POST" action="/recuperar/reset/{id}/{token}">
+<div class="mh-field">
+<label class="mh-label" for="password">{flv(t(locale, "recuperar.password"))}</label>
+<input class="mh-input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" required />
+<span class="mh-hint">{flv(t(locale, "registro.password_hint"))}</span>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "recuperar.reset_submit"))}</button>
+</form>
+</div>""")
+}
+
+fn card_error_link(locale: Str) -> Html {
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "recuperar.error_link_titulo"))}</h2>
+<p class="mh-sub">{flv(t(locale, "recuperar.error_link"))}</p>
+<a class="mh-btn" href="/recuperar">{flv(t(locale, "recuperar.pedir_otro"))}</a>
+</div>""")
+}
+
+fn card_exito(locale: Str) -> Html {
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "recuperar.exito_titulo"))}</h2>
+<p class="mh-sub">{flv(t(locale, "recuperar.exito"))}</p>
+<a class="mh-btn" href="/login">{flv(t(locale, "recuperar.ir_login"))}</a>
+</div>""")
+}
+
+// --- Handlers -------------------------------------------------------------
+
+@cookie(name="mathelp_lang", into="lang")
+@get("/recuperar")
+fn recuperar_get(lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    return responder_html(page_landing(locale, t(locale, "recuperar.titulo") + " — MatHelp", form_pedir(locale, ""), html("")))
+}
+
+@cookie(name="mathelp_lang", into="lang")
+@post("/recuperar")
+async fn recuperar_post(lang: Str?, input: PedirForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    // Best-effort: ignoramos el resultado para no revelar si el email existe.
+    let _ = procesar_pedido(input.email).await
+    return responder_html(page_landing(locale, t(locale, "recuperar.enviado_titulo") + " — MatHelp", card_enviado(locale), html("")))
+}
+
+@cookie(name="mathelp_lang", into="lang")
+@get("/recuperar/reset/{id}/{token}")
+async fn reset_get(lang: Str?, id: Int, token: Str) -> Response {
+    let locale = locale_from_cookie(lang)
+    let titulo = t(locale, "recuperar.reset_titulo") + " — MatHelp"
+    match validar_token(id, token).await {
+        Ok(_) => return responder_html(page_landing(locale, titulo, form_reset(locale, id, token, ""), html(""))),
+        Err(_) => return responder_html(page_landing(locale, titulo, card_error_link(locale), html(""))),
+    }
+}
+
+@cookie(name="mathelp_lang", into="lang")
+@post("/recuperar/reset/{id}/{token}")
+async fn reset_post(lang: Str?, id: Int, token: Str, input: ResetForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let titulo = t(locale, "recuperar.reset_titulo") + " — MatHelp"
+    let fam_id = match validar_token(id, token).await {
+        Ok(f) => f,
+        Err(_) => return responder_html(page_landing(locale, titulo, card_error_link(locale), html(""))),
+    }
+    if (input.password.len() < 8) {
+        return responder_html(page_landing(locale, titulo, form_reset(locale, id, token, "registro.error_password"), html("")))
+    }
+    match aplicar_reset(fam_id, id, input.password).await {
+        Ok(_) => return responder_html(page_landing(locale, titulo, card_exito(locale), html(""))),
+        Err(_) => return responder_html(page_landing(locale, titulo, card_error_link(locale), html(""))),
+    }
+}
