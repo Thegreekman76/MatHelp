@@ -771,6 +771,15 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .ap-col.strong \{ fill:var(--mh-verde); \}
 .ap-carry \{ fill:var(--mh-naranja); font-size:16px; font-weight:900; text-anchor:middle; \}
 .ap-col-line \{ stroke:var(--mh-tinta); stroke-width:2.5; \}
+.ap-box \{ fill:var(--mh-verde-suave); stroke:var(--mh-verde-claro); stroke-width:2; \}
+.ap-fbar \{ fill:var(--mh-panel); stroke:var(--mh-tinta); stroke-width:2; \}
+.ap-fseg.on \{ fill:var(--mh-verde-claro); \}
+.ap-fseg.hi \{ fill:var(--mh-amarillo); \}
+.ap-fdiv \{ stroke:var(--mh-tinta); stroke-width:2; \}
+.ap-pcell \{ fill:var(--mh-panel); stroke:var(--mh-borde); stroke-width:1; \}
+.ap-pcell.on \{ fill:var(--mh-verde-claro); stroke:var(--mh-verde); \}
+.ap-ent-pos \{ fill:var(--mh-verde); font-size:30px; font-weight:900; text-anchor:middle; \}
+.ap-ent-neg \{ fill:var(--mh-naranja); font-size:30px; font-weight:900; text-anchor:middle; \}
 /* Repasá tus errores */
 .mh-errores \{ text-align:center; \}
 .mh-err-sub \{ color:var(--mh-suave); font-size:.9rem; margin:.1rem 0 1rem; \}
