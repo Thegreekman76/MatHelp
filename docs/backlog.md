@@ -134,7 +134,11 @@ Decisiones: bienvenida **localizada por `family.locale`**; admin gateado por
   devuelve un `Map<Str,Any>` (familia sin password_hash + perfiles + últimas 500 sesiones) que Fitz
   auto-serializa a JSON. `POST /cuenta/borrar` con doble confirmación (contraseña actual + escribir el
   email) → DELETE CASCADE + logout. Cards en /cuenta. Verificado E2E.
-- [ ] D2. Rate limiting en login y registro (anti fuerza bruta, `@middleware` por IP).
+- [x] **D2. Rate limiting en login y registro** — ✅ HECHO 2026-09-22 (`ratelimit.fitz` helpers +
+  `@middleware(rate_limit_mw)` en auth.fitz sobre login/registro). Cuenta intentos POST por (IP,
+  endpoint) en ventana de 10 min contra Postgres (tabla `rate_limits`, migración 0022 + lazy); >10 →
+  429. IP de `x-forwarded-for`/`x-real-ip` (fallback "local" en dev). Fail-open ante error de DB.
+  Verificado E2E: 1-10→200, 11+→429, GET libre, /registro con cubeta independiente.
 - [ ] D3. Formulario de contacto → email al dueño (reusa `mailer.send_email`).
 - [ ] D4. Avisos de hitos al dueño (ej. familia N=100/500) por email.
 - [ ] (no elegidos por ahora) Página privacidad/términos + link en registro; PWA push; referral.

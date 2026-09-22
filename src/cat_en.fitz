@@ -1089,6 +1089,7 @@ fn cat_en(key: Str) -> Str {
         "progreso.sin_medallas" => "No medals yet. Go play!",
         "progreso.sin_temas" => "You haven't played yet. Pick a game and start! 🎮",
         "proximamente.texto" => "This screen is coming soon.",
+        "ratelimit.error" => "Too many attempts. Wait a few minutes and try again.",
         "recuperar.enviado" => "If that email is registered, we've sent a link to reset your password. Check your inbox (and your spam folder).",
         "recuperar.enviado_titulo" => "Check your email",
         "recuperar.error_link" => "This link is invalid or has expired. Request a new one.",

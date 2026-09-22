@@ -16,11 +16,12 @@
 // cookie a mano con `@cookie(...)` + `jwt.decode`. Ver read_session().
 
 from fitz_liveviews import Html, html, flv
-from config import db_url, jwt_secret, session_cookie_name
+from config import db_url, jwt_secret, session_cookie_name, default_locale
 from i18n import t, locale_from_cookie
 from layout import page_landing, responder_html
 from models import Family
 from emails import notify_admin_signup, send_welcome
+from ratelimit import ip_de, registrar_y_chequear
 
 // --- Sesión: emitir y leer ------------------------------------------------
 
@@ -247,6 +248,27 @@ fn form_registro(locale: Str, email: Str, familia: Str, error_key: Str) -> Html 
 </div>""")
 }
 
+// --- Rate limiting (anti fuerza bruta) -----------------------------------
+
+// Middleware Pre para /login y /registro: solo cuenta los POST (los intentos
+// reales); los GET (ver el form) pasan. Fail-open ante error de DB. Vive acá
+// (mismo módulo que login_post/registro_post) para no cruzar el `return <status>`
+// entre módulos. Los helpers de DB están en ratelimit.fitz.
+async fn rate_limit_mw(req: Request) -> Null {
+    if (req.method != "POST") {
+        return null
+    }
+    let ip = ip_de(req)
+    let bloqueado = match registrar_y_chequear(ip, req.path).await {
+        Ok(b) => b,
+        Err(_) => false,
+    }
+    if (bloqueado) {
+        return 429 {"error": t(default_locale(), "ratelimit.error")}
+    }
+    return null
+}
+
 // --- Handlers ------------------------------------------------------------
 
 type LoginForm {
@@ -267,6 +289,7 @@ fn login_get(lang: Str?) -> Response {
     return responder_html(page_landing(locale, t(locale, "login.titulo") + " — MatHelp", form_login(locale, "", false), html("")))
 }
 
+@middleware(rate_limit_mw)
 @cookie(name="mathelp_lang", into="lang")
 @post("/login")
 async fn login_post(lang: Str?, creds: LoginForm) -> Response {
@@ -299,6 +322,7 @@ async fn signup_emails(fam: Family) -> Null {
     return null
 }
 
+@middleware(rate_limit_mw)
 @cookie(name="mathelp_lang", into="lang")
 @post("/registro")
 async fn registro_post(lang: Str?, input: RegistroForm) -> Response {

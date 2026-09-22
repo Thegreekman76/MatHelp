@@ -483,6 +483,7 @@
   "cuenta.borrar_confirmar": "Type your email to confirm",
   "cuenta.borrar_btn": "Delete my account permanently",
   "cuenta.borrar_error": "Confirmation failed. Check the email and password.",
+  "ratelimit.error": "Too many attempts. Wait a few minutes and try again.",
   "aprender.titulo": "Learn",
   "aprender.sub": "Understand how each calculation works: what it is for, a bit of history, and several ways to solve it. Pick a topic.",
   "aprender.volver": "Back to Learn",

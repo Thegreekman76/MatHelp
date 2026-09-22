@@ -1089,6 +1089,7 @@ fn cat_es_ar(key: Str) -> Str {
         "progreso.sin_medallas" => "Todavía sin medallas. ¡A jugar!",
         "progreso.sin_temas" => "Todavía no jugaste. ¡Elegí un juego y empezá! 🎮",
         "proximamente.texto" => "Esta pantalla llega pronto.",
+        "ratelimit.error" => "Demasiados intentos. Esperá unos minutos y probá de nuevo.",
         "recuperar.enviado" => "Si ese email está registrado, te enviamos un link para restablecer la contraseña. Revisá tu casilla (y la carpeta de spam).",
         "recuperar.enviado_titulo" => "Revisá tu email",
         "recuperar.error_link" => "El link no es válido o ya venció. Pedí uno nuevo.",

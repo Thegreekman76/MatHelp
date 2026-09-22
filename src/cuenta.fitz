@@ -34,6 +34,38 @@ type BorrarForm {
     confirmar: Str = ""
 }
 
+// Tipos del export: nominales (no Map<Str,Any>) para que el codegen los
+// serialice a JSON limpio en `fitz build` (un Map<Str,Any> literal anidado NO
+// compila a nativo — FITZ-29 del core).
+type ExportFamily {
+    email: Str = ""
+    display_name: Str = ""
+    locale: Str = ""
+}
+
+type ExportProfile {
+    id: Int = 0
+    name: Str = ""
+    avatar: Str = ""
+    grade: Int = 0
+    locale: Str = ""
+    daily_goal: Int = 0
+    creado: Str = ""
+}
+
+type ExportSession {
+    modo: Str = ""
+    total: Int = 0
+    correct: Int = 0
+    inicio: Str = ""
+}
+
+type ExportData {
+    family: ExportFamily = ExportFamily {}
+    profiles: List<ExportProfile> = []
+    sessions: List<ExportSession> = []
+}
+
 // --- DB -------------------------------------------------------------------
 
 async fn cambiar_password(fam_id: Int, nueva: Str) -> Result<Bool> {
@@ -54,41 +86,41 @@ async fn cambiar_email(fam_id: Int, nuevo: Str) -> Result<Bool> {
     return Ok(true)
 }
 
-// Toda la data de la familia como Map (para exportar a JSON). Sin password_hash.
-async fn build_export(fam: Family) -> Result<Map<Str, Any>> {
+// Toda la data de la familia como ExportData (nominal → JSON). Sin password_hash.
+async fn build_export(fam: Family) -> Result<ExportData> {
     let conn = db.connect(db_url()).await?
-    let fam_map = {
-        "email": fam.email,
-        "display_name": fam.display_name,
-        "locale": fam.locale,
+    let ef = ExportFamily {
+        email: fam.email,
+        display_name: fam.display_name,
+        locale: fam.locale,
     }
     let pr = conn.query("SELECT id, name, avatar, grade, locale, daily_goal, to_char(created_at, 'YYYY-MM-DD') AS creado FROM profiles WHERE family_id = $1 ORDER BY id", [fam.id]).await?
-    let profs = []
+    let profs: List<ExportProfile> = []
     for r in pr {
-        profs.push({
-            "id": r.get_int("id")?,
-            "name": r.get_str("name")?,
-            "avatar": r.get_str("avatar")?,
-            "grade": r.get_int("grade")?,
-            "locale": r.get_str("locale")?,
-            "daily_goal": r.get_int("daily_goal")?,
-            "creado": r.get_str("creado")?,
+        profs.push(ExportProfile {
+            id: r.get_int("id")?,
+            name: r.get_str("name")?,
+            avatar: r.get_str("avatar")?,
+            grade: r.get_int("grade")?,
+            locale: r.get_str("locale")?,
+            daily_goal: r.get_int("daily_goal")?,
+            creado: r.get_str("creado")?,
         })
     }
     let sr = conn.query("SELECT s.mode AS modo, s.total, s.correct, to_char(s.started_at, 'YYYY-MM-DD HH24:MI') AS inicio FROM sessions s JOIN profiles p ON p.id = s.profile_id WHERE p.family_id = $1 ORDER BY s.started_at DESC LIMIT 500", [fam.id]).await?
-    let sess = []
+    let sess: List<ExportSession> = []
     for r in sr {
-        sess.push({
-            "modo": r.get_str("modo")?,
-            "total": r.get_int("total")?,
-            "correct": r.get_int("correct")?,
-            "inicio": r.get_str("inicio")?,
+        sess.push(ExportSession {
+            modo: r.get_str("modo")?,
+            total: r.get_int("total")?,
+            correct: r.get_int("correct")?,
+            inicio: r.get_str("inicio")?,
         })
     }
-    return Ok({
-        "family": fam_map,
-        "profiles": profs,
-        "sessions": sess,
+    return Ok(ExportData {
+        family: ef,
+        profiles: profs,
+        sessions: sess,
     })
 }
 
@@ -269,18 +301,15 @@ async fn cuenta_email_post(session: Str?, lang: Str?, input: CambiarEmailForm) -
 // un acceso no autorizado recibe un JSON de error (endpoint de datos, no página).
 @cookie(name="mathelp_session", into="session")
 @get("/cuenta/export")
-async fn cuenta_export_get(session: Str?) -> Map<Str, Any> {
+async fn cuenta_export_get(session: Str?) -> Result<ExportData> {
     let fam = match read_session(session).await {
         Ok(f) => f,
-        Err(_) => return {"error": "no autenticado"},
+        Err(_) => return Err("no autenticado"),
     }
     if (not es_admin(session)) {
-        return {"error": "sin permiso"}
+        return Err("sin permiso")
     }
-    match build_export(fam).await {
-        Ok(m) => return m,
-        Err(_) => return {"error": "no se pudo exportar"},
-    }
+    return build_export(fam).await
 }
 
 @cookie(name="mathelp_session", into="session")

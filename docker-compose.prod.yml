@@ -54,6 +54,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET missing in .env}
       MATHELP_DEFAULT_LOCALE: ${MATHELP_DEFAULT_LOCALE:-es-AR}
       MATHELP_PUBLIC_URL: ${MATHELP_PUBLIC_URL:-https://mathelp.prothos.com.ar}
+      # Super-admins del sitio (coma-separado). Habilita /admin y el link
+      # "Administración" en /familia. Setear el valor en el .env del VPS.
+      MATHELP_ADMIN_EMAILS: ${MATHELP_ADMIN_EMAILS:-}
       # Reporte semanal por email: APAGADO. Ojo: este VPS (DigitalOcean) bloquea
       # SMTP outbound (587/465). Para activarlo hay que refactorizar reporte.fitz
       # a un proveedor HTTP (Resend), igual que fitzwatch. No es blocker del launch.

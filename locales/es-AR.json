@@ -483,6 +483,7 @@
   "cuenta.borrar_confirmar": "Escribí tu email para confirmar",
   "cuenta.borrar_btn": "Borrar mi cuenta definitivamente",
   "cuenta.borrar_error": "Confirmación incorrecta. Revisá el email y la contraseña.",
+  "ratelimit.error": "Demasiados intentos. Esperá unos minutos y probá de nuevo.",
   "aprender.titulo": "Aprendé",
   "aprender.sub": "Entendé cómo funciona cada cálculo: para qué sirve, un poco de historia y varias formas de resolverlo. Elegí un tema.",
   "aprender.volver": "Volver a Aprendé",

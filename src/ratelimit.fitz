@@ -1,0 +1,62 @@
+// ratelimit.fitz — helpers de rate limiting anti fuerza bruta para /login y
+// /registro (D2). El middleware `rate_limit_mw` que los usa vive en auth.fitz
+// (mismo módulo que los handlers login_post/registro_post) para no cruzar el
+// `return <status>` entre módulos.
+//
+// Cuenta los intentos POST por (IP, endpoint) en una ventana de 10 min contra
+// Postgres (usa NOW() del server, sin depender de un reloj del lado de Fitz).
+// Fail-open: ante un error de DB el caller deja pasar (no bloquea a todos por
+// un problema de infra).
+//
+// La IP sale de los headers de proxy (nginx en prod: x-forwarded-for /
+// x-real-ip). Sin proxy (dev) cae a la clave "local" — todos comparten cubeta,
+// suficiente para desarrollo.
+
+from config import db_url
+
+let RATE_LIMITE = 10 // intentos POST permitidos por ventana (10 min)
+
+// Crea la tabla lazy (idempotente) para la base de producción ya existente;
+// las instalaciones nuevas la traen de migrations/0022_rate_limits.sql.
+async fn ensure_rate_table() -> Result<Null> {
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("CREATE TABLE IF NOT EXISTS rate_limits (id BIGSERIAL PRIMARY KEY, ip TEXT NOT NULL, endpoint TEXT NOT NULL, ts TIMESTAMPTZ NOT NULL DEFAULT NOW())", []).await?
+    let _ = conn.exec("CREATE INDEX IF NOT EXISTS idx_rate_ip_ep_ts ON rate_limits(ip, endpoint, ts)", []).await?
+    return Ok(null)
+}
+
+// IP del cliente desde los headers de proxy. Primera IP de x-forwarded-for
+// (formato "ip1, ip2, ..."), luego x-real-ip, luego "local" (dev sin proxy).
+fn ip_de(req: Request) -> Str {
+    let xff = match req.headers.get("x-forwarded-for") {
+        Ok(v) => v,
+        Err(_) => "",
+    }
+    if (xff != "") {
+        let partes = xff.split(",")
+        return partes[0]
+    }
+    let xri = match req.headers.get("x-real-ip") {
+        Ok(v) => v,
+        Err(_) => "",
+    }
+    if (xri != "") {
+        return xri
+    }
+    return "local"
+}
+
+// Registra el intento y devuelve true si la (ip, endpoint) superó el límite en
+// la ventana. Limpia de paso las filas viejas para que la tabla no crezca.
+async fn registrar_y_chequear(ip: Str, endpoint: Str) -> Result<Bool> {
+    let _ = ensure_rate_table().await?
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("INSERT INTO rate_limits (ip, endpoint) VALUES ($1, $2)", [ip, endpoint]).await?
+    let _ = conn.exec("DELETE FROM rate_limits WHERE ts < NOW() - INTERVAL '1 hour'", []).await?
+    let rows = conn.query("SELECT count(*)::int AS n FROM rate_limits WHERE ip = $1 AND endpoint = $2 AND ts > NOW() - INTERVAL '10 minutes'", [ip, endpoint]).await?
+    let n = match rows.len() > 0 {
+        true => rows[0].get_int("n")?,
+        false => 0,
+    }
+    return Ok(n > RATE_LIMITE)
+}
