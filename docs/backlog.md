@@ -22,11 +22,11 @@ Product / ship it (deploy a dominio + HTTPS, PWA offline pulida, landing page).
 
 ### 🎓 Pedagógico
 
-- [ ] **Sección "Aprendé" (enseñar cada cálculo, no solo practicarlo).** 🚧 17 temas
-  listos (2026-09-22): suma, resta, multiplicación, división, fracciones, porcentaje,
-  enteros, geometría, volumen, hora, potencias, ecuaciones, trigonometría, funciones,
-  estadística, estimación, series. + 2 feature cards (📖 Aprendé / 💡 Trucos) en la
-  landing. Nueva `/aprender`
+- [x] **Sección "Aprendé" (enseñar cada cálculo, no solo practicarlo).** ✅ 2026-09-22.
+  **20 temas, cubre todos los juegos:** suma, resta, multiplicación, división,
+  fracciones, porcentaje, enteros, geometría, volumen, hora, potencias, ecuaciones,
+  trigonometría, funciones, estadística, estimación, series, problemas, ordenar,
+  memoria. + 2 feature cards (📖 Aprendé / 💡 Trucos) en la landing. Nueva `/aprender`
   + `/aprender/{tema}`, separada y complementaria a `/trucos`: qué es la operación,
   usos en la vida real, **varios métodos** (del más simple al más avanzado) cada uno
   con SVG + 3 pasos + ejemplo, y un poco de historia. Todos los métodos quedan
@@ -34,10 +34,9 @@ Product / ship it (deploy a dominio + HTTPS, PWA offline pulida, landing page).
   nativo, sin JS). Módulo genérico `src/aprender.fitz` + CSS `.ap-*` en `brand.fitz` +
   botón 📖 en el home. Cross-links al juego y al truco relacionado. Emojis de "usos"
   parametrizados por tema (`tema_uso_emojis`). Verificado E2E (render real: la ficha
-  abre el método recomendado según el grado). Cubre prácticamente toda la matemática de
-  los juegos. **Opcional (formatos de juego, no cálculos puros):** resolución de
-  problemas, ordenar/comparar números, memoria — cada tema ≈ 32 claves × ES/EN + SVGs
-  por método.
+  abre el método recomendado según el grado). 1164 claves i18n con paridad ES/EN.
+  **Cubre todos los temas de los juegos** — la sección está completa. Ampliación futura
+  posible: más métodos por tema, o desglosar sub-temas si aparece demanda.
 - [ ] **Feedback al errar con explicación** (máximo valor de aprendizaje). Hoy al
   fallar solo muestra "era X". Sumar el PASO: cómo se llega al resultado
   ("3/4 de 12 = 12 ÷ 4 × 3 = 9"). Por tipo de ejercicio / por juego.
