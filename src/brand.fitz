@@ -789,6 +789,7 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .clk-hour \{ stroke:var(--mh-tinta); stroke-width:5; stroke-linecap:round; \}
 .clk-min \{ stroke:var(--mh-naranja); stroke-width:3; stroke-linecap:round; \}
 .clk-center \{ fill:var(--mh-tinta); \}
+.ap-fnline \{ fill:none; stroke:var(--mh-verde); stroke-width:3; stroke-linecap:round; \}
 /* Repasá tus errores */
 .mh-errores \{ text-align:center; \}
 .mh-err-sub \{ color:var(--mh-suave); font-size:.9rem; margin:.1rem 0 1rem; \}

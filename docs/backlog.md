@@ -22,10 +22,11 @@ Product / ship it (deploy a dominio + HTTPS, PWA offline pulida, landing page).
 
 ### 🎓 Pedagógico
 
-- [ ] **Sección "Aprendé" (enseñar cada cálculo, no solo practicarlo).** 🚧 12 temas
+- [ ] **Sección "Aprendé" (enseñar cada cálculo, no solo practicarlo).** 🚧 17 temas
   listos (2026-09-22): suma, resta, multiplicación, división, fracciones, porcentaje,
-  enteros, geometría, volumen, hora, potencias, ecuaciones. + 2 feature cards (📖
-  Aprendé / 💡 Trucos) en la landing. Nueva `/aprender`
+  enteros, geometría, volumen, hora, potencias, ecuaciones, trigonometría, funciones,
+  estadística, estimación, series. + 2 feature cards (📖 Aprendé / 💡 Trucos) en la
+  landing. Nueva `/aprender`
   + `/aprender/{tema}`, separada y complementaria a `/trucos`: qué es la operación,
   usos en la vida real, **varios métodos** (del más simple al más avanzado) cada uno
   con SVG + 3 pasos + ejemplo, y un poco de historia. Todos los métodos quedan
@@ -33,10 +34,10 @@ Product / ship it (deploy a dominio + HTTPS, PWA offline pulida, landing page).
   nativo, sin JS). Módulo genérico `src/aprender.fitz` + CSS `.ap-*` en `brand.fitz` +
   botón 📖 en el home. Cross-links al juego y al truco relacionado. Emojis de "usos"
   parametrizados por tema (`tema_uso_emojis`). Verificado E2E (render real: la ficha
-  abre el método recomendado según el grado). **Pendiente:** replicar a los ~10 temas
-  restantes (trigonometría, funciones, estadística, estimación, series, problemas…) —
-  cada tema ≈ 32 claves × ES/EN + SVGs por método (las claves de sección son una sola
-  vez).
+  abre el método recomendado según el grado). Cubre prácticamente toda la matemática de
+  los juegos. **Opcional (formatos de juego, no cálculos puros):** resolución de
+  problemas, ordenar/comparar números, memoria — cada tema ≈ 32 claves × ES/EN + SVGs
+  por método.
 - [ ] **Feedback al errar con explicación** (máximo valor de aprendizaje). Hoy al
   fallar solo muestra "era X". Sumar el PASO: cómo se llega al resultado
   ("3/4 de 12 = 12 ÷ 4 × 3 = 9"). Por tipo de ejercicio / por juego.

@@ -24,12 +24,13 @@ modalidades según feedback.**
 > pasos + ejemplo) del más simple al más avanzado, e historia. Todos los métodos
 > visibles; el recomendado para el grado del perfil abre por default (`<details>`,
 > sin JS). Módulo genérico `src/aprender.fitz` + CSS `.ap-*` + botón 📖 en el home +
-> i18n ES/EN. **Cerrados: 12 temas** (suma, resta, multiplicación, división, fracciones,
-> porcentaje, enteros, geometría, volumen, hora, potencias, ecuaciones), cada uno con
-> 3-5 métodos graficados (SVG) adaptados al grado y verificados E2E con render real.
-> Además, 2 feature cards nuevas (📖 Aprendé / 💡 Trucos) en la landing pública. Falta
-> replicar a los ~10 temas restantes (trigonometría, funciones, estadística, estimación,
-> series, problemas…). Detalle en `docs/backlog.md` · Pedagógico.
+> i18n ES/EN. **Cerrados: 17 temas** (suma, resta, multiplicación, división, fracciones,
+> porcentaje, enteros, geometría, volumen, hora, potencias, ecuaciones, trigonometría,
+> funciones, estadística, estimación, series), cada uno con 3-5 métodos graficados (SVG)
+> adaptados al grado y verificados E2E con render real. Además, 2 feature cards nuevas
+> (📖 Aprendé / 💡 Trucos) en la landing pública. **Cubre prácticamente toda la
+> matemática de los juegos**; opcionales pendientes (formatos de juego, no cálculos):
+> resolución de problemas, ordenar/comparar, memoria. Detalle en `docs/backlog.md`.
 
 > **F6 (2026-08-23)** — cuatro piezas de pulido:
 > - **Reanudar partida** (`src/live_game.fitz`): el Desafío del día es el modo

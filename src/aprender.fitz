@@ -23,7 +23,7 @@ from live_game import resolver_contexto
 // Todos los temas de "Aprendé", ordenados por grado. La grilla filtra por el
 // grado del perfil (tema_min_grade <= grade), igual que /trucos y el menú.
 fn temas() -> List<Str> {
-    return ["suma", "resta", "multiplicacion", "division", "fracciones", "porcentaje", "enteros", "geometria", "volumen", "hora", "potencias", "ecuaciones"]
+    return ["suma", "resta", "multiplicacion", "division", "fracciones", "porcentaje", "enteros", "geometria", "volumen", "hora", "potencias", "ecuaciones", "trigonometria", "funciones", "estadistica", "estimacion", "series"]
 }
 
 fn tema_valido(c: Str) -> Bool {
@@ -49,6 +49,11 @@ fn tema_emoji(c: Str) -> Str {
         "hora" => "🕒",
         "potencias" => "🔷",
         "ecuaciones" => "🟰",
+        "trigonometria" => "🔺",
+        "funciones" => "📈",
+        "estadistica" => "📊",
+        "estimacion" => "🎯",
+        "series" => "🔁",
         _ => "📘",
     }
 }
@@ -68,6 +73,11 @@ fn tema_min_grade(c: Str) -> Int {
         "hora" => 2,
         "potencias" => 8,
         "ecuaciones" => 8,
+        "trigonometria" => 10,
+        "funciones" => 11,
+        "estadistica" => 6,
+        "estimacion" => 3,
+        "series" => 1,
         _ => 1,
     }
 }
@@ -87,6 +97,11 @@ fn tema_route(c: Str) -> Str {
         "hora" => "/hora",
         "potencias" => "/potencias",
         "ecuaciones" => "/ecuaciones",
+        "trigonometria" => "/trigonometria",
+        "funciones" => "/funciones",
+        "estadistica" => "/estadistica",
+        "estimacion" => "/estimar",
+        "series" => "/series",
         _ => "/juegos",
     }
 }
@@ -102,6 +117,8 @@ fn tema_truco(c: Str) -> Str {
         "enteros" => "signos",
         "potencias" => "potencias",
         "ecuaciones" => "despejar",
+        "trigonometria" => "sohcahtoa",
+        "estimacion" => "redondear",
         _ => "",
     }
 }
@@ -118,6 +135,11 @@ fn tema_uso_emojis(c: Str) -> List<Str> {
         "hora" => ["🕒", "🚌", "⏰"],
         "potencias" => ["🔬", "💻", "📈"],
         "ecuaciones" => ["⚖️", "🧩", "🔎"],
+        "trigonometria" => ["📐", "🪜", "🗺️"],
+        "funciones" => ["📈", "🌡️", "💵"],
+        "estadistica" => ["📊", "⚽", "🌦️"],
+        "estimacion" => ["🎯", "🛒", "⏱️"],
+        "series" => ["🔁", "🎵", "🐚"],
         _ => ["🛒", "⏱️", "🎮"],
     }
 }
@@ -137,6 +159,11 @@ fn metodos_de(c: Str) -> List<Str> {
         "hora" => ["aguja", "en_punto", "cuartos", "digital"],
         "potencias" => ["que_es", "cuadrado", "raiz", "reglas"],
         "ecuaciones" => ["balanza", "despejar", "inversas", "cuadratica"],
+        "trigonometria" => ["pitagoras", "razones", "terna", "angulos"],
+        "funciones" => ["que_es", "evaluar", "lineal", "grafico"],
+        "estadistica" => ["promedio", "mediana", "moda", "rango"],
+        "estimacion" => ["redondeo", "suma_est", "producto_est", "razonable"],
+        "series" => ["sumar_fijo", "multiplicar", "figuras", "especiales"],
         _ => [],
     }
 }
@@ -260,6 +287,63 @@ fn metodo_destacado(tema: Str, grade: Int) -> Str {
             return "inversas"
         }
         return "cuadratica"
+    }
+    if (tema == "trigonometria") {
+        if (grade <= 10) {
+            return "pitagoras"
+        }
+        if (grade == 11) {
+            return "terna"
+        }
+        if (grade == 12) {
+            return "razones"
+        }
+        return "angulos"
+    }
+    if (tema == "funciones") {
+        if (grade <= 11) {
+            return "que_es"
+        }
+        if (grade == 12) {
+            return "evaluar"
+        }
+        return "lineal"
+    }
+    if (tema == "estadistica") {
+        if (grade <= 6) {
+            return "promedio"
+        }
+        if (grade == 7) {
+            return "mediana"
+        }
+        if (grade <= 8) {
+            return "moda"
+        }
+        return "rango"
+    }
+    if (tema == "estimacion") {
+        if (grade <= 3) {
+            return "redondeo"
+        }
+        if (grade == 4) {
+            return "suma_est"
+        }
+        if (grade <= 5) {
+            return "producto_est"
+        }
+        return "razonable"
+    }
+    if (tema == "series") {
+        if (grade <= 2) {
+            return "sumar_fijo"
+        }
+        if (grade <= 4) {
+            return "multiplicar"
+        }
+        if (grade <= 6) {
+            return "figuras"
+        }
+        return "especiales"
     }
     return ""
 }
@@ -950,6 +1034,260 @@ fn svg_ec_cuadratica() -> Str {
 </svg>""").raw
 }
 
+// --- Trigonometría ------------------------------------------------------------
+
+// Pitágoras: triángulo rectángulo 3-4-5.
+fn svg_trig_pitagoras() -> Str {
+    return html("""<svg viewBox="0 0 260 210" class="ap-svg" role="img" aria-label="teorema de pitagoras 3 4 5">
+<polygon points="50,150 210,150 50,40" class="tk-tri" />
+<rect x="50" y="130" width="20" height="20" class="tk-tri-ra" />
+<text x="36" y="98" class="tk-tri-lbl">3</text>
+<text x="130" y="172" class="tk-tri-lbl">4</text>
+<text x="138" y="88" class="tk-tri-lbl">5</text>
+<text x="130" y="200" class="tk-eq strong">3² + 4² = 5²</text>
+</svg>""").raw
+}
+
+// Razones: seno, coseno, tangente (a=opuesto, b=adyacente, c=hipotenusa).
+fn svg_trig_razones() -> Str {
+    return html("""<svg viewBox="0 0 260 190" class="ap-svg" role="img" aria-label="seno coseno tangente">
+<polygon points="45,160 230,160 45,45" class="tk-tri" />
+<rect x="45" y="140" width="20" height="20" class="tk-tri-ra" />
+<path d="M 205 160 A 30 30 0 0 0 192 135" class="tk-arc" />
+<text x="186" y="152" class="tk-tri-th">θ</text>
+<text x="30" y="105" class="tk-tri-lbl">a</text>
+<text x="140" y="182" class="tk-tri-lbl">b</text>
+<text x="150" y="98" class="tk-tri-lbl">c</text>
+</svg>""").raw
+}
+
+// Terna 6-8-10 (el doble de 3-4-5).
+fn svg_trig_terna() -> Str {
+    return html("""<svg viewBox="0 0 260 210" class="ap-svg" role="img" aria-label="terna 6 8 10">
+<polygon points="50,150 210,150 50,40" class="tk-tri" />
+<rect x="50" y="130" width="20" height="20" class="tk-tri-ra" />
+<text x="34" y="98" class="tk-tri-lbl">6</text>
+<text x="128" y="172" class="tk-tri-lbl">8</text>
+<text x="136" y="88" class="tk-tri-lbl">10</text>
+<text x="130" y="200" class="tk-eq strong">3-4-5 × 2</text>
+</svg>""").raw
+}
+
+// Ángulos especiales.
+fn svg_trig_angulos() -> Str {
+    return html("""<svg viewBox="0 0 280 150" class="ap-svg" role="img" aria-label="angulos especiales">
+<text x="140" y="34" class="tk-eq">sen 30° = 1/2</text>
+<text x="140" y="76" class="tk-eq">sen 45° ≈ 0,71</text>
+<line x1="30" y1="92" x2="250" y2="92" class="tk-arrow-line" />
+<text x="140" y="128" class="tk-eq strong">sen 60° ≈ 0,87</text>
+</svg>""").raw
+}
+
+// --- Funciones ----------------------------------------------------------------
+
+// La máquina: entra x, sale y.
+fn svg_func_que_es() -> Str {
+    return html("""<svg viewBox="0 0 300 120" class="ap-svg" role="img" aria-label="funcion como maquina">
+<text x="24" y="74" class="tk-eq">x</text>
+<line x1="42" y1="66" x2="95" y2="66" class="tk-arrow-line" />
+<polygon points="100,66 90,61 90,71" class="rn-arrow" />
+<rect x="105" y="40" width="90" height="52" rx="10" class="ap-box" />
+<text x="150" y="76" class="tk-eq strong">f</text>
+<line x1="200" y1="66" x2="253" y2="66" class="tk-arrow-line" />
+<polygon points="258,66 248,61 248,71" class="rn-arrow" />
+<text x="276" y="74" class="tk-eq">y</text>
+</svg>""").raw
+}
+
+// Evaluar f(x): reemplazar la x.
+fn svg_func_evaluar() -> Str {
+    return html("""<svg viewBox="0 0 300 128" class="ap-svg" role="img" aria-label="evaluar f de x">
+<text x="150" y="30" class="tk-eq">f(x) = 2x + 1</text>
+<text x="150" y="66" class="tk-eq">f(4) = 2 × 4 + 1</text>
+<line x1="30" y1="82" x2="270" y2="82" class="tk-arrow-line" />
+<text x="150" y="114" class="tk-eq strong">= 9</text>
+</svg>""").raw
+}
+
+// Función lineal: una recta sobre los ejes.
+fn svg_func_lineal() -> Str {
+    return html("""<svg viewBox="0 0 220 180" class="ap-svg" role="img" aria-label="funcion lineal">
+<line x1="30" y1="150" x2="205" y2="150" class="rn-axis" />
+<polygon points="205,150 197,145 197,155" class="rn-arrow" />
+<line x1="40" y1="165" x2="40" y2="18" class="rn-axis" />
+<polygon points="40,18 35,26 45,26" class="rn-arrow" />
+<line x1="40" y1="150" x2="185" y2="40" class="ap-fnline" />
+<circle cx="88" cy="114" r="4" class="ap-mark" />
+<circle cx="136" cy="78" r="4" class="ap-mark" />
+</svg>""").raw
+}
+
+// Leer un gráfico: el punto (3, 8).
+fn svg_func_grafico() -> Str {
+    return html("""<svg viewBox="0 0 220 180" class="ap-svg" role="img" aria-label="leer un grafico">
+<line x1="30" y1="150" x2="205" y2="150" class="rn-axis" />
+<polygon points="205,150 197,145 197,155" class="rn-arrow" />
+<line x1="40" y1="165" x2="40" y2="18" class="rn-axis" />
+<polygon points="40,18 35,26 45,26" class="rn-arrow" />
+<line x1="130" y1="150" x2="130" y2="60" class="ap-shape-dash" />
+<line x1="40" y1="60" x2="130" y2="60" class="ap-shape-dash" />
+<circle cx="130" cy="60" r="6" class="ap-mark end" />
+<text x="130" y="168" class="rn-lbl">3</text>
+<text x="28" y="64" class="rn-lbl">8</text>
+</svg>""").raw
+}
+
+// --- Estadística --------------------------------------------------------------
+
+// Promedio: barras (6, 8, 10) y la línea del promedio (8).
+fn svg_est_promedio() -> Str {
+    return html("""<svg viewBox="0 0 260 150" class="ap-svg" role="img" aria-label="promedio">
+<rect x="40" y="72" width="40" height="48" class="ap-shape-3" />
+<rect x="100" y="56" width="40" height="64" class="ap-shape-3" />
+<rect x="160" y="40" width="40" height="80" class="ap-shape-3" />
+<line x1="24" y1="56" x2="224" y2="56" class="ap-shape-dash" />
+<text x="240" y="60" class="tk-eq strong">8</text>
+<text x="120" y="142" class="ap-cap">6 · 8 · 10</text>
+</svg>""").raw
+}
+
+// Mediana: el valor del medio.
+fn svg_est_mediana() -> Str {
+    return html("""<svg viewBox="0 0 260 100" class="ap-svg" role="img" aria-label="mediana">
+<text x="60" y="52" class="tk-eq">2</text>
+<text x="130" y="52" class="tk-eq strong">5</text>
+<text x="200" y="52" class="tk-eq">9</text>
+<text x="130" y="84" class="ap-jump-lbl">▲</text>
+</svg>""").raw
+}
+
+// Moda: el que más se repite (los dos 3 resaltados).
+fn svg_est_moda() -> Str {
+    return html("""<svg viewBox="0 0 280 90" class="ap-svg" role="img" aria-label="moda">
+<text x="50" y="52" class="tk-eq strong">3</text>
+<text x="110" y="52" class="tk-eq strong">3</text>
+<text x="170" y="52" class="tk-eq">5</text>
+<text x="230" y="52" class="tk-eq">7</text>
+</svg>""").raw
+}
+
+// Rango: del menor al mayor.
+fn svg_est_rango() -> Str {
+    return html("""<svg viewBox="0 0 280 110" class="ap-svg" role="img" aria-label="rango">
+<text x="140" y="38" class="tk-eq">de 4 a 10</text>
+<line x1="30" y1="54" x2="250" y2="54" class="tk-arrow-line" />
+<text x="140" y="90" class="tk-eq strong">10 − 4 = 6</text>
+</svg>""").raw
+}
+
+// --- Estimación ---------------------------------------------------------------
+
+// Redondear: recta 40..50, 48 se va al 50.
+fn svg_estim_redondeo() -> Str {
+    let ticks = ""
+    let labels = ""
+    let n = 40
+    while (n <= 50) {
+        let x = 20 + (n - 40) * 28
+        ticks = ticks + html("""<line x1="{x}" y1="54" x2="{x}" y2="70" class="rn-tick" />""").raw
+        labels = labels + html("""<text x="{x}" y="88" class="rn-lbl">{n}</text>""").raw
+        n = n + 1
+    }
+    return html("""<svg viewBox="0 0 320 100" class="ap-svg" role="img" aria-label="redondear 48 a 50">
+<line x1="14" y1="62" x2="306" y2="62" class="rn-axis" />
+<polygon points="306,62 298,57 298,67" class="rn-arrow" />
+{ticks}
+{labels}
+<path d="M 244 56 Q 268 20 292 56" class="ap-jump" />
+<text x="268" y="24" class="ap-jump-lbl">→ 50</text>
+<circle cx="244" cy="62" r="5" class="ap-mark" />
+<circle cx="292" cy="62" r="6" class="ap-mark end" />
+</svg>""").raw
+}
+
+// Estimar una suma redondeando.
+fn svg_estim_suma() -> Str {
+    return html("""<svg viewBox="0 0 300 130" class="ap-svg" role="img" aria-label="estimar una suma">
+<text x="150" y="32" class="tk-eq">48 ≈ 50</text>
+<text x="150" y="62" class="tk-eq">37 ≈ 40</text>
+<line x1="40" y1="76" x2="260" y2="76" class="tk-arrow-line" />
+<text x="150" y="112" class="tk-eq strong">≈ 90</text>
+</svg>""").raw
+}
+
+// Estimar un producto.
+fn svg_estim_producto() -> Str {
+    return html("""<svg viewBox="0 0 300 128" class="ap-svg" role="img" aria-label="estimar un producto">
+<text x="150" y="30" class="tk-eq">19 × 21</text>
+<text x="150" y="66" class="tk-eq">≈ 20 × 20</text>
+<line x1="30" y1="82" x2="270" y2="82" class="tk-arrow-line" />
+<text x="150" y="114" class="tk-eq strong">= 400</text>
+</svg>""").raw
+}
+
+// ¿Es razonable? Chequear con la estimación.
+fn svg_estim_razonable() -> Str {
+    return html("""<svg viewBox="0 0 300 128" class="ap-svg" role="img" aria-label="es razonable">
+<text x="150" y="34" class="tk-eq">48 + 37 = 175 <tspan class="tk-neg">✗</tspan></text>
+<line x1="30" y1="52" x2="270" y2="52" class="tk-arrow-line" />
+<text x="150" y="90" class="tk-eq strong">≈ 90 <tspan class="tk-pos">✓</tspan></text>
+</svg>""").raw
+}
+
+// --- Series -------------------------------------------------------------------
+
+// Sumar siempre lo mismo: 2, 4, 6, 8, ? (+2).
+fn svg_ser_sumar() -> Str {
+    return html("""<svg viewBox="0 0 320 110" class="ap-svg" role="img" aria-label="serie sumando 2">
+<text x="30" y="66" class="tk-eq">2</text>
+<text x="95" y="66" class="tk-eq">4</text>
+<text x="160" y="66" class="tk-eq">6</text>
+<text x="225" y="66" class="tk-eq">8</text>
+<text x="292" y="66" class="tk-eq strong">?</text>
+<path d="M 40 50 Q 62 28 85 50" class="tk-arc" />
+<path d="M 105 50 Q 127 28 150 50" class="tk-arc" />
+<path d="M 170 50 Q 192 28 215 50" class="tk-arc" />
+<path d="M 235 50 Q 258 28 282 50" class="tk-arc" />
+<text x="62" y="24" class="ap-jump-lbl">+2</text>
+</svg>""").raw
+}
+
+// Multiplicar siempre por lo mismo: 2, 4, 8, 16, ? (×2).
+fn svg_ser_multiplicar() -> Str {
+    return html("""<svg viewBox="0 0 320 110" class="ap-svg" role="img" aria-label="serie multiplicando por 2">
+<text x="28" y="66" class="tk-eq">2</text>
+<text x="90" y="66" class="tk-eq">4</text>
+<text x="152" y="66" class="tk-eq">8</text>
+<text x="214" y="66" class="tk-eq">16</text>
+<text x="292" y="66" class="tk-eq strong">?</text>
+<path d="M 38 50 Q 60 28 82 50" class="tk-arc" />
+<path d="M 100 50 Q 122 28 144 50" class="tk-arc" />
+<path d="M 162 50 Q 186 28 210 50" class="tk-arc" />
+<path d="M 226 50 Q 252 28 282 50" class="tk-arc" />
+<text x="60" y="24" class="ap-jump-lbl">×2</text>
+</svg>""").raw
+}
+
+// Patrones con figuras: triángulo, círculo, triángulo, círculo, ?
+fn svg_ser_figuras() -> Str {
+    return html("""<svg viewBox="0 0 320 96" class="ap-svg" role="img" aria-label="patron de figuras">
+<polygon points="20,64 52,64 36,32" class="tk-tri" />
+<circle cx="106" cy="50" r="16" class="ap-dot a" />
+<polygon points="150,64 182,64 166,32" class="tk-tri" />
+<circle cx="236" cy="50" r="16" class="ap-dot a" />
+<text x="292" y="60" class="tk-eq strong">?</text>
+</svg>""").raw
+}
+
+// Series famosas: Fibonacci.
+fn svg_ser_especiales() -> Str {
+    return html("""<svg viewBox="0 0 300 128" class="ap-svg" role="img" aria-label="serie de fibonacci">
+<text x="150" y="34" class="tk-eq">1, 1, 2, 3, 5, 8, ?</text>
+<line x1="30" y1="52" x2="270" y2="52" class="tk-arrow-line" />
+<text x="150" y="92" class="tk-eq strong">5 + 8 = 13</text>
+</svg>""").raw
+}
+
 fn metodo_svg(tema: Str, metodo: Str) -> Str {
     if (tema == "suma") {
         return match metodo {
@@ -1059,6 +1397,51 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
             "despejar" => svg_ec_despejar(),
             "inversas" => svg_ec_inversas(),
             "cuadratica" => svg_ec_cuadratica(),
+            _ => "",
+        }
+    }
+    if (tema == "trigonometria") {
+        return match metodo {
+            "pitagoras" => svg_trig_pitagoras(),
+            "razones" => svg_trig_razones(),
+            "terna" => svg_trig_terna(),
+            "angulos" => svg_trig_angulos(),
+            _ => "",
+        }
+    }
+    if (tema == "funciones") {
+        return match metodo {
+            "que_es" => svg_func_que_es(),
+            "evaluar" => svg_func_evaluar(),
+            "lineal" => svg_func_lineal(),
+            "grafico" => svg_func_grafico(),
+            _ => "",
+        }
+    }
+    if (tema == "estadistica") {
+        return match metodo {
+            "promedio" => svg_est_promedio(),
+            "mediana" => svg_est_mediana(),
+            "moda" => svg_est_moda(),
+            "rango" => svg_est_rango(),
+            _ => "",
+        }
+    }
+    if (tema == "estimacion") {
+        return match metodo {
+            "redondeo" => svg_estim_redondeo(),
+            "suma_est" => svg_estim_suma(),
+            "producto_est" => svg_estim_producto(),
+            "razonable" => svg_estim_razonable(),
+            _ => "",
+        }
+    }
+    if (tema == "series") {
+        return match metodo {
+            "sumar_fijo" => svg_ser_sumar(),
+            "multiplicar" => svg_ser_multiplicar(),
+            "figuras" => svg_ser_figuras(),
+            "especiales" => svg_ser_especiales(),
             _ => "",
         }
     }
