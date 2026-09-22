@@ -69,6 +69,21 @@ Product / ship it (deploy a dominio + HTTPS, PWA offline pulida, landing page).
   existían pero el panel nunca leía. Muestra dónde el chico es certero vs dónde
   falla (el rating Elo no lo dice directo). Verificado en browser.
 
+### 🛠️ Admin / operación (pedido del autor 2026-09-22, hacer al terminar la tanda de "Aprendé")
+
+- [ ] **Email al registrarse.** Cuando una familia nueva se registra (`registro_post`
+  en `src/auth.fitz`), enviar un aviso a **palopoli.martin@gmail.com** con quién se
+  registró (email + nombre de familia + fecha). Reusa el `smtp.send` del core que ya usa
+  el reporte semanal (`reporte.fitz` + config SMTP/Resend); best-effort (no romper el
+  registro si el mail falla), probablemente con `spawn(...)` para no bloquear la
+  respuesta. Requiere `SMTP_*` configurado (infra ya existe).
+- [ ] **Área de administración.** Panel para el dueño de la app (distinta de la zona
+  familia) con métricas generales: registros totales, familias/perfiles nuevos por día,
+  actividad, juegos más jugados. Gate por rol/PIN de admin global (ya hay patrón
+  `admin_pin` en `familia.fitz` + migración 0020). Empezar por tabla de últimos registros
+  + contadores; después gráficos (reusa StatCard/BarChart de la companion UI, ya usada en
+  el panel del padre).
+
 ### ✅ Calidad
 
 - [x] **Ampliar el harness E2E** ✅ 2026-08-28. 4 tests nuevos con asserts en

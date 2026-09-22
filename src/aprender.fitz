@@ -169,11 +169,11 @@ fn metodos_de(c: Str) -> List<Str> {
         "geometria" => ["perimetro", "area_rect", "area_tri", "circulo", "compuesta"],
         "volumen" => ["cubos", "prisma", "cilindro", "capacidad"],
         "hora" => ["aguja", "en_punto", "cuartos", "digital", "duracion"],
-        "potencias" => ["que_es", "cuadrado", "raiz", "reglas"],
-        "ecuaciones" => ["balanza", "despejar", "inversas", "cuadratica"],
-        "trigonometria" => ["pitagoras", "razones", "terna", "angulos"],
-        "funciones" => ["que_es", "evaluar", "lineal", "grafico"],
-        "estadistica" => ["promedio", "mediana", "moda", "rango"],
+        "potencias" => ["que_es", "cuadrado", "raiz", "reglas", "diez"],
+        "ecuaciones" => ["balanza", "despejar", "inversas", "dos_pasos", "cuadratica"],
+        "trigonometria" => ["pitagoras", "razones", "terna", "angulos", "aplicacion"],
+        "funciones" => ["que_es", "evaluar", "tabla", "lineal", "grafico"],
+        "estadistica" => ["promedio", "mediana", "moda", "rango", "grafico"],
         "estimacion" => ["redondeo", "suma_est", "producto_est", "razonable"],
         "series" => ["sumar_fijo", "multiplicar", "figuras", "especiales"],
         "problemas" => ["entender", "datos", "operacion", "verificar"],
@@ -1193,9 +1193,9 @@ fn svg_func_grafico() -> Str {
 // Promedio: barras (6, 8, 10) y la línea del promedio (8).
 fn svg_est_promedio() -> Str {
     return html("""<svg viewBox="0 0 260 150" class="ap-svg" role="img" aria-label="promedio">
-<rect x="40" y="72" width="40" height="48" class="ap-shape-3" />
-<rect x="100" y="56" width="40" height="64" class="ap-shape-3" />
-<rect x="160" y="40" width="40" height="80" class="ap-shape-3" />
+<rect x="40" y="72" width="40" height="48" class="ap-bar" />
+<rect x="100" y="56" width="40" height="64" class="ap-bar" />
+<rect x="160" y="40" width="40" height="80" class="ap-bar" />
 <line x1="24" y1="56" x2="224" y2="56" class="ap-shape-dash" />
 <text x="240" y="60" class="tk-eq strong">8</text>
 <text x="120" y="142" class="ap-cap">6 · 8 · 10</text>
@@ -1664,6 +1664,68 @@ fn svg_hora_duracion() -> Str {
 </svg>""").raw
 }
 
+// Potencias de 10 y notación científica.
+fn svg_pot_diez() -> Str {
+    return html("""<svg viewBox="0 0 300 160" class="ap-svg" role="img" aria-label="potencias de 10">
+<text x="150" y="34" class="tk-eq">10² = 100</text>
+<text x="150" y="72" class="tk-eq">10³ = 1000</text>
+<line x1="30" y1="90" x2="270" y2="90" class="tk-arrow-line" />
+<text x="150" y="124" class="tk-eq strong">30000 = 3 × 10⁴</text>
+</svg>""").raw
+}
+
+// Ecuación de dos pasos: 2x + 3 = 11.
+fn svg_ec_dos_pasos() -> Str {
+    return html("""<svg viewBox="0 0 300 160" class="ap-svg" role="img" aria-label="ecuacion de dos pasos">
+<text x="150" y="34" class="tk-eq">2x + 3 = 11</text>
+<text x="150" y="72" class="tk-eq">2x = 11 − 3 = 8</text>
+<line x1="30" y1="90" x2="270" y2="90" class="tk-arrow-line" />
+<text x="150" y="124" class="tk-eq strong">x = 8 ÷ 2 = 4</text>
+</svg>""").raw
+}
+
+// Tabla de valores de f(x) = 2x + 1.
+fn svg_func_tabla() -> Str {
+    return html("""<svg viewBox="0 0 180 170" class="ap-svg" role="img" aria-label="tabla de valores">
+<rect x="40" y="20" width="100" height="130" class="ap-fbar" />
+<line x1="90" y1="20" x2="90" y2="150" class="ap-fdiv" />
+<line x1="40" y1="52" x2="140" y2="52" class="ap-fdiv" />
+<text x="65" y="44" class="tk-eq">x</text>
+<text x="115" y="44" class="tk-eq">y</text>
+<text x="65" y="80" class="tk-eq">1</text><text x="115" y="80" class="tk-eq strong">3</text>
+<text x="65" y="110" class="tk-eq">2</text><text x="115" y="110" class="tk-eq strong">5</text>
+<text x="65" y="140" class="tk-eq">3</text><text x="115" y="140" class="tk-eq strong">7</text>
+</svg>""").raw
+}
+
+// Leer un gráfico de barras (barras crecen con .ap-bar).
+fn svg_est_grafico() -> Str {
+    return html("""<svg viewBox="0 0 260 150" class="ap-svg" role="img" aria-label="grafico de barras">
+<rect x="40" y="66" width="36" height="54" class="ap-bar" />
+<rect x="92" y="30" width="36" height="90" class="ap-bar" />
+<rect x="144" y="84" width="36" height="36" class="ap-bar" />
+<rect x="196" y="48" width="36" height="72" class="ap-bar" />
+<line x1="20" y1="120" x2="244" y2="120" class="rn-axis" />
+<text x="58" y="140" class="rn-lbl">L</text>
+<text x="110" y="140" class="rn-lbl">M</text>
+<text x="162" y="140" class="rn-lbl">X</text>
+<text x="214" y="140" class="rn-lbl">J</text>
+</svg>""").raw
+}
+
+// Aplicación real: la altura de un árbol por su sombra.
+fn svg_trig_aplicacion() -> Str {
+    return html("""<svg viewBox="0 0 260 210" class="ap-svg" role="img" aria-label="altura por la sombra">
+<polygon points="50,160 50,40 210,160" class="tk-tri" />
+<rect x="50" y="140" width="20" height="20" class="tk-tri-ra" />
+<path d="M 186 160 A 26 26 0 0 0 197 139" class="tk-arc" />
+<text x="180" y="152" class="tk-tri-th">θ</text>
+<text x="36" y="104" class="tk-tri-lbl">h</text>
+<text x="130" y="182" class="tk-tri-lbl">s</text>
+<text x="130" y="202" class="tk-eq strong">h = s · tan θ</text>
+</svg>""").raw
+}
+
 fn metodo_svg(tema: Str, metodo: Str) -> Str {
     if (tema == "suma") {
         return match metodo {
@@ -1774,6 +1836,7 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
             "cuadrado" => svg_pot_cuadrado(),
             "raiz" => svg_pot_raiz(),
             "reglas" => svg_pot_reglas(),
+            "diez" => svg_pot_diez(),
             _ => "",
         }
     }
@@ -1782,6 +1845,7 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
             "balanza" => svg_ec_balanza(),
             "despejar" => svg_ec_despejar(),
             "inversas" => svg_ec_inversas(),
+            "dos_pasos" => svg_ec_dos_pasos(),
             "cuadratica" => svg_ec_cuadratica(),
             _ => "",
         }
@@ -1792,6 +1856,7 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
             "razones" => svg_trig_razones(),
             "terna" => svg_trig_terna(),
             "angulos" => svg_trig_angulos(),
+            "aplicacion" => svg_trig_aplicacion(),
             _ => "",
         }
     }
@@ -1799,6 +1864,7 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
         return match metodo {
             "que_es" => svg_func_que_es(),
             "evaluar" => svg_func_evaluar(),
+            "tabla" => svg_func_tabla(),
             "lineal" => svg_func_lineal(),
             "grafico" => svg_func_grafico(),
             _ => "",
@@ -1810,6 +1876,7 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
             "mediana" => svg_est_mediana(),
             "moda" => svg_est_moda(),
             "rango" => svg_est_rango(),
+            "grafico" => svg_est_grafico(),
             _ => "",
         }
     }
