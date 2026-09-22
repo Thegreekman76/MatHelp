@@ -790,6 +790,16 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .clk-min \{ stroke:var(--mh-naranja); stroke-width:3; stroke-linecap:round; \}
 .clk-center \{ fill:var(--mh-tinta); \}
 .ap-fnline \{ fill:none; stroke:var(--mh-verde); stroke-width:3; stroke-linecap:round; \}
+/* Animaciones de Aprendé (el @media prefers-reduced-motion global de arriba las apaga) */
+@keyframes ap-draw \{ from \{ stroke-dashoffset:240 \} to \{ stroke-dashoffset:0 \} \}
+@keyframes ap-pop \{ from \{ transform:scale(0); opacity:0 \} to \{ transform:scale(1); opacity:1 \} \}
+@keyframes ap-grow-x \{ from \{ transform:scaleX(0) \} to \{ transform:scaleX(1) \} \}
+@keyframes ap-fade \{ from \{ opacity:0 \} to \{ opacity:1 \} \}
+.ap-jump \{ stroke-dasharray:240; animation:ap-draw 1s ease-out both; \}
+.ap-mark.end \{ transform-box:fill-box; transform-origin:center; animation:ap-pop .4s ease-out .9s both; \}
+.ap-jump-lbl \{ animation:ap-fade .5s ease-out 1s both; \}
+.ap-dot \{ transform-box:fill-box; transform-origin:center; animation:ap-pop .5s ease-out both; \}
+.ap-fseg.on, .ap-fseg.hi \{ transform-box:fill-box; transform-origin:left center; animation:ap-grow-x .8s ease-out both; \}
 /* Repasá tus errores */
 .mh-errores \{ text-align:center; \}
 .mh-err-sub \{ color:var(--mh-suave); font-size:.9rem; margin:.1rem 0 1rem; \}
