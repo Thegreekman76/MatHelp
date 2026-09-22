@@ -734,6 +734,42 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .tk-tri-ra \{ fill:none; stroke:var(--mh-suave); stroke-width:1.5; \}
 .tk-tri-th \{ fill:var(--mh-naranja); font-size:16px; font-weight:900; text-anchor:middle; \}
 .tk-tri-lbl \{ fill:var(--mh-tinta); font-size:17px; font-weight:900; text-anchor:middle; \}
+/* Aprendé (sección educativa: usos, métodos, historia) */
+.ap-ficha h3.ap-h \{ font-size:.82rem; text-transform:uppercase; letter-spacing:.04em; color:var(--mh-suave); margin:1.1rem 0 .5rem; \}
+.ap-usos \{ list-style:none; padding:0; margin:.2rem 0 .4rem; display:flex; flex-direction:column; gap:.55rem; \}
+.ap-usos li \{ display:flex; align-items:flex-start; gap:.6rem; line-height:1.45; color:var(--mh-tinta); \}
+.ap-uso-em \{ font-size:1.4rem; line-height:1.2; flex:0 0 auto; \}
+.ap-metodos \{ display:flex; flex-direction:column; gap:.6rem; \}
+.ap-metodo \{ border:2px solid var(--mh-borde); border-radius:14px; background:var(--mh-panel); overflow:hidden; \}
+.ap-metodo[open] \{ border-color:var(--mh-verde-claro); \}
+.ap-metodo-sum \{ display:flex; align-items:center; justify-content:space-between; gap:.6rem; padding:.75rem 1rem; font-weight:800; color:var(--mh-tinta); cursor:pointer; list-style:none; min-height:var(--mh-tap); \}
+.ap-metodo-sum::-webkit-details-marker \{ display:none; \}
+.ap-metodo-sum::after \{ content:"▾"; color:var(--mh-suave); font-size:1rem; flex:0 0 auto; transition:transform .15s ease; \}
+.ap-metodo[open] .ap-metodo-sum::after \{ transform:rotate(180deg); \}
+.ap-metodo-tit \{ flex:1 1 auto; \}
+.ap-badge \{ flex:0 0 auto; font-size:.64rem; font-weight:800; text-transform:uppercase; letter-spacing:.03em; color:#fff; background:var(--mh-verde); border-radius:999px; padding:.18em .6em; white-space:nowrap; \}
+.ap-metodo-body \{ padding:0 1rem 1rem; \}
+.ap-fig \{ display:flex; justify-content:center; margin:.2rem 0 .7rem; padding:.6rem; background:var(--mh-verde-suave); border-radius:12px; \}
+.ap-svg \{ width:min(90vw, 320px); height:auto; \}
+.ap-pasos \{ margin:.2rem 0 .8rem; padding-left:1.3rem; display:flex; flex-direction:column; gap:.4rem; \}
+.ap-pasos li \{ line-height:1.45; color:var(--mh-tinta); \}
+.ap-ej \{ background:var(--mh-crema); border:1px solid var(--mh-borde); border-radius:12px; padding:.55rem .8rem; \}
+.ap-ej-lbl \{ display:block; font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--mh-suave); font-weight:800; margin-bottom:.15rem; \}
+.ap-ej-txt \{ font-weight:800; font-size:1.05rem; color:var(--mh-tinta); \}
+.ap-historia \{ display:flex; gap:.55rem; align-items:flex-start; color:var(--mh-tinta); line-height:1.5; background:var(--mh-crema); border-radius:12px; padding:.7rem .8rem; margin:.2rem 0 1rem; \}
+.ap-hist-em \{ font-size:1.4rem; line-height:1.2; flex:0 0 auto; \}
+.ap-dot \{ stroke-width:2.5; \}
+.ap-dot.a \{ fill:var(--mh-verde-claro); stroke:var(--mh-verde); \}
+.ap-dot.b \{ fill:var(--mh-amarillo); stroke:var(--mh-naranja); \}
+.ap-cap \{ fill:var(--mh-suave); font-size:14px; font-weight:800; text-anchor:middle; \}
+.ap-jump \{ fill:none; stroke:var(--mh-naranja); stroke-width:2.5; \}
+.ap-jump-lbl \{ fill:var(--mh-naranja); font-size:15px; font-weight:900; text-anchor:middle; \}
+.ap-mark \{ fill:var(--mh-verde); \}
+.ap-mark.end \{ fill:var(--mh-naranja); \}
+.ap-col \{ fill:var(--mh-tinta); font-size:30px; font-weight:900; text-anchor:end; font-variant-numeric:tabular-nums; \}
+.ap-col.strong \{ fill:var(--mh-verde); \}
+.ap-carry \{ fill:var(--mh-naranja); font-size:16px; font-weight:900; text-anchor:middle; \}
+.ap-col-line \{ stroke:var(--mh-tinta); stroke-width:2.5; \}
 /* Repasá tus errores */
 .mh-errores \{ text-align:center; \}
 .mh-err-sub \{ color:var(--mh-suave); font-size:.9rem; margin:.1rem 0 1rem; \}

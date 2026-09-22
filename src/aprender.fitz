@@ -1,0 +1,290 @@
+// aprender.fitz — sección "Aprendé": enseña cada cálculo desde los fundamentos.
+//
+// Complementa a /trucos (atajos rápidos): acá se explica QUÉ es cada operación,
+// PARA QUÉ sirve en la vida real, un poco de HISTORIA, y VARIOS MÉTODOS para
+// resolverla, del más simple al más avanzado. Todos los métodos quedan visibles;
+// el recomendado para el grado del perfil aparece abierto por default (el resto
+// colapsados con <details>, HTML nativo, sin JS). Páginas F0 estáticas, mismo
+// molde que trucos.fitz.
+//
+// Prototipo: solo "suma". Los demás temas se agregan replicando este patrón
+// (una entrada en temas() + su emoji/ruta/métodos + los SVG + las claves i18n).
+//
+// Reglas del proyecto (i18n.fitz): los textos van por t(locale, ...); los números
+// de los SVG son rótulos de gráfico, literales (igual que recta_svg / trucos).
+
+from fitz_liveviews import Html, html, flv, h_join
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from live_game import resolver_contexto
+
+// --- Catálogo de temas --------------------------------------------------------
+
+// Todos los temas de "Aprendé", ordenados por grado. La grilla filtra por el
+// grado del perfil (tema_min_grade <= grade), igual que /trucos y el menú.
+fn temas() -> List<Str> {
+    return ["suma"]
+}
+
+fn tema_valido(c: Str) -> Bool {
+    for x in temas() {
+        if (x == c) {
+            return true
+        }
+    }
+    return false
+}
+
+fn tema_emoji(c: Str) -> Str {
+    return match c {
+        "suma" => "➕",
+        _ => "📘",
+    }
+}
+
+// Grado a partir del cual el tema aparece en la grilla.
+fn tema_min_grade(c: Str) -> Int {
+    return match c {
+        "suma" => 1,
+        _ => 1,
+    }
+}
+
+// El juego que practica el tema (respeta las rutas existentes).
+fn tema_route(c: Str) -> Str {
+    return match c {
+        "suma" => "/jugar",
+        _ => "/juegos",
+    }
+}
+
+// Truco relacionado en /trucos (cross-link), "" si no hay.
+fn tema_truco(c: Str) -> Str {
+    return match c {
+        "suma" => "amigos10",
+        _ => "",
+    }
+}
+
+// Los métodos de cada tema, del más simple al más avanzado.
+fn metodos_de(c: Str) -> List<Str> {
+    return match c {
+        "suma" => ["objetos", "recta", "descomp", "columna", "mental"],
+        _ => [],
+    }
+}
+
+// El método recomendado según el grado (se abre por default; los otros quedan
+// colapsados pero visibles).
+fn metodo_destacado(tema: Str, grade: Int) -> Str {
+    if (tema == "suma") {
+        if (grade <= 1) {
+            return "objetos"
+        }
+        if (grade == 2) {
+            return "descomp"
+        }
+        if (grade <= 4) {
+            return "columna"
+        }
+        return "mental"
+    }
+    return ""
+}
+
+// --- Ilustraciones SVG (números = rótulos de gráfico, literales) --------------
+
+// Contar objetos: dos grupos (3 + 2) y el total (5).
+fn svg_suma_objetos() -> Str {
+    return html("""<svg viewBox="0 0 300 108" class="ap-svg" role="img" aria-label="3 + 2 = 5">
+<circle cx="30" cy="42" r="15" class="ap-dot a" /><circle cx="66" cy="42" r="15" class="ap-dot a" /><circle cx="102" cy="42" r="15" class="ap-dot a" />
+<text x="140" y="50" class="tk-eq">+</text>
+<circle cx="178" cy="42" r="15" class="ap-dot b" /><circle cx="214" cy="42" r="15" class="ap-dot b" />
+<text x="270" y="50" class="tk-eq strong">= 5</text>
+<text x="66" y="90" class="ap-cap">3</text>
+<text x="196" y="90" class="ap-cap">2</text>
+</svg>""").raw
+}
+
+// Recta numérica 0..10: parado en el 4, salto de +3 hasta el 7.
+fn svg_suma_recta() -> Str {
+    let ticks = ""
+    let labels = ""
+    let n = 0
+    while (n <= 10) {
+        let x = 20 + n * 28
+        ticks = ticks + html("""<line x1="{x}" y1="54" x2="{x}" y2="70" class="rn-tick" />""").raw
+        labels = labels + html("""<text x="{x}" y="88" class="rn-lbl">{n}</text>""").raw
+        n = n + 1
+    }
+    return html("""<svg viewBox="0 0 320 100" class="ap-svg" role="img" aria-label="4 + 3 = 7">
+<line x1="14" y1="62" x2="306" y2="62" class="rn-axis" />
+<polygon points="306,62 298,57 298,67" class="rn-arrow" />
+{ticks}
+{labels}
+<path d="M 132 56 Q 174 10 216 56" class="ap-jump" />
+<text x="174" y="24" class="ap-jump-lbl">+3</text>
+<circle cx="132" cy="62" r="5" class="ap-mark" />
+<circle cx="216" cy="62" r="6" class="ap-mark end" />
+</svg>""").raw
+}
+
+// Descomponer: 28 + 15 → (20 + 10) y (8 + 5) → 30 + 13 = 43.
+fn svg_suma_descomp() -> Str {
+    return html("""<svg viewBox="0 0 300 128" class="ap-svg" role="img" aria-label="28 + 15 = 43">
+<text x="150" y="30" class="tk-eq">28 + 15</text>
+<text x="150" y="66" class="tk-eq">(20+10) + (8+5)</text>
+<line x1="30" y1="82" x2="270" y2="82" class="tk-arrow-line" />
+<text x="150" y="114" class="tk-eq strong">30 + 13 = 43</text>
+</svg>""").raw
+}
+
+// Sumar en columna con llevada: 28 + 15 = 43 (me llevo 1).
+fn svg_suma_columna() -> Str {
+    return html("""<svg viewBox="0 0 200 172" class="ap-svg" role="img" aria-label="28 + 15 = 43">
+<text x="122" y="34" class="ap-carry">1</text>
+<text x="150" y="68" class="ap-col">28</text>
+<text x="150" y="108" class="ap-col">+ 15</text>
+<line x1="60" y1="122" x2="150" y2="122" class="ap-col-line" />
+<text x="150" y="158" class="ap-col strong">43</text>
+</svg>""").raw
+}
+
+// Cálculo mental: 28 + 15 → 30 + 15 = 45 → 45 − 2 = 43.
+fn svg_suma_mental() -> Str {
+    return html("""<svg viewBox="0 0 300 128" class="ap-svg" role="img" aria-label="28 + 15 = 43">
+<text x="150" y="30" class="tk-eq">28 + 15</text>
+<text x="150" y="66" class="tk-eq">30 + 15 = 45</text>
+<line x1="30" y1="82" x2="270" y2="82" class="tk-arrow-line" />
+<text x="150" y="114" class="tk-eq strong">45 − 2 = 43</text>
+</svg>""").raw
+}
+
+fn metodo_svg(tema: Str, metodo: Str) -> Str {
+    if (tema == "suma") {
+        return match metodo {
+            "objetos" => svg_suma_objetos(),
+            "recta" => svg_suma_recta(),
+            "descomp" => svg_suma_descomp(),
+            "columna" => svg_suma_columna(),
+            "mental" => svg_suma_mental(),
+            _ => "",
+        }
+    }
+    return ""
+}
+
+// --- Render -------------------------------------------------------------------
+
+// Una ficha de método (acordeón <details>): título + SVG + 3 pasos + ejemplo.
+// El destacado abre con `open` y lleva el badge "Para tu grado".
+fn ficha_metodo(locale: Str, tema: Str, metodo: Str, abierto: Bool) -> Html {
+    let tit = flv(t(locale, "aprender.{tema}.m.{metodo}.tit"))
+    let p1 = flv(t(locale, "aprender.{tema}.m.{metodo}.p1"))
+    let p2 = flv(t(locale, "aprender.{tema}.m.{metodo}.p2"))
+    let p3 = flv(t(locale, "aprender.{tema}.m.{metodo}.p3"))
+    let ej = flv(t(locale, "aprender.{tema}.m.{metodo}.ej"))
+    let svg = metodo_svg(tema, metodo)
+    let badge = match abierto {
+        true => html("""<span class="ap-badge">{flv(t(locale, "aprender.tu_metodo"))}</span>""").raw,
+        false => "",
+    }
+    let open_attr = match abierto {
+        true => "open",
+        false => "",
+    }
+    return html("""<details class="ap-metodo" {open_attr}>
+<summary class="ap-metodo-sum"><span class="ap-metodo-tit">{tit}</span>{badge}</summary>
+<div class="ap-metodo-body">
+<div class="ap-fig">{svg}</div>
+<ol class="ap-pasos"><li>{p1}</li><li>{p2}</li><li>{p3}</li></ol>
+<div class="ap-ej"><span class="ap-ej-lbl">{flv(t(locale, "trucos.ejemplo"))}</span> <span class="ap-ej-txt">{ej}</span></div>
+</div>
+</details>""")
+}
+
+fn carta_tema(locale: Str, c: Str) -> Html {
+    let em = flv(tema_emoji(c))
+    let tit = flv(t(locale, "aprender.{c}.tit"))
+    let sub = flv(t(locale, "aprender.{c}.card"))
+    return html("""<a class="mh-truco-card" href="/aprender/{c}">
+<span class="mh-truco-card-em" aria-hidden="true">{em}</span>
+<span class="mh-truco-card-txt">
+<span class="mh-truco-card-tit">{tit}</span>
+<span class="mh-truco-card-sub">{sub}</span>
+</span>
+</a>""")
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/aprender")
+async fn aprender_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    let visibles = temas().filter(fn(c) => tema_min_grade(c) <= ctx.grade)
+    let cartas = h_join(visibles.map(fn(c) => carta_tema(locale, c)))
+    let body = html("""<div class="mh-card">
+<h2>{flv(t(locale, "aprender.titulo"))}</h2>
+<p class="mh-trucos-sub">{flv(t(locale, "aprender.sub"))}</p>
+<div class="mh-trucos">
+{cartas}
+</div>
+</div>
+<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+    let titulo = t(locale, "aprender.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/aprender/{code}")
+async fn aprender_detalle(session: Str?, lang: Str?, code: Str) -> Response {
+    let locale = locale_from_cookie(lang)
+    let ctx = match resolver_contexto(session).await {
+        Ok(c) => c,
+        Err(destino) => return redirect_a(destino),
+    }
+    if (not tema_valido(code)) {
+        return redirect_a("/aprender")
+    }
+    let em = flv(tema_emoji(code))
+    let tit = flv(t(locale, "aprender.{code}.tit"))
+    let intro = flv(t(locale, "aprender.{code}.intro"))
+    let uso1 = flv(t(locale, "aprender.{code}.uso1"))
+    let uso2 = flv(t(locale, "aprender.{code}.uso2"))
+    let uso3 = flv(t(locale, "aprender.{code}.uso3"))
+    let historia = flv(t(locale, "aprender.{code}.historia"))
+    let destacado = metodo_destacado(code, ctx.grade)
+    let metodos = h_join(metodos_de(code).map(fn(m) => ficha_metodo(locale, code, m, m == destacado)))
+    let route = tema_route(code)
+    let truco = tema_truco(code)
+    let truco_link = match truco == "" {
+        true => "",
+        false => html("""<a class="mh-btn sec" href="/trucos/{truco}"><span aria-hidden="true">💡</span>{flv(t(locale, "aprender.truco_link"))}</a>""").raw,
+    }
+    let body = html("""<div class="mh-card ap-ficha">
+<div class="mh-truco-head"><span class="mh-truco-em" aria-hidden="true">{em}</span><h2>{tit}</h2></div>
+<p class="mh-truco-intro">{intro}</p>
+<h3 class="ap-h">{flv(t(locale, "aprender.usos"))}</h3>
+<ul class="ap-usos">
+<li><span class="ap-uso-em" aria-hidden="true">🛒</span><span>{uso1}</span></li>
+<li><span class="ap-uso-em" aria-hidden="true">⏱️</span><span>{uso2}</span></li>
+<li><span class="ap-uso-em" aria-hidden="true">🎮</span><span>{uso3}</span></li>
+</ul>
+<h3 class="ap-h">{flv(t(locale, "aprender.metodos"))}</h3>
+<div class="ap-metodos">
+{metodos}
+</div>
+<h3 class="ap-h">{flv(t(locale, "aprender.historia"))}</h3>
+<p class="ap-historia"><span class="ap-hist-em" aria-hidden="true">📜</span><span>{historia}</span></p>
+<a class="mh-btn" href="{route}"><span aria-hidden="true">▶️</span>{flv(t(locale, "aprender.practicar"))}</a>
+{truco_link}
+</div>
+<a class="mh-btn sec" href="/aprender">{flv(t(locale, "aprender.volver"))}</a>""")
+    let titulo = t(locale, "aprender.{code}.tit") + " — MatHelp"
+    return responder_html(page(locale, titulo, body, html("")))
+}
