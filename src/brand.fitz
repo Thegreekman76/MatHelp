@@ -547,6 +547,15 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .mh-aliento \{ text-align:center; font-weight:800; font-size:1.1rem; color:var(--mh-tinta); margin:.1rem 0 .4rem; \}
 .mh-mejor-racha \{ text-align:center; font-weight:800; font-size:.95rem; color:var(--mh-naranja); margin:0 0 .5rem; animation:slot-in .4s ease-out both; \}
 .mh-record \{ text-align:center; font-weight:900; font-size:1.05rem; color:var(--mh-amarillo); margin:0 0 .5rem; animation:medal-pop .5s ease-out both; \}
+/* Panel de administración del sitio (/admin): tabla de últimos registros. */
+.adm-tabla \{ display:flex; flex-direction:column; \}
+.adm-row \{ display:grid; grid-template-columns:1.2fr 2fr .6fr 1.1fr; gap:.5rem; align-items:center; padding:.55rem .2rem; border-bottom:1px solid var(--mh-borde); font-size:.9rem; \}
+.adm-row .adm-nom \{ font-weight:700; \}
+.adm-row .adm-em \{ color:var(--mh-suave); overflow-wrap:anywhere; \}
+.adm-row .adm-lc \{ color:var(--mh-suave); text-transform:uppercase; font-size:.72rem; \}
+.adm-row .adm-fe \{ color:var(--mh-suave); font-size:.78rem; text-align:right; \}
+@media (max-width:560px) \{ .adm-row \{ grid-template-columns:1fr 1fr; \} .adm-row .adm-fe \{ text-align:left; \} \}
+
 @media (prefers-reduced-motion:reduce) \{ * \{ transition:none !important; animation:none !important; \} \}
 
 /* Alto contraste por perfil (accesibilidad): texto secundario a tinta plena,

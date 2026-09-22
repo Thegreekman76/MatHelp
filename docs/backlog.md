@@ -110,11 +110,18 @@ Decisiones: bienvenida **localizada por `family.locale`**; admin gateado por
 > (`fitz check` pasa). Convención aplicada: definir los body types ANTES de los handlers (como en
 > `auth.fitz`). Sin workaround de código pendiente — es orden de declaración.
 
-**Fase C — Administración del sitio (super-admin)**
-- [ ] C1. Gate por `MATHELP_ADMIN_EMAILS` → link "Administración" en el menú + proteger TODAS las rutas /admin (no solo ocultar).
-- [ ] C2. Dashboard: contadores (familias, perfiles, sesiones, registros/día) + tabla de últimos registros (StatCard/BarChart).
-- [ ] C3. Uso/engagement: DAU/WAU, juegos más jugados, retención, destrezas más flojas a nivel global.
+**Fase C — Administración del sitio (super-admin)** — ✅ HECHO 2026-09-22 (`admin.fitz`)
+- [x] C1. Gate por `MATHELP_ADMIN_EMAILS` (`config.es_admin_email`) en `/admin` (cada request, no
+  solo oculto: no-admin logueado → /, anónimo → /login) + link "Administración" condicional en el hub
+  `/familia` (solo super-admins). Distinto de `es_admin` (PIN de familia).
+- [x] C2. Dashboard: 4 StatCards (familias, perfiles, sesiones, altas 7 días) + BarChart juegos más
+  jugados (por `sessions.mode`) + tabla de últimos 10 registros (SQL crudo de agregación).
+- [ ] C3. Uso/engagement avanzado: DAU/WAU, retención, destrezas más flojas global — pendiente (MVP
+  cubre contadores + juegos + registros).
 - [ ] C4. (opcional) Moderación: ver/suspender/borrar cuentas.
+
+> **Nota:** el BarChart de juegos usa el `mode` interno crudo como label (quiz, truefalse, numpad…);
+> mapearlo a nombres amigables por i18n es un refinamiento futuro (es una vista de ops).
 
 **Fase D — Extras a evaluar** (seguridad/privacidad/crecimiento)
 - [ ] Rate limiting en login y registro. [ ] Borrar cuenta + exportar datos (privacidad de menores).

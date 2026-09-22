@@ -1,0 +1,114 @@
+// admin.fitz — panel de administración del sitio (super-admin), Lote C.
+//
+// Acceso: SOLO familias cuyo email está en MATHELP_ADMIN_EMAILS (env,
+// coma-separado; ver config.es_admin_email). Es distinto de es_admin(session)
+// (ese es el PIN de adulto de LA familia, no super-admin del sitio). Todas las
+// rutas /admin chequean el gate en cada request — no solo se oculta el link.
+//
+// El dashboard muestra contadores (familias, perfiles, sesiones, registros de
+// los últimos 7 días), un gráfico de juegos más jugados (por sessions.mode) y
+// la tabla de los últimos registros. Todo con SQL crudo de agregación.
+
+from fitz_liveviews import Html, html, flv
+from config import db_url, es_admin_email
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session
+from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
+from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
+from fitz_liveviews.ui.chart_helpers import Bar, bar_scale
+
+// --- Dashboard ------------------------------------------------------------
+
+fn contar(rows: List<DbRow>) -> Int {
+    return match rows.len() > 0 {
+        true => match rows[0].get_int("n") {
+            Ok(n) => n,
+            Err(_) => 0,
+        },
+        false => 0,
+    }
+}
+
+async fn render_dashboard(locale: Str) -> Result<Html> {
+    let conn = db.connect(db_url()).await?
+
+    // Contadores.
+    let familias = contar(conn.query("SELECT count(*)::int AS n FROM families", []).await?)
+    let perfiles = contar(conn.query("SELECT count(*)::int AS n FROM profiles", []).await?)
+    let sesiones = contar(conn.query("SELECT count(*)::int AS n FROM sessions", []).await?)
+    let reg7 = contar(conn.query("SELECT count(*)::int AS n FROM families WHERE created_at >= NOW() - INTERVAL '7 days'", []).await?)
+
+    let c1 = stat_card_render(stat_card { label: t(locale, "admin.stat.familias"), value: familias, hint: "", accent: "blue" }).raw
+    let c2 = stat_card_render(stat_card { label: t(locale, "admin.stat.perfiles"), value: perfiles, hint: "", accent: "green" }).raw
+    let c3 = stat_card_render(stat_card { label: t(locale, "admin.stat.sesiones"), value: sesiones, hint: "", accent: "violet" }).raw
+    let c4 = stat_card_render(stat_card { label: t(locale, "admin.stat.reg7"), value: reg7, hint: t(locale, "admin.stat.reg7_hint"), accent: "amber" }).raw
+    let cards = html("""<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:.5rem">
+{c1}{c2}{c3}{c4}
+</div>""").raw
+
+    // Juegos más jugados (por modo de sesión).
+    let jr = conn.query("SELECT mode AS label, count(*)::int AS n FROM sessions GROUP BY mode ORDER BY n DESC LIMIT 8", []).await?
+    let bars: List<Bar> = []
+    for r in jr {
+        bars.push(Bar { label: r.get_str("label")?, value: r.get_int("n")? })
+    }
+    let grafico = match bars.len() > 0 {
+        true => bar_chart_render(bar_chart { bars: bar_scale(bars) }).raw,
+        false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "admin.sin_datos"))}</p>""").raw,
+    }
+
+    // Últimos registros.
+    let ur = conn.query("SELECT display_name, email, locale, to_char(created_at, 'DD/MM/YYYY HH24:MI') AS fecha FROM families ORDER BY created_at DESC LIMIT 10", []).await?
+    let filas = ""
+    for r in ur {
+        let nm = flv(r.get_str("display_name")?)
+        let em = flv(r.get_str("email")?)
+        let lc = flv(r.get_str("locale")?)
+        let fe = flv(r.get_str("fecha")?)
+        filas = filas + "<div class=\"adm-row\"><span class=\"adm-nom\">" + nm + "</span><span class=\"adm-em\">" + em + "</span><span class=\"adm-lc\">" + lc + "</span><span class=\"adm-fe\">" + fe + "</span></div>"
+    }
+    let tabla = match filas == "" {
+        true => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "admin.sin_registros"))}</p>""").raw,
+        false => filas,
+    }
+    return Ok(html("""<div class="mh-card">
+<h2>{flv(t(locale, "admin.titulo"))}</h2>
+{cards}
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "admin.juegos_titulo"))}</h2>
+{grafico}
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "admin.registros_titulo"))}</h2>
+<div class="adm-tabla">{tabla}</div>
+</div>
+<a class="mh-btn sec" href="/familia"><span aria-hidden="true">↩️</span> {flv(t(locale, "admin.volver"))}</a>"""))
+}
+
+// --- Handler --------------------------------------------------------------
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/admin")
+async fn admin_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    // Gate del sitio: solo emails en MATHELP_ADMIN_EMAILS. Una familia común que
+    // llega por URL directa se va a la home (protegido, no solo oculto).
+    if (not es_admin_email(fam.email)) {
+        return redirect_a("/")
+    }
+    let titulo = t(locale, "admin.titulo") + " — MatHelp"
+    match render_dashboard(locale).await {
+        Ok(body) => return responder_html(page(locale, titulo, body, html(""))),
+        Err(_) => {
+            let err = html("""<div class="mh-card"><h2>{flv(t(locale, "admin.titulo"))}</h2><p style="color:var(--mh-suave)">{flv(t(locale, "admin.error"))}</p></div>""")
+            return responder_html(page(locale, titulo, err, html("")))
+        }
+    }
+}

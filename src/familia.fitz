@@ -20,7 +20,7 @@
 // el PIN sin quedar bloqueado.
 
 from fitz_liveviews import Html, html, flv, h_join
-from config import db_url
+from config import db_url, es_admin_email
 from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from auth import read_session, mint_session, pid_from_token, es_admin, redirect_con_sesion
@@ -84,7 +84,7 @@ fn fila_perfil_admin(locale: Str, p: Profile) -> Html {
 
 // El hub: aviso de PIN (si no está configurado) + gestión de perfiles + accesos
 // de control. `tiene_pin` decide el aviso y la etiqueta del botón de PIN.
-fn render_hub(locale: Str, perfiles: List<Profile>, tiene_pin: Bool) -> Html {
+fn render_hub(locale: Str, perfiles: List<Profile>, tiene_pin: Bool, es_site_admin: Bool) -> Html {
     let aviso = match tiene_pin {
         true => "",
         false => html("""<div class="mh-card" style="border:2px solid #fcd34d">
@@ -101,6 +101,13 @@ fn render_hub(locale: Str, perfiles: List<Profile>, tiene_pin: Bool) -> Html {
         true => flv(t(locale, "familia.pin_cambiar")),
         false => flv(t(locale, "familia.pin_configurar")),
     }
+    // Link a la administración del sitio, solo para super-admins (email en
+    // MATHELP_ADMIN_EMAILS). El resto de las familias no lo ve; la ruta /admin
+    // está protegida por su cuenta igual (no solo oculta).
+    let admin_link = match es_site_admin {
+        true => html("""<a class="mh-btn sec" href="/admin"><span aria-hidden="true">🛠️</span> {flv(t(locale, "nav.admin"))}</a>""").raw,
+        false => "",
+    }
     return html("""{aviso}
 <div class="mh-card">
 <h2>{flv(t(locale, "familia.perfiles_titulo"))}</h2>
@@ -113,6 +120,7 @@ fn render_hub(locale: Str, perfiles: List<Profile>, tiene_pin: Bool) -> Html {
 <a class="mh-btn sec" href="/panel"><span aria-hidden="true">📊</span> {flv(t(locale, "nav.panel"))}</a>
 <a class="mh-btn sec" href="/accesibilidad"><span aria-hidden="true">🔎</span> {flv(t(locale, "acc.titulo"))}</a>
 <a class="mh-btn sec" href="/familia/pin/cambiar"><span aria-hidden="true">🔑</span> {pin_btn}</a>
+{admin_link}
 </div>
 
 <a class="mh-btn" href="/familia/volver"><span aria-hidden="true">🔄</span> {flv(t(locale, "familia.volver_jugar"))}</a>
@@ -211,7 +219,7 @@ async fn familia_get(session: Str?, lang: Str?) -> Response {
     }
     let tiene = admin_pin_de(fam.email).await != ""
     let titulo = t(locale, "familia.zona") + " — MatHelp"
-    return responder_html(page(locale, titulo, render_hub(locale, perfiles, tiene), html("")))
+    return responder_html(page(locale, titulo, render_hub(locale, perfiles, tiene, es_admin_email(fam.email)), html("")))
 }
 
 // /familia/pin (GET) → pantalla del gate. Abierta (no requiere adm).
