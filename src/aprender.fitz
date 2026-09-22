@@ -161,14 +161,14 @@ fn metodos_de(c: Str) -> List<Str> {
     return match c {
         "suma" => ["objetos", "recta", "descomp", "columna", "mental"],
         "resta" => ["objetos", "recta", "contar_hasta", "descomp", "columna", "mental"],
-        "multiplicacion" => ["grupos", "array", "tabla", "descomp", "columna"],
+        "multiplicacion" => ["grupos", "array", "saltos", "tabla", "descomp", "columna"],
         "division" => ["reparto", "agrupar", "restas_rep", "tabla", "larga"],
         "fracciones" => ["leer", "equiv", "simplificar", "comparar", "de_cantidad", "operar"],
-        "porcentaje" => ["fraccion", "diez", "regla3", "descuento"],
-        "enteros" => ["recta", "deudas", "sumar", "signos"],
-        "geometria" => ["perimetro", "area_rect", "area_tri", "compuesta"],
-        "volumen" => ["cubos", "prisma", "cilindro"],
-        "hora" => ["aguja", "en_punto", "cuartos", "digital"],
+        "porcentaje" => ["fraccion", "diez", "regla3", "cuanto_es", "descuento"],
+        "enteros" => ["recta", "deudas", "comparar", "sumar", "signos", "absoluto"],
+        "geometria" => ["perimetro", "area_rect", "area_tri", "circulo", "compuesta"],
+        "volumen" => ["cubos", "prisma", "cilindro", "capacidad"],
+        "hora" => ["aguja", "en_punto", "cuartos", "digital", "duracion"],
         "potencias" => ["que_es", "cuadrado", "raiz", "reglas"],
         "ecuaciones" => ["balanza", "despejar", "inversas", "cuadratica"],
         "trigonometria" => ["pitagoras", "razones", "terna", "angulos"],
@@ -1537,6 +1537,133 @@ fn svg_frac_simplificar() -> Str {
 </svg>""").raw
 }
 
+// Conteo salteado: 3 × 4 saltando de a 3 en la recta (0→3→6→9→12).
+fn svg_mult_saltos() -> Str {
+    let ticks = ""
+    let labels = ""
+    let n = 0
+    while (n <= 12) {
+        let x = 24 + n * 23
+        ticks = ticks + html("""<line x1="{x}" y1="54" x2="{x}" y2="70" class="rn-tick" />""").raw
+        if (n % 3 == 0) {
+            labels = labels + html("""<text x="{x}" y="88" class="rn-lbl">{n}</text>""").raw
+        }
+        n = n + 1
+    }
+    return html("""<svg viewBox="0 0 320 100" class="ap-svg" role="img" aria-label="saltar de a 3 cuatro veces">
+<line x1="14" y1="62" x2="306" y2="62" class="rn-axis" />
+<polygon points="306,62 298,57 298,67" class="rn-arrow" />
+{ticks}
+{labels}
+<path d="M 24 56 Q 58 18 93 56" class="ap-jump" />
+<path d="M 93 56 Q 127 18 162 56" class="ap-jump" />
+<path d="M 162 56 Q 196 18 231 56" class="ap-jump" />
+<path d="M 231 56 Q 265 18 300 56" class="ap-jump" />
+<text x="58" y="20" class="ap-jump-lbl">+3</text>
+<circle cx="24" cy="62" r="5" class="ap-mark" />
+<circle cx="300" cy="62" r="6" class="ap-mark end" />
+</svg>""").raw
+}
+
+// Qué porcentaje es: 15 de 60 → 25%.
+fn svg_pct_cuanto_es() -> Str {
+    return html("""<svg viewBox="0 0 300 160" class="ap-svg" role="img" aria-label="15 de 60 es 25 por ciento">
+<text x="150" y="34" class="tk-eq">15 de 60</text>
+<text x="150" y="72" class="tk-eq">15 ÷ 60 = 0,25</text>
+<line x1="30" y1="90" x2="270" y2="90" class="tk-arrow-line" />
+<text x="150" y="124" class="tk-eq strong">× 100 = 25%</text>
+</svg>""").raw
+}
+
+// Comparar negativos: −4 está más a la izquierda que −1 → −4 < −1.
+fn svg_ent_comparar() -> Str {
+    let ticks = ""
+    let labels = ""
+    let n = 0 - 5
+    while (n <= 5) {
+        let x = 160 + n * 26
+        ticks = ticks + html("""<line x1="{x}" y1="46" x2="{x}" y2="62" class="rn-tick" />""").raw
+        let cls = match n == 0 {
+            true => "rn-lbl zero",
+            false => "rn-lbl",
+        }
+        labels = labels + html("""<text x="{x}" y="78" class="{cls}">{n}</text>""").raw
+        n = n + 1
+    }
+    return html("""<svg viewBox="0 0 320 112" class="ap-svg" role="img" aria-label="menos 4 menor que menos 1">
+<line x1="14" y1="54" x2="306" y2="54" class="rn-axis" />
+<polygon points="306,54 298,49 298,59" class="rn-arrow" />
+<polygon points="14,54 22,49 22,59" class="rn-arrow" />
+{ticks}
+<circle cx="160" cy="54" r="4" class="rn-zero" />
+{labels}
+<circle cx="56" cy="54" r="6" class="ap-mark end" />
+<circle cx="134" cy="54" r="6" class="ap-mark" />
+<text x="150" y="104" class="tk-eq strong">−4 &lt; −1</text>
+</svg>""").raw
+}
+
+// Valor absoluto: |−3| = 3 (la distancia al 0).
+fn svg_ent_absoluto() -> Str {
+    let ticks = ""
+    let labels = ""
+    let n = 0 - 5
+    while (n <= 5) {
+        let x = 160 + n * 26
+        ticks = ticks + html("""<line x1="{x}" y1="46" x2="{x}" y2="62" class="rn-tick" />""").raw
+        let cls = match n == 0 {
+            true => "rn-lbl zero",
+            false => "rn-lbl",
+        }
+        labels = labels + html("""<text x="{x}" y="78" class="{cls}">{n}</text>""").raw
+        n = n + 1
+    }
+    return html("""<svg viewBox="0 0 320 112" class="ap-svg" role="img" aria-label="valor absoluto de menos 3 es 3">
+<line x1="14" y1="54" x2="306" y2="54" class="rn-axis" />
+<polygon points="306,54 298,49 298,59" class="rn-arrow" />
+<polygon points="14,54 22,49 22,59" class="rn-arrow" />
+{ticks}
+<line x1="82" y1="40" x2="160" y2="40" class="ap-fnline" />
+<text x="121" y="32" class="ap-jump-lbl">3</text>
+<circle cx="160" cy="54" r="4" class="rn-zero" />
+{labels}
+<circle cx="82" cy="54" r="6" class="ap-mark end" />
+<text x="150" y="104" class="tk-eq strong">|−3| = 3</text>
+</svg>""").raw
+}
+
+// El círculo: radio, circunferencia (2·π·r) y área (π·r²).
+fn svg_geo_circulo() -> Str {
+    return html("""<svg viewBox="0 0 250 150" class="ap-svg" role="img" aria-label="el circulo">
+<circle cx="72" cy="74" r="50" class="ap-shape ap-circle" />
+<line x1="72" y1="74" x2="122" y2="74" class="ap-col-line" />
+<circle cx="72" cy="74" r="4" class="clk-center" />
+<text x="94" y="68" class="ap-cap">r</text>
+<text x="190" y="62" class="tk-eq">2·π·r</text>
+<text x="190" y="104" class="tk-eq">π·r²</text>
+</svg>""").raw
+}
+
+// Capacidad: litros, cm³ y mililitros.
+fn svg_vol_capacidad() -> Str {
+    return html("""<svg viewBox="0 0 300 120" class="ap-svg" role="img" aria-label="capacidad en litros y cm3">
+<text x="150" y="40" class="tk-eq">1 L = 1000 cm³</text>
+<line x1="30" y1="58" x2="270" y2="58" class="tk-arrow-line" />
+<text x="150" y="98" class="tk-eq strong">1 L = 1000 ml</text>
+</svg>""").raw
+}
+
+// Duración: de 3:00 a 5:30 pasan 2 h 30 min.
+fn svg_hora_duracion() -> Str {
+    return html("""<svg viewBox="0 0 300 120" class="ap-svg" role="img" aria-label="de las 3 a las 5 y media">
+<text x="55" y="50" class="tk-eq">3:00</text>
+<line x1="100" y1="44" x2="192" y2="44" class="tk-arrow-line" />
+<polygon points="198,44 188,39 188,49" class="rn-arrow" />
+<text x="245" y="50" class="tk-eq">5:30</text>
+<text x="150" y="98" class="tk-eq strong">2 h 30 min</text>
+</svg>""").raw
+}
+
 fn metodo_svg(tema: Str, metodo: Str) -> Str {
     if (tema == "suma") {
         return match metodo {
@@ -1563,6 +1690,7 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
         return match metodo {
             "grupos" => svg_mult_grupos(),
             "array" => svg_mult_array(),
+            "saltos" => svg_mult_saltos(),
             "tabla" => svg_mult_tabla(),
             "descomp" => svg_mult_descomp(),
             "columna" => svg_mult_columna(),
@@ -1595,6 +1723,7 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
             "fraccion" => svg_pct_fraccion(),
             "diez" => svg_pct_diez(),
             "regla3" => svg_pct_regla3(),
+            "cuanto_es" => svg_pct_cuanto_es(),
             "descuento" => svg_pct_descuento(),
             _ => "",
         }
@@ -1603,8 +1732,10 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
         return match metodo {
             "recta" => svg_ent_recta(),
             "deudas" => svg_ent_deudas(),
+            "comparar" => svg_ent_comparar(),
             "sumar" => svg_ent_sumar(),
             "signos" => svg_ent_signos(),
+            "absoluto" => svg_ent_absoluto(),
             _ => "",
         }
     }
@@ -1613,6 +1744,7 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
             "perimetro" => svg_geo_perimetro(),
             "area_rect" => svg_geo_area_rect(),
             "area_tri" => svg_geo_area_tri(),
+            "circulo" => svg_geo_circulo(),
             "compuesta" => svg_geo_compuesta(),
             _ => "",
         }
@@ -1622,6 +1754,7 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
             "cubos" => svg_vol_cubos(),
             "prisma" => svg_vol_prisma(),
             "cilindro" => svg_vol_cilindro(),
+            "capacidad" => svg_vol_capacidad(),
             _ => "",
         }
     }
@@ -1631,6 +1764,7 @@ fn metodo_svg(tema: Str, metodo: Str) -> Str {
             "en_punto" => svg_hora_en_punto(),
             "cuartos" => svg_hora_cuartos(),
             "digital" => svg_hora_digital(),
+            "duracion" => svg_hora_duracion(),
             _ => "",
         }
     }
