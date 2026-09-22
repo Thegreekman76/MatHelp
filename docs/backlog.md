@@ -143,7 +143,10 @@ Decisiones: bienvenida **localizada por `family.locale`**; admin gateado por
   linkeada desde el footer). Form nombre+email+mensaje → `emails.send_contacto` al dueño
   (`MATHELP_ADMIN_EMAILS`, campos escapados con `flv`). Best-effort, 3 campos obligatorios.
   Verificado E2E (form, footer link, validación, gracias) + `fitz build` OK.
-- [ ] D4. Avisos de hitos al dueño (ej. familia N=100/500) por email — PENDIENTE.
+- [x] **D4. Avisos de hitos al dueño** — ✅ HECHO 2026-09-22 (`emails.send_milestone` + `es_hito` +
+  hook `chequear_hito` en `auth.signup_emails`). Al registrarse una familia, si el total llega a un
+  hito (10/25/50/cada 100) se manda un email al dueño. Best-effort (no afecta el alta). Verificado
+  E2E (393→400 disparó `milestone.mail n=400`, solo el hito, no los intermedios) + `fitz build` OK.
 - [ ] (no elegidos por ahora) Página privacidad/términos + link en registro; PWA push; referral.
 
 ### ✅ Calidad

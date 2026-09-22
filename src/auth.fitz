@@ -20,7 +20,7 @@ from config import db_url, jwt_secret, session_cookie_name, default_locale
 from i18n import t, locale_from_cookie
 from layout import page_landing, responder_html
 from models import Family
-from emails import notify_admin_signup, send_welcome
+from emails import notify_admin_signup, send_welcome, send_milestone, es_hito
 from ratelimit import ip_de, registrar_y_chequear
 
 // --- Sesión: emitir y leer ------------------------------------------------
@@ -319,7 +319,23 @@ fn registro_get(lang: Str?) -> Response {
 async fn signup_emails(fam: Family) -> Null {
     let _admin = notify_admin_signup(fam).await
     let _welcome = send_welcome(fam).await
+    let _hito = chequear_hito().await
     return null
+}
+
+// Cuenta el total de familias y, si es un hito (10/25/50/cada 100), avisa al
+// dueño. Best-effort: cualquier error se traga (no debe afectar el alta).
+async fn chequear_hito() -> Result<Bool> {
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT count(*)::int AS n FROM families", []).await?
+    let n = match rows.len() > 0 {
+        true => rows[0].get_int("n")?,
+        false => 0,
+    }
+    if (es_hito(n)) {
+        return send_milestone(n).await
+    }
+    return Ok(false)
 }
 
 @middleware(rate_limit_mw)
