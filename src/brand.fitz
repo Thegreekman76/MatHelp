@@ -780,6 +780,15 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .ap-pcell.on \{ fill:var(--mh-verde-claro); stroke:var(--mh-verde); \}
 .ap-ent-pos \{ fill:var(--mh-verde); font-size:30px; font-weight:900; text-anchor:middle; \}
 .ap-ent-neg \{ fill:var(--mh-naranja); font-size:30px; font-weight:900; text-anchor:middle; \}
+.ap-shape \{ fill:var(--mh-verde-suave); stroke:var(--mh-verde); stroke-width:2; \}
+.ap-shape-2 \{ fill:var(--mh-crema); stroke:var(--mh-verde); stroke-width:2; \}
+.ap-shape-3 \{ fill:var(--mh-verde-claro); stroke:var(--mh-verde); stroke-width:2; \}
+.ap-shape-dash \{ fill:none; stroke:var(--mh-suave); stroke-width:2; stroke-dasharray:5 4; \}
+.clk-face \{ fill:var(--mh-panel); stroke:var(--mh-tinta); stroke-width:3; \}
+.clk-tick \{ stroke:var(--mh-suave); stroke-width:2; \}
+.clk-hour \{ stroke:var(--mh-tinta); stroke-width:5; stroke-linecap:round; \}
+.clk-min \{ stroke:var(--mh-naranja); stroke-width:3; stroke-linecap:round; \}
+.clk-center \{ fill:var(--mh-tinta); \}
 /* Repasá tus errores */
 .mh-errores \{ text-align:center; \}
 .mh-err-sub \{ color:var(--mh-suave); font-size:.9rem; margin:.1rem 0 1rem; \}
