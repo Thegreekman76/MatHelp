@@ -54,10 +54,14 @@ fn footer(locale: Str) -> Html {
     let hecho = flv(t(locale, "footer.hecho_con"))
     let y = flv(t(locale, "footer.y"))
     let contacto = flv(t(locale, "footer.contacto"))
+    let pol_priv = flv(t(locale, "legal.priv.titulo"))
+    let pol_terms = flv(t(locale, "legal.terms.titulo"))
     return html("""<footer class="mh-footer">
 {hecho} <a href="{repo_fitz()}" target="_blank" rel="noopener">Fitz</a> {y} <a href="{repo_liveviews()}" target="_blank" rel="noopener">Fitz LiveViews</a>
 <span class="mh-dot">·</span> MatHelp
 <span class="mh-dot">·</span> <a href="/contacto">{contacto}</a>
+<span class="mh-dot">·</span> <a href="/privacidad">{pol_priv}</a>
+<span class="mh-dot">·</span> <a href="/terminos">{pol_terms}</a>
 </footer>""")
 }
 
@@ -557,6 +561,15 @@ a.mh-juego:hover \{ transform:translateY(-3px); border-color:var(--mh-verde); bo
 .adm-row .adm-lc \{ color:var(--mh-suave); text-transform:uppercase; font-size:.72rem; \}
 .adm-row .adm-fe \{ color:var(--mh-suave); font-size:.78rem; text-align:right; \}
 @media (max-width:560px) \{ .adm-row \{ grid-template-columns:1fr 1fr; \} .adm-row .adm-fe \{ text-align:left; \} \}
+
+/* Checkbox con label (recordatorio opt-in). */
+.mh-check \{ display:flex; align-items:center; gap:.55rem; margin:.4rem 0 1rem; cursor:pointer; \}
+.mh-check input \{ width:20px; height:20px; \}
+
+/* Páginas legales (/privacidad, /terminos): lectura cómoda. */
+.mh-legal \{ text-align:left; \}
+.mh-legal h3 \{ margin:1.1rem 0 .3rem; font-size:1rem; \}
+.mh-legal p \{ line-height:1.55; color:var(--mh-suave); \}
 
 @media (prefers-reduced-motion:reduce) \{ * \{ transition:none !important; animation:none !important; \} \}
 

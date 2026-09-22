@@ -9,6 +9,7 @@ from fitz_liveviews import Html, html, flv
 from i18n import t, locale_from_cookie
 from layout import page_landing, responder_html
 from emails import send_contacto
+from auth import rate_limit_mw
 
 // --- Body type (antes de los handlers — FITZ-28) --------------------------
 
@@ -69,6 +70,7 @@ fn contacto_get(lang: Str?) -> Response {
     return responder_html(page_landing(locale, t(locale, "contacto.titulo") + " — MatHelp", form_contacto(locale, "", "", "", ""), html("")))
 }
 
+@middleware(rate_limit_mw)
 @cookie(name="mathelp_lang", into="lang")
 @post("/contacto")
 async fn contacto_post(lang: Str?, input: ContactoForm) -> Response {

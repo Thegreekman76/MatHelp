@@ -1,0 +1,145 @@
+// recordatorio.fitz — recordatorio diario de practicar, por EMAIL opt-in (E4).
+//
+// PWA push real no es viable en Fitz puro (web-push necesita VAPID ES256 y el
+// jwt del core solo tiene HS256/384/512), así que el "recordatorio diario" se
+// entrega por email. Es opt-in por familia (families.daily_reminder, default
+// off). Un @cron diario (21:00 UTC) manda un email a las familias que lo
+// activaron y que NO jugaron ese día. La familia lo prende/apaga en /recordatorio
+// (gate sesión + PIN de adulto).
+
+from fitz_liveviews import Html, html, flv
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session, es_admin
+from emails import send_recordatorio
+
+// --- Body type (antes de los handlers — FITZ-28) --------------------------
+
+type RecordatorioForm {
+    activar: Str = ""
+}
+
+// --- DB -------------------------------------------------------------------
+
+async fn ensure_reminder_col() -> Result<Null> {
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("ALTER TABLE families ADD COLUMN IF NOT EXISTS daily_reminder BOOLEAN NOT NULL DEFAULT false", []).await?
+    return Ok(null)
+}
+
+// Estado actual del opt-in (best-effort: false ante cualquier error).
+async fn get_reminder(fam_id: Int) -> Bool {
+    match ensure_reminder_col().await {
+        Ok(_) => 0,
+        Err(_) => return false,
+    }
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => return false,
+    }
+    let rows = match conn.query("SELECT daily_reminder AS r FROM families WHERE id = $1", [fam_id]).await {
+        Ok(r) => r,
+        Err(_) => return false,
+    }
+    if (rows.len() == 0) {
+        return false
+    }
+    return match rows[0].get_bool("r") {
+        Ok(b) => b,
+        Err(_) => false,
+    }
+}
+
+async fn set_reminder(fam_id: Int, on: Bool) -> Result<Null> {
+    let _ = ensure_reminder_col().await?
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("UPDATE families SET daily_reminder = $2 WHERE id = $1", [fam_id, on]).await?
+    return Ok(null)
+}
+
+// --- Render ---------------------------------------------------------------
+
+fn render_recordatorio(locale: Str, on: Bool, guardado: Bool) -> Html {
+    let checked = match on {
+        true => "checked",
+        false => "",
+    }
+    let banner = match guardado {
+        true => html("""<div class="mh-card" style="border:2px solid #86efac"><p style="color:#166534;margin:0">✅ {flv(t(locale, "recordatorio.guardado"))}</p></div>""").raw,
+        false => "",
+    }
+    return html("""{banner}
+<div class="mh-card">
+<h2>{flv(t(locale, "recordatorio.titulo"))}</h2>
+<p class="mh-sub">{flv(t(locale, "recordatorio.sub"))}</p>
+<form method="POST" action="/recordatorio">
+<label class="mh-check"><input type="checkbox" name="activar" value="on" {checked} /> {flv(t(locale, "recordatorio.activar"))}</label>
+<button class="mh-btn" type="submit">{flv(t(locale, "recordatorio.guardar"))}</button>
+</form>
+<a class="mh-btn sec" href="/familia"><span aria-hidden="true">↩️</span> {flv(t(locale, "recordatorio.volver"))}</a>
+</div>""")
+}
+
+// --- Handlers -------------------------------------------------------------
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/recordatorio")
+async fn recordatorio_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let on = get_reminder(fam.id).await
+    let titulo = t(locale, "recordatorio.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, render_recordatorio(locale, on, false), html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/recordatorio")
+async fn recordatorio_post(session: Str?, lang: Str?, input: RecordatorioForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let on = input.activar == "on"
+    let _ = set_reminder(fam.id, on).await
+    let titulo = t(locale, "recordatorio.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, render_recordatorio(locale, on, true), html("")))
+}
+
+// --- Cron diario ----------------------------------------------------------
+
+// 21:00 UTC todos los días: recuerda practicar a las familias que activaron el
+// recordatorio y que NO jugaron ese día. Best-effort.
+@cron("0 21 * * *")
+async fn recordatorio_diario_cron() -> Null {
+    let _ = enviar_recordatorios().await
+    return null
+}
+
+async fn enviar_recordatorios() -> Result<Int> {
+    let _ = ensure_reminder_col().await?
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT f.email AS email, f.display_name AS nombre, f.locale AS locale FROM families f WHERE f.daily_reminder = true AND NOT EXISTS (SELECT 1 FROM profiles p JOIN sessions s ON s.profile_id = p.id WHERE p.family_id = f.id AND s.started_at::date = CURRENT_DATE)", []).await?
+    let n = 0
+    for r in rows {
+        let em = r.get_str("email")?
+        let nm = r.get_str("nombre")?
+        let lc = r.get_str("locale")?
+        let _ = send_recordatorio(em, nm, lc).await
+        n = n + 1
+    }
+    log.info("recordatorio.batch", enviados: n)
+    return Ok(n)
+}

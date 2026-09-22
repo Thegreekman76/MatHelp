@@ -1,0 +1,68 @@
+// legal.fitz — Política de Privacidad (/privacidad) y Términos de Uso
+// (/terminos), Lote E1. Páginas públicas estáticas (sin auth), i18n ES/EN.
+//
+// El contenido describe honestamente qué datos recolecta MatHelp (según el
+// schema real: cuenta + perfiles + actividad de juego) y cómo se usan. El autor
+// debería revisar/ajustar los datos legales concretos (responsable, jurisdicción)
+// según su caso.
+
+from fitz_liveviews import Html, html, flv
+from i18n import t, locale_from_cookie
+from layout import page_landing, responder_html
+
+// --- Render ---------------------------------------------------------------
+
+fn seccion(locale: Str, h_key: Str, p_key: Str) -> Str {
+    return html("""<h3>{flv(t(locale, h_key))}</h3>
+<p>{flv(t(locale, p_key))}</p>""").raw
+}
+
+fn card_privacidad(locale: Str) -> Html {
+    let datos = seccion(locale, "legal.priv.h_datos", "legal.priv.datos")
+    let uso = seccion(locale, "legal.priv.h_uso", "legal.priv.uso")
+    let menores = seccion(locale, "legal.priv.h_menores", "legal.priv.menores")
+    let derechos = seccion(locale, "legal.priv.h_derechos", "legal.priv.derechos")
+    let seguridad = seccion(locale, "legal.priv.h_seguridad", "legal.priv.seguridad")
+    let cambios = seccion(locale, "legal.priv.h_cambios", "legal.priv.cambios")
+    return html("""<div class="mh-card mh-legal">
+<h2>{flv(t(locale, "legal.priv.titulo"))}</h2>
+<p class="mh-sub">{flv(t(locale, "legal.actualizado"))}</p>
+<p>{flv(t(locale, "legal.priv.intro"))}</p>
+{datos}{uso}{menores}{derechos}{seguridad}{cambios}
+<p class="mh-sub">{flv(t(locale, "legal.contacto_texto"))} <a href="/contacto">{flv(t(locale, "footer.contacto"))}</a>.</p>
+<a class="mh-btn sec" href="/">{flv(t(locale, "contacto.volver"))}</a>
+<a class="mh-link" href="/terminos">{flv(t(locale, "legal.terms.titulo"))}</a>
+</div>""")
+}
+
+fn card_terminos(locale: Str) -> Html {
+    let cuenta = seccion(locale, "legal.terms.h_cuenta", "legal.terms.cuenta")
+    let uso = seccion(locale, "legal.terms.h_uso", "legal.terms.uso")
+    let garantia = seccion(locale, "legal.terms.h_garantia", "legal.terms.garantia")
+    let cambios = seccion(locale, "legal.terms.h_cambios", "legal.terms.cambios")
+    return html("""<div class="mh-card mh-legal">
+<h2>{flv(t(locale, "legal.terms.titulo"))}</h2>
+<p class="mh-sub">{flv(t(locale, "legal.actualizado"))}</p>
+<p>{flv(t(locale, "legal.terms.intro"))}</p>
+{cuenta}{uso}{garantia}{cambios}
+<p class="mh-sub">{flv(t(locale, "legal.contacto_texto"))} <a href="/contacto">{flv(t(locale, "footer.contacto"))}</a>.</p>
+<a class="mh-btn sec" href="/">{flv(t(locale, "contacto.volver"))}</a>
+<a class="mh-link" href="/privacidad">{flv(t(locale, "legal.priv.titulo"))}</a>
+</div>""")
+}
+
+// --- Handlers -------------------------------------------------------------
+
+@cookie(name="mathelp_lang", into="lang")
+@get("/privacidad")
+fn privacidad_get(lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    return responder_html(page_landing(locale, t(locale, "legal.priv.titulo") + " — MatHelp", card_privacidad(locale), html("")))
+}
+
+@cookie(name="mathelp_lang", into="lang")
+@get("/terminos")
+fn terminos_get(lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    return responder_html(page_landing(locale, t(locale, "legal.terms.titulo") + " — MatHelp", card_terminos(locale), html("")))
+}

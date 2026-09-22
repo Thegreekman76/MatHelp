@@ -1,0 +1,80 @@
+// referral.fitz — invitar a otra familia (Lote E5): handlers + render.
+//
+// Cada familia tiene un `referral_code` (Uuid, generado lazy en referral_db). Su
+// link de invitación es `/r/<code>`: al abrirlo se guarda el code en una cookie y
+// se redirige a /registro. Cuando la familia nueva se registra, auth.registro_post
+// llama a record_referral(...) (de referral_db) y setea `referred_by`. La familia
+// ve su link + la cantidad de familias que invitó en /invitar (gate sesión + PIN).
+//
+// Los helpers de DB viven en referral_db.fitz (sin importar auth) para romper el
+// ciclo auth ↔ referral.
+
+from fitz_liveviews import Html, html, flv
+from config import app_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session, es_admin
+from referral_db import get_or_create_code, count_referrals
+
+// --- Render ---------------------------------------------------------------
+
+fn render_invitar(locale: Str, link: Str, count: Int) -> Html {
+    let link_esc = flv(link)
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "invitar.titulo"))}</h2>
+<p class="mh-sub">{flv(t(locale, "invitar.sub"))}</p>
+<div class="mh-field">
+<label class="mh-label" for="reflink">{flv(t(locale, "invitar.tu_link"))}</label>
+<input class="mh-input" id="reflink" type="text" value="{link_esc}" readonly onclick="this.select()" />
+</div>
+<p class="mh-resumen"><span class="mh-chip">👨‍👩‍👧 {count}</span> {flv(t(locale, "invitar.count"))}</p>
+<a class="mh-btn sec" href="/familia"><span aria-hidden="true">↩️</span> {flv(t(locale, "invitar.volver"))}</a>
+</div>""")
+}
+
+// --- Handlers -------------------------------------------------------------
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/invitar")
+async fn invitar_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let code = match get_or_create_code(fam.id).await {
+        Ok(c) => c,
+        Err(_) => "",
+    }
+    let count = match count_referrals(fam.id).await {
+        Ok(n) => n,
+        Err(_) => 0,
+    }
+    let link = "{app_url()}/r/{code}"
+    let titulo = t(locale, "invitar.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, render_invitar(locale, link, count), html("")))
+}
+
+// Link de invitación: guarda el code en una cookie (1h) y manda a /registro.
+@get("/r/{code}")
+fn r_get(code: Str) -> Response {
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        cookies: [
+            Cookie {
+                name: "mathelp_ref",
+                value: code,
+                path: "/",
+                same_site: "Lax",
+                max_age: 3600,
+            },
+        ],
+        headers: { "Location": "/registro" },
+        body: "",
+    }
+}

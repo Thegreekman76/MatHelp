@@ -147,7 +147,34 @@ Decisiones: bienvenida **localizada por `family.locale`**; admin gateado por
   hook `chequear_hito` en `auth.signup_emails`). Al registrarse una familia, si el total llega a un
   hito (10/25/50/cada 100) se manda un email al dueño. Best-effort (no afecta el alta). Verificado
   E2E (393→400 disparó `milestone.mail n=400`, solo el hito, no los intermedios) + `fitz build` OK.
-- [ ] (no elegidos por ahora) Página privacidad/términos + link en registro; PWA push; referral.
+
+**Fase E — Cierre de opcionales** (pedido del autor 2026-09-22)
+- [x] **E3. Rate limiting en /contacto** — ✅ HECHO 2026-09-22. `@middleware(rate_limit_mw)` (de
+  auth.fitz, cross-módulo) sobre POST /contacto. Verificado E2E (10→200, 11+→429) + `fitz build` OK
+  (cross-módulo compila a nativo).
+- [x] **E1. Página privacidad/términos + link en registro** — ✅ HECHO 2026-09-22 (`legal.fitz`:
+  `/privacidad` + `/terminos`, públicas, i18n ES/EN, contenido honesto según el schema real). Links en
+  el form de registro ("Al crear tu cuenta aceptás…") + footer. Verificado E2E + `fitz build` OK.
+  **Gotcha core FITZ-31**: una var Fitz llamada `priv` (keyword reservada de Rust) rompía `fitz build`
+  → renombrada a `pol_priv`.
+- [x] **E2. Retención cohort-based en el dashboard admin** — ✅ HECHO 2026-09-22 (`admin.fitz`). Tabla
+  de cohortes semanales (últimas 6 semanas): altas + retenidas D7 (familias que jugaron dentro de los
+  7 días del alta, vía `EXISTS` sobre profiles+sessions) + %. Reusa `.adm-tabla`/`.adm-row`. Verificado
+  E2E (cohortes reales 17/08, 24/08, 14/09) + `fitz build` OK.
+- [x] **E5. Referral (invitar a otra familia)** — ✅ HECHO 2026-09-22 (`referral.fitz` handlers +
+  `referral_db.fitz` helpers, migración 0023: `families.referral_code` + `referred_by`). `/invitar`
+  (gate sesión+PIN) muestra el link `/r/<code>` + cantidad de invitadas; `/r/<code>` setea cookie +
+  redirige a /registro; `registro_post` guarda `referred_by`. Verificado E2E (A invita → B se registra
+  → count=1, B.referred_by=A.id) + `fitz build` OK. **Gotchas core**: ciclo de imports auth↔referral
+  (roto separando los helpers de DB en `referral_db.fitz` sin auth) + `ref` es keyword reservada de
+  Rust (FITZ-31) → param renombrado a `refc`.
+- [x] **E4. Recordatorio diario → por email opt-in** — ✅ HECHO 2026-09-22 (`recordatorio.fitz` +
+  `emails.send_recordatorio`, migración 0024: `families.daily_reminder`). Toggle en `/recordatorio`
+  (gate sesión+PIN, link en el hub); `@cron("0 21 * * *")` diario emails a las familias opted-in que
+  NO jugaron ese día (localizado). Verificado E2E (toggle ON/OFF persiste, query del cron selecciona
+  la familia correcta, 2do cron registrado) + `fitz build` OK. **PWA push real NO viable**: web-push
+  necesita VAPID ES256 y el `jwt` del core solo tiene HS256/384/512 → anotado como feature futura del
+  core; entregado por email que cumple el mismo objetivo (recordar practicar).
 
 ### ✅ Calidad
 

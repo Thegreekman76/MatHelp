@@ -22,6 +22,7 @@ from layout import page_landing, responder_html
 from models import Family
 from emails import notify_admin_signup, send_welcome, send_milestone, es_hito
 from ratelimit import ip_de, registrar_y_chequear
+from referral_db import record_referral
 
 // --- Sesión: emitir y leer ------------------------------------------------
 
@@ -244,6 +245,7 @@ fn form_registro(locale: Str, email: Str, familia: Str, error_key: Str) -> Html 
 </div>
 <button class="mh-btn" type="submit">{flv(t(locale, "registro.submit"))}</button>
 </form>
+<p class="mh-hint" style="margin-top:.6rem">{flv(t(locale, "registro.acepto"))} <a href="/terminos">{flv(t(locale, "legal.terms.titulo"))}</a> {flv(t(locale, "registro.y"))} <a href="/privacidad">{flv(t(locale, "legal.priv.titulo"))}</a>.</p>
 <a class="mh-link" href="/login">{flv(t(locale, "registro.ya_tengo"))}</a>
 </div>""")
 }
@@ -340,8 +342,9 @@ async fn chequear_hito() -> Result<Bool> {
 
 @middleware(rate_limit_mw)
 @cookie(name="mathelp_lang", into="lang")
+@cookie(name="mathelp_ref", into="refc")
 @post("/registro")
-async fn registro_post(lang: Str?, input: RegistroForm) -> Response {
+async fn registro_post(lang: Str?, refc: Str?, input: RegistroForm) -> Response {
     let locale = locale_from_cookie(lang)
     let titulo = t(locale, "registro.titulo") + " — MatHelp"
 
@@ -356,6 +359,13 @@ async fn registro_post(lang: Str?, input: RegistroForm) -> Response {
 
     match crear_familia(input.email, input.familia, input.password, locale).await {
         Ok(fam) => {
+            // Referral: si vino por un link /r/<code> (cookie mathelp_ref), guarda
+            // referred_by. Best-effort — no debe afectar el alta.
+            let ref_code = match refc {
+                null => "",
+                s => s,
+            }
+            let _r = record_referral(fam.id, ref_code).await
             // WORKAROUND FITZ-27 (fitz/docs/norte-mathelp.md): idealmente
             // `spawn(signup_emails(fam))` para no bloquear el alta, pero el spawn
             // desde un handler @post traga en silencio los errores de runtime de la

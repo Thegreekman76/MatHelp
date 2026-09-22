@@ -86,6 +86,25 @@ async fn render_dashboard(locale: Str) -> Result<Html> {
         false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "admin.sin_datos"))}</p>""").raw,
     }
 
+    // Retención por cohorte semanal (D7): de las familias registradas en cada
+    // semana, cuántas jugaron dentro de los 7 días del alta.
+    let cr = conn.query("SELECT to_char(date_trunc('week', f.created_at), 'DD/MM') AS semana, count(*)::int AS reg, count(*) FILTER (WHERE EXISTS (SELECT 1 FROM profiles p JOIN sessions s ON s.profile_id = p.id WHERE p.family_id = f.id AND s.started_at >= f.created_at AND s.started_at < f.created_at + INTERVAL '7 days'))::int AS ret FROM families f WHERE f.created_at >= date_trunc('week', NOW()) - INTERVAL '6 weeks' GROUP BY date_trunc('week', f.created_at) ORDER BY date_trunc('week', f.created_at)", []).await?
+    let coh_filas = html("""<div class="adm-row"><span class="adm-nom">{flv(t(locale, "admin.ret_semana"))}</span><span>{flv(t(locale, "admin.ret_reg"))}</span><span>{flv(t(locale, "admin.ret_ret"))}</span><span class="adm-fe">%</span></div>""").raw
+    for r in cr {
+        let sem = r.get_str("semana")?
+        let reg = r.get_int("reg")?
+        let ret = r.get_int("ret")?
+        let pct = match reg > 0 {
+            true => ret * 100 / reg,
+            false => 0,
+        }
+        coh_filas = coh_filas + html("""<div class="adm-row"><span class="adm-nom">{sem}</span><span>{reg}</span><span>{ret}</span><span class="adm-fe">{pct}%</span></div>""").raw
+    }
+    let cohorte = match cr.len() > 0 {
+        true => coh_filas,
+        false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "admin.sin_datos"))}</p>""").raw,
+    }
+
     // Últimos registros.
     let ur = conn.query("SELECT display_name, email, locale, to_char(created_at, 'DD/MM/YYYY HH24:MI') AS fecha FROM families ORDER BY created_at DESC LIMIT 10", []).await?
     let filas = ""
@@ -115,6 +134,11 @@ async fn render_dashboard(locale: Str) -> Result<Html> {
 <div class="mh-card">
 <h2>{flv(t(locale, "admin.flojas_titulo"))}</h2>
 {g_flojas}
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "admin.retencion_titulo"))}</h2>
+<p class="mh-sub">{flv(t(locale, "admin.ret_hint"))}</p>
+<div class="adm-tabla">{cohorte}</div>
 </div>
 <div class="mh-card">
 <h2>{flv(t(locale, "admin.registros_titulo"))}</h2>

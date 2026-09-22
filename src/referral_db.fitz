@@ -1,0 +1,63 @@
+// referral_db.fitz — helpers de DB del referral (Lote E5), SIN dependencia de
+// auth, para evitar el ciclo auth ↔ referral (auth.registro_post llama
+// record_referral; referral.fitz —los handlers— importa auth para el gate).
+
+from config import db_url
+
+// Crea las columnas lazy (idempotente) para la base ya existente; las
+// instalaciones nuevas las traen de migrations/0023_referral.sql.
+async fn ensure_referral_cols() -> Result<Null> {
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("ALTER TABLE families ADD COLUMN IF NOT EXISTS referral_code TEXT", []).await?
+    let _ = conn.exec("ALTER TABLE families ADD COLUMN IF NOT EXISTS referred_by BIGINT REFERENCES families(id) ON DELETE SET NULL", []).await?
+    let _ = conn.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_families_referral_code ON families(referral_code) WHERE referral_code IS NOT NULL", []).await?
+    return Ok(null)
+}
+
+// Devuelve el referral_code de la familia, generándolo si todavía no tiene.
+async fn get_or_create_code(fam_id: Int) -> Result<Str> {
+    let _ = ensure_referral_cols().await?
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT COALESCE(referral_code, '') AS code FROM families WHERE id = $1", [fam_id]).await?
+    let code = match rows.len() > 0 {
+        true => rows[0].get_str("code")?,
+        false => "",
+    }
+    if (code != "") {
+        return Ok(code)
+    }
+    let nuevo = Uuid.v4().to_str()
+    let _ = conn.exec("UPDATE families SET referral_code = $2 WHERE id = $1", [fam_id, nuevo]).await?
+    return Ok(nuevo)
+}
+
+async fn count_referrals(fam_id: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT count(*)::int AS n FROM families WHERE referred_by = $1", [fam_id]).await?
+    let n = match rows.len() > 0 {
+        true => rows[0].get_int("n")?,
+        false => 0,
+    }
+    return Ok(n)
+}
+
+// Guarda referred_by en la familia nueva si el code resuelve a otra familia.
+// Best-effort: cualquier problema devuelve Ok(false) (no afecta el alta).
+async fn record_referral(new_fam_id: Int, code: Str) -> Result<Bool> {
+    if (code == "") {
+        return Ok(false)
+    }
+    let _ = ensure_referral_cols().await?
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT id FROM families WHERE referral_code = $1", [code]).await?
+    if (rows.len() == 0) {
+        return Ok(false)
+    }
+    let ref_id = rows[0].get_int("id")?
+    if (ref_id == new_fam_id) {
+        return Ok(false)
+    }
+    // Solo si todavía no tiene referrer (una familia se cuenta una sola vez).
+    let _ = conn.exec("UPDATE families SET referred_by = $2 WHERE id = $1 AND referred_by IS NULL", [new_fam_id, ref_id]).await?
+    return Ok(true)
+}
