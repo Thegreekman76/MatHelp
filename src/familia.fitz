@@ -119,6 +119,7 @@ fn render_hub(locale: Str, perfiles: List<Profile>, tiene_pin: Bool, es_site_adm
 <h2>{flv(t(locale, "familia.control_titulo"))}</h2>
 <a class="mh-btn sec" href="/panel"><span aria-hidden="true">📊</span> {flv(t(locale, "nav.panel"))}</a>
 <a class="mh-btn sec" href="/accesibilidad"><span aria-hidden="true">🔎</span> {flv(t(locale, "acc.titulo"))}</a>
+<a class="mh-btn sec" href="/cuenta"><span aria-hidden="true">👤</span> {flv(t(locale, "nav.cuenta"))}</a>
 <a class="mh-btn sec" href="/familia/pin/cambiar"><span aria-hidden="true">🔑</span> {pin_btn}</a>
 {admin_link}
 </div>

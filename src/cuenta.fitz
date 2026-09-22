@@ -1,0 +1,175 @@
+// cuenta.fitz — gestión de la cuenta de familia (Lote B2): cambiar contraseña
+// y cambiar email desde adentro de la zona de adulto.
+//
+// Seguridad: AMBOS cambios exigen la contraseña ACTUAL (re-autenticación), para
+// que una sesión robada no pueda cambiar las credenciales. El email nuevo se
+// valida por unicidad (no pisar el de otra familia). Al cambiar el email se
+// re-emite el JWT de sesión (el claim `email` cambió) y se redirige a /cuenta,
+// donde el campo ya muestra el email nuevo (confirmación implícita).
+//
+// Gate: sesión válida + PIN de adulto (es_admin), igual que el resto del hub
+// /familia. La pantalla se protege en cada request, no solo se oculta el link.
+
+from fitz_liveviews import Html, html, flv
+from config import db_url
+from i18n import t, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session, es_admin, mint_session, pid_from_token, adm_from_token, redirect_con_sesion
+from models import Family
+
+// --- Body types (antes de los handlers — FITZ-28) --------------------------
+
+type CambiarPassForm {
+    actual: Str = ""
+    nueva: Str = ""
+}
+
+type CambiarEmailForm {
+    actual: Str = ""
+    email: Str = ""
+}
+
+// --- DB -------------------------------------------------------------------
+
+async fn cambiar_password(fam_id: Int, nueva: Str) -> Result<Bool> {
+    let ph = hash.password(nueva)
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("UPDATE families SET password_hash = $2 WHERE id = $1", [fam_id, ph]).await?
+    return Ok(true)
+}
+
+// Ok(true) si cambió; Ok(false) si el email nuevo ya está en uso por otra familia.
+async fn cambiar_email(fam_id: Int, nuevo: Str) -> Result<Bool> {
+    let conn = db.connect(db_url()).await?
+    let dup = conn.query("SELECT id FROM families WHERE email = $1 AND id != $2", [nuevo, fam_id]).await?
+    if (dup.len() > 0) {
+        return Ok(false)
+    }
+    let _ = conn.exec("UPDATE families SET email = $2 WHERE id = $1", [fam_id, nuevo]).await?
+    return Ok(true)
+}
+
+// --- Render ---------------------------------------------------------------
+
+// msg_ok / msg_err: clave i18n del banner (o "" si no hay).
+fn render_cuenta(locale: Str, email: Str, msg_ok: Str, msg_err: Str) -> Html {
+    let banner_ok = match msg_ok == "" {
+        true => "",
+        false => html("""<div class="mh-card" style="border:2px solid #86efac"><p style="color:#166534;margin:0">✅ {flv(t(locale, msg_ok))}</p></div>""").raw,
+    }
+    let banner_err = match msg_err == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, msg_err))}</div>""").raw,
+    }
+    let email_esc = flv(email)
+    let pass_hint = flv(t(locale, "registro.password_hint"))
+    return html("""{banner_ok}
+<div class="mh-card">
+<h2>{flv(t(locale, "cuenta.pass_titulo"))}</h2>
+{banner_err}
+<form method="POST" action="/cuenta/password">
+<div class="mh-field">
+<label class="mh-label" for="pactual">{flv(t(locale, "cuenta.pass_actual"))}</label>
+<input class="mh-input" id="pactual" name="actual" type="password" autocomplete="current-password" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="pnueva">{flv(t(locale, "cuenta.pass_nueva"))}</label>
+<input class="mh-input" id="pnueva" name="nueva" type="password" autocomplete="new-password" minlength="8" required />
+<span class="mh-hint">{pass_hint}</span>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "cuenta.pass_submit"))}</button>
+</form>
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "cuenta.email_titulo"))}</h2>
+<form method="POST" action="/cuenta/email">
+<div class="mh-field">
+<label class="mh-label" for="enuevo">{flv(t(locale, "cuenta.email_nuevo"))}</label>
+<input class="mh-input" id="enuevo" name="email" type="email" value="{email_esc}" autocomplete="email" inputmode="email" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="eactual">{flv(t(locale, "cuenta.pass_actual"))}</label>
+<input class="mh-input" id="eactual" name="actual" type="password" autocomplete="current-password" required />
+</div>
+<button class="mh-btn sec" type="submit">{flv(t(locale, "cuenta.email_submit"))}</button>
+</form>
+</div>
+<a class="mh-btn sec" href="/familia"><span aria-hidden="true">↩️</span> {flv(t(locale, "admin.volver"))}</a>""")
+}
+
+// --- Handlers -------------------------------------------------------------
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/cuenta")
+async fn cuenta_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let titulo = t(locale, "cuenta.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "", ""), html("")))
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/cuenta/password")
+async fn cuenta_password_post(session: Str?, lang: Str?, input: CambiarPassForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let titulo = t(locale, "cuenta.titulo") + " — MatHelp"
+    if (not hash.verify(input.actual, fam.password_hash)) {
+        return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "", "cuenta.error_actual"), html("")))
+    }
+    if (input.nueva.len() < 8) {
+        return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "", "registro.error_password"), html("")))
+    }
+    match cambiar_password(fam.id, input.nueva).await {
+        Ok(_) => return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "cuenta.pass_ok", ""), html(""))),
+        Err(_) => return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "", "cuenta.error"), html(""))),
+    }
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/cuenta/email")
+async fn cuenta_email_post(session: Str?, lang: Str?, input: CambiarEmailForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let titulo = t(locale, "cuenta.titulo") + " — MatHelp"
+    if (not hash.verify(input.actual, fam.password_hash)) {
+        return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "", "cuenta.error_actual"), html("")))
+    }
+    if (input.email == "") {
+        return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "", "cuenta.error"), html("")))
+    }
+    match cambiar_email(fam.id, input.email).await {
+        Ok(cambio) => {
+            if (not cambio) {
+                // El email nuevo ya está en uso por otra familia.
+                return responder_html(page(locale, titulo, render_cuenta(locale, input.email, "", "cuenta.email_en_uso"), html("")))
+            }
+            // El claim email cambió → re-emitir la sesión con el email nuevo,
+            // preservando perfil elegido (pid) y estado de adulto (adm).
+            let token = mint_session(input.email, pid_from_token(session), adm_from_token(session))
+            return redirect_con_sesion("/cuenta", token)
+        }
+        Err(_) => return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "", "cuenta.error"), html(""))),
+    }
+}

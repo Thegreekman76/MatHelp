@@ -101,7 +101,11 @@ Decisiones: bienvenida **localizada por `family.locale`**; admin gateado por
   nueva clave. NO revela si el email existe (mismo mensaje siempre). Email localizado por
   `family.locale` (`emails.send_reset`). Verificado E2E: reset OK, login con clave nueva 303, clave
   vieja falla, reuso del link → "Link inválido".
-- [ ] B2. Cambiar clave / email desde la cuenta (hoy no existe) — requiere una página de cuenta; pendiente.
+- [x] B2. Cambiar clave / email desde la cuenta: ✅ HECHO 2026-09-22 (`cuenta.fitz`, pantalla `/cuenta`
+  enlazada desde el hub `/familia`). Ambos cambios exigen la **contraseña actual** (re-autenticación);
+  el email nuevo se valida por unicidad y al cambiarlo se re-emite el JWT de sesión. Gate: sesión + PIN
+  de adulto. Verificado E2E: clave mal→error / bien→ok + re-login; email en-uso→error / libre→303
+  re-mint + login con email nuevo.
 - [ ] B3. (opcional) Verificación de email al registrarse (mismo mecanismo de token).
 - Nota: "usuario" = email; si lo olvidan del todo, no hay identificador alterno (ofrecer contacto de soporte).
 
