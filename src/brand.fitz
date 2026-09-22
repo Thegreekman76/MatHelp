@@ -178,6 +178,13 @@ main \{ flex:1; width:100%; max-width:560px; margin:0 auto; padding:16px 16px 0;
   background:rgba(255,255,255,.16); color:#fff;
 \}
 .mh-sound-btn:active \{ transform:scale(.94); \}
+/* Botones de cuenta de la topbar (cambiar jugador / cerrar sesión). Mismo look
+   que el toggle de sonido. sound.js los oculta durante una partida (mh-account-ctrl). */
+.mh-icon-btn \{ min-height:36px; min-width:36px; display:inline-flex; align-items:center; justify-content:center; padding:0 10px; border:0; border-radius:999px; cursor:pointer; font-size:1rem; line-height:1; background:rgba(255,255,255,.16); color:#fff; text-decoration:none; \}
+.mh-icon-btn:active \{ transform:scale(.94); \}
+.mh-icon-btn:focus-visible \{ outline:3px solid #fff; outline-offset:2px; \}
+.mh-logout-form \{ display:inline-flex; margin:0; \}
+.mh-account-ctrl[hidden] \{ display:none; \}
 .mh-langs \{ display:flex; gap:8px; \}
 .mh-lang \{
   min-height:36px; display:inline-flex; align-items:center; padding:0 12px;

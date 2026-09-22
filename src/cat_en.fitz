@@ -293,6 +293,7 @@ fn cat_en(key: Str) -> Str {
         "modalidad.comercial" => "Commercial (Economics)",
         "modalidad.comun" => "General / primary",
         "modalidad.industrial" => "Industrial (Technical)",
+        "nav.cerrar_sesion" => "Log out",
         "nav.inicio" => "Home",
         "nav.jugar" => "Play",
         "nav.panel" => "Family dashboard",

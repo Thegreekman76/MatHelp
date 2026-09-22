@@ -14,6 +14,7 @@
   "nav.perfiles": "Perfiles",
   "nav.panel": "Panel de familia",
   "nav.salir": "Salir",
+  "nav.cerrar_sesion": "Cerrar sesión",
   "home.cambiar_jugador": "Cambiar de jugador",
   "perfiles.vacio_selector": "Todavía no hay perfiles. Entrá a «Zona familia» para crear el primero.",
   "familia.zona": "Zona familia",

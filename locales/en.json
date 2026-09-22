@@ -14,6 +14,7 @@
   "nav.perfiles": "Profiles",
   "nav.panel": "Family dashboard",
   "nav.salir": "Log out",
+  "nav.cerrar_sesion": "Log out",
   "home.cambiar_jugador": "Switch player",
   "perfiles.vacio_selector": "No profiles yet. Go to “Family zone” to create the first one.",
   "familia.zona": "Family zone",

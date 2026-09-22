@@ -18,7 +18,7 @@
 from fitz_liveviews import Html, html, flv
 from config import db_url, jwt_secret, session_cookie_name
 from i18n import t, locale_from_cookie
-from layout import page, responder_html
+from layout import page_landing, responder_html
 from models import Family
 
 // --- Sesión: emitir y leer ------------------------------------------------
@@ -262,7 +262,7 @@ type RegistroForm {
 @get("/login")
 fn login_get(lang: Str?) -> Response {
     let locale = locale_from_cookie(lang)
-    return responder_html(page(locale, t(locale, "login.titulo") + " — MatHelp", form_login(locale, "", false), html("")))
+    return responder_html(page_landing(locale, t(locale, "login.titulo") + " — MatHelp", form_login(locale, "", false), html("")))
 }
 
 @cookie(name="mathelp_lang", into="lang")
@@ -276,7 +276,7 @@ async fn login_post(lang: Str?, creds: LoginForm) -> Response {
         }
         Err(_) => {
             let cuerpo = form_login(locale, creds.email, true)
-            return responder_html(page(locale, t(locale, "login.titulo") + " — MatHelp", cuerpo, html("")))
+            return responder_html(page_landing(locale, t(locale, "login.titulo") + " — MatHelp", cuerpo, html("")))
         }
     }
 }
@@ -285,7 +285,7 @@ async fn login_post(lang: Str?, creds: LoginForm) -> Response {
 @get("/registro")
 fn registro_get(lang: Str?) -> Response {
     let locale = locale_from_cookie(lang)
-    return responder_html(page(locale, t(locale, "registro.titulo") + " — MatHelp", form_registro(locale, "", "", ""), html("")))
+    return responder_html(page_landing(locale, t(locale, "registro.titulo") + " — MatHelp", form_registro(locale, "", "", ""), html("")))
 }
 
 @cookie(name="mathelp_lang", into="lang")
@@ -296,11 +296,11 @@ async fn registro_post(lang: Str?, input: RegistroForm) -> Response {
 
     if (input.email == "" or input.familia == "" or input.password == "") {
         let cuerpo = form_registro(locale, input.email, input.familia, "registro.error_campos")
-        return responder_html(page(locale, titulo, cuerpo, html("")))
+        return responder_html(page_landing(locale, titulo, cuerpo, html("")))
     }
     if (input.password.len() < 8) {
         let cuerpo = form_registro(locale, input.email, input.familia, "registro.error_password")
-        return responder_html(page(locale, titulo, cuerpo, html("")))
+        return responder_html(page_landing(locale, titulo, cuerpo, html("")))
     }
 
     match crear_familia(input.email, input.familia, input.password, locale).await {
@@ -310,7 +310,7 @@ async fn registro_post(lang: Str?, input: RegistroForm) -> Response {
         }
         Err(_) => {
             let cuerpo = form_registro(locale, input.email, input.familia, "registro.error_email")
-            return responder_html(page(locale, titulo, cuerpo, html("")))
+            return responder_html(page_landing(locale, titulo, cuerpo, html("")))
         }
     }
 }

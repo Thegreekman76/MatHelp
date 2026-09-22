@@ -332,13 +332,21 @@ if ("serviceWorker" in navigator) {
 (function () {
   var modal = document.getElementById("mh-salir-modal");
   var btn = document.getElementById("mh-salir-btn");
+  // Botones de cuenta de la topbar (cambiar jugador / cerrar sesión): visibles
+  // fuera de la partida, ocultos DURANTE la partida (para no saltearse el modal
+  // "¿Salir de la partida?" ni perder el juego por un tap accidental).
+  var accountCtrls = document.querySelectorAll(".mh-account-ctrl");
   function enPartida() { return !!document.querySelector("[data-flv-click]"); }
   function abrir() { if (modal) modal.hidden = false; }
   function cerrar() { if (modal) modal.hidden = true; }
   // El botón "Salir" de la topbar aparece/desaparece según haya partida. El
   // juego arranca por WebSocket después del load y el resumen la termina, así
   // que observamos el <main> para re-sincronizar el botón.
-  function syncBtn() { if (btn) btn.hidden = !enPartida(); }
+  function syncBtn() {
+    var jugando = enPartida();
+    if (btn) btn.hidden = !jugando;
+    for (var i = 0; i < accountCtrls.length; i++) { accountCtrls[i].hidden = jugando; }
+  }
   syncBtn();
   var main = document.getElementById("main");
   if (main && window.MutationObserver) {
