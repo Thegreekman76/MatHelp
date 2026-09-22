@@ -35,8 +35,14 @@ Product / ship it (deploy a dominio + HTTPS, PWA offline pulida, landing page).
   botón 📖 en el home. Cross-links al juego y al truco relacionado. Emojis de "usos"
   parametrizados por tema (`tema_uso_emojis`). Verificado E2E (render real: la ficha
   abre el método recomendado según el grado). 1164 claves i18n con paridad ES/EN.
-  **Cubre todos los temas de los juegos** — la sección está completa. Ampliación futura
-  posible: más métodos por tema, o desglosar sub-temas si aparece demanda.
+  **Cubre todos los temas de los juegos** — la sección está completa. **Tanda de mejoras
+  (2026-09-22):** +18 métodos/subtemas nuevos (huecos reales: círculo, duración, contar
+  la diferencia, restas repetidas, simplificar, qué % es, potencias de 10, dos pasos,
+  tabla de valores, gráfico de barras, dibujar el problema, capacidad, conteo salteado,
+  comparar/valor absoluto de negativos, aplicación trig, estimar cantidades, series
+  decrecientes) + animaciones SVG (rectas que saltan, grillas que se llenan, barras que
+  crecen, líneas/flechas que se dibujan, agujas del reloj), gateadas por
+  prefers-reduced-motion. 1254 claves i18n con paridad.
 - [ ] **Feedback al errar con explicación** (máximo valor de aprendizaje). Hoy al
   fallar solo muestra "era X". Sumar el PASO: cómo se llega al resultado
   ("3/4 de 12 = 12 ÷ 4 × 3 = 9"). Por tipo de ejercicio / por juego.
