@@ -1,0 +1,59 @@
+// mailer.fitz — envío de emails transaccionales, compartido por toda la app.
+//
+// Prioridad: Resend HTTP API (prod — el VPS de DigitalOcean bloquea SMTP outbound)
+// → smtp.send del core (dev local con MailHog o relay propio). Extraído de
+// reporte.fitz para reusarlo también en los emails de registro (Fase A) y de
+// recuperación de clave (Fase B).
+//
+// El remitente sale de SMTP_FROM (report_from), la API key de RESEND_API_KEY. Si
+// ninguno está configurado, smtp.send falla y quien llama debe tratarlo best-effort.
+
+from config import resend_api_key, report_from
+
+async fn send_email(to: Str, subject: Str, html: Str, text: Str) -> Result<Bool> {
+    let api_key = resend_api_key()
+    let from_addr = report_from()
+
+    // Prioridad 1 — Resend HTTP API REST.
+    if (api_key != "") {
+        let resp = http.request({
+            "url": "https://api.resend.com/emails",
+            "method": "POST",
+            "headers": {
+                "Authorization": "Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "from": from_addr,
+                "to": to,
+                "subject": subject,
+                "html": html,
+                "text": text
+            }
+        }).await?
+        if (resp.status >= 400) {
+            return Err("Resend API status={resp.status} body={resp.body}")
+        }
+        log.info("mailer.resend", email: to, status: resp.status, ms: resp.duration_ms)
+        return Ok(true)
+    }
+
+    // Sin Resend: solo intentar SMTP si hay host configurado. Evita que un envío
+    // se cuelgue esperando el connect cuando no hay email configurado (dev), y hace
+    // no-op prolijo del resto de la app (registro, reporte) en ese caso.
+    let smtp_host = env_or("SMTP_HOST", "")
+    if (smtp_host == "") {
+        return Ok(false)
+    }
+
+    // Prioridad 2 — smtp.send del core (dev local con SMTP configurado).
+    let result = smtp.send({
+        "to": to,
+        "from": from_addr,
+        "subject": subject,
+        "body_html": html,
+        "body_text": text,
+    }).await?
+    log.info("mailer.smtp", email: to, message_id: result.message_id)
+    return Ok(true)
+}

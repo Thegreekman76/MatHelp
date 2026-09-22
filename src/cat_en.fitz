@@ -1259,6 +1259,14 @@ fn cat_en(key: Str) -> Str {
         "vol.era" => "Almost. It was \{0\}.",
         "vol.pregunta" => "What is the volume?",
         "vol.pregunta_pi" => "What is the volume? (use π ≈ 3)",
+        "welcome.cierre" => "Any questions, just reply to this email. Enjoy!",
+        "welcome.cta" => "Go to MatHelp",
+        "welcome.intro" => "Thanks for creating your MatHelp account, the app to practice math by playing as a family. Here are the first steps:",
+        "welcome.paso1" => "Create a profile for each child, with their name and school grade.",
+        "welcome.paso2" => "Set an adult PIN for the family zone (progress, goals and controls).",
+        "welcome.paso3" => "Pick a game or open Learn to review each topic, and start practicing!",
+        "welcome.saludo" => "Hi, \{0\}!",
+        "welcome.subject" => "Welcome to MatHelp! 🎉",
         _ => key,
     }
 }

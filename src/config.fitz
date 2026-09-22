@@ -44,6 +44,27 @@ fn app_url() -> Str {
     return env_or("MATHELP_PUBLIC_URL", "https://mathelp.example")
 }
 
+// Emails con acceso de administrador del sitio (super-admin). Lista separada por
+// comas, SIN espacios: MATHELP_ADMIN_EMAILS=a@x.com,b@y.com. Vacío = sin admin.
+// La usa el aviso de registro (Fase A) y el gate del panel admin (Fase C).
+fn admin_emails() -> List<Str> {
+    let raw = env_or("MATHELP_ADMIN_EMAILS", "")
+    if (raw == "") {
+        return []
+    }
+    return raw.split(",")
+}
+
+// ¿Este email es admin del sitio?
+fn es_admin_email(email: Str) -> Bool {
+    for a in admin_emails() {
+        if (a == email) {
+            return true
+        }
+    }
+    return false
+}
+
 // Resend HTTP API — usado en prod (el VPS de DigitalOcean bloquea SMTP
 // outbound). Si RESEND_API_KEY está seteada, el reporte se manda por
 // https://api.resend.com/emails; si no, cae al smtp.send del core (dev local).

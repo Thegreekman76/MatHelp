@@ -1259,6 +1259,14 @@ fn cat_es_ar(key: Str) -> Str {
         "vol.era" => "Casi. Era \{0\}.",
         "vol.pregunta" => "¿Cuál es el volumen?",
         "vol.pregunta_pi" => "¿Cuál es el volumen? (usá π ≈ 3)",
+        "welcome.cierre" => "Cualquier duda, respondé este email. ¡Que lo disfruten!",
+        "welcome.cta" => "Entrar a MatHelp",
+        "welcome.intro" => "Gracias por crear tu cuenta de MatHelp, la app para practicar matemática jugando en familia. Estos son los primeros pasos:",
+        "welcome.paso1" => "Creá un perfil para cada hijo o hija, con su nombre y grado escolar.",
+        "welcome.paso2" => "Poné un PIN de adulto para la zona de familia (progreso, metas y controles).",
+        "welcome.paso3" => "Elegí un juego o entrá a Aprendé para repasar cada tema, ¡y a practicar!",
+        "welcome.saludo" => "¡Hola, \{0\}!",
+        "welcome.subject" => "¡Bienvenido a MatHelp! 🎉",
         _ => key,
     }
 }

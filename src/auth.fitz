@@ -20,6 +20,7 @@ from config import db_url, jwt_secret, session_cookie_name
 from i18n import t, locale_from_cookie
 from layout import page_landing, responder_html
 from models import Family
+from emails import notify_admin_signup, send_welcome
 
 // --- Sesión: emitir y leer ------------------------------------------------
 
@@ -288,6 +289,15 @@ fn registro_get(lang: Str?) -> Response {
     return responder_html(page_landing(locale, t(locale, "registro.titulo") + " — MatHelp", form_registro(locale, "", "", ""), html("")))
 }
 
+// Emails post-registro (aviso al dueño + bienvenida). Best-effort: los helpers
+// atrapan sus propios errores y con el guard de mailer devuelven al instante si
+// no hay email configurado, así que no demoran el alta de forma perceptible.
+async fn signup_emails(fam: Family) -> Null {
+    let _admin = notify_admin_signup(fam).await
+    let _welcome = send_welcome(fam).await
+    return null
+}
+
 @cookie(name="mathelp_lang", into="lang")
 @post("/registro")
 async fn registro_post(lang: Str?, input: RegistroForm) -> Response {
@@ -305,6 +315,7 @@ async fn registro_post(lang: Str?, input: RegistroForm) -> Response {
 
     match crear_familia(input.email, input.familia, input.password, locale).await {
         Ok(fam) => {
+            let _e = signup_emails(fam).await
             let token = mint_session(fam.email, "", "0")
             return redirect_con_sesion("/perfiles", token)
         }

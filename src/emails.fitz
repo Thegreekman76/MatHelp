@@ -1,0 +1,102 @@
+// emails.fitz — emails transaccionales del registro (Fase A).
+//
+//   1. notify_admin_signup: aviso al dueño (MATHELP_ADMIN_EMAILS) con los datos
+//      de la familia que se acaba de registrar. Interno/ops, en español.
+//   2. send_welcome: email de bienvenida al usuario, localizado por family.locale
+//      (ES/EN), con una explicación breve y los primeros pasos.
+//
+// Ambos son best-effort: atrapan sus propios errores y nunca abortan el registro.
+// El envío real lo hace mailer.send_email (Resend → smtp.send). Se disparan con
+// spawn(...) desde auth.fitz para no demorar el alta.
+
+from fitz_liveviews import flv
+from config import admin_emails, app_url
+from mailer import send_email
+from i18n import t, t1
+from models import Family
+
+// --- Aviso al dueño -----------------------------------------------------------
+
+async fn notify_admin_signup(fam: Family) -> Result<Bool> {
+    let admins = admin_emails()
+    if (admins.len() == 0) {
+        return Ok(false)
+    }
+    // Datos controlados por quien se registra → escapados para el HTML del aviso.
+    // flv() devuelve el Str ya escapado (no un Html), así que se usa directo.
+    let nombre = flv(fam.display_name)
+    let mail = flv(fam.email)
+    let subj = "MatHelp — nuevo registro: " + fam.email
+    let html = "<div style=\"font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:20px\">"
+    html = html + "<h2 style=\"color:#0E7A63;margin:0 0 .6rem\">Nuevo registro en MatHelp</h2>"
+    html = html + "<p style=\"margin:.2rem 0;color:#0f172a\"><b>Familia:</b> " + nombre + "</p>"
+    html = html + "<p style=\"margin:.2rem 0;color:#0f172a\"><b>Email:</b> " + mail + "</p>"
+    html = html + "<p style=\"margin:.2rem 0;color:#0f172a\"><b>Idioma:</b> " + fam.locale + "</p>"
+    html = html + "</div>"
+    let text = "Nuevo registro en MatHelp\n\nFamilia: " + fam.display_name + "\nEmail: " + fam.email + "\nIdioma: " + fam.locale + "\n"
+    let ok = false
+    for a in admins {
+        let r = send_email(a, subj, html, text).await
+        match r {
+            Ok(_) => {
+                log.info("signup.admin_notif", to: a, nuevo: fam.email)
+                ok = true
+            }
+            Err(e) => log.error("signup.admin_notif.error", to: a, err: e),
+        }
+    }
+    return Ok(ok)
+}
+
+// --- Bienvenida al usuario (localizada) ---------------------------------------
+
+async fn send_welcome(fam: Family) -> Result<Bool> {
+    let loc = fam.locale
+    let saludo = t1(loc, "welcome.saludo", fam.display_name)
+    let intro = t(loc, "welcome.intro")
+    let p1 = t(loc, "welcome.paso1")
+    let p2 = t(loc, "welcome.paso2")
+    let p3 = t(loc, "welcome.paso3")
+    let cta = t(loc, "welcome.cta")
+    let cierre = t(loc, "welcome.cierre")
+    let subj = t(loc, "welcome.subject")
+    let url = app_url()
+    let html = welcome_html(saludo, intro, p1, p2, p3, cta, cierre, url)
+    let text = welcome_text(saludo, intro, p1, p2, p3, cta, cierre, url)
+    let r = send_email(fam.email, subj, html, text).await
+    match r {
+        Ok(_) => {
+            log.info("signup.welcome", to: fam.email)
+            return Ok(true)
+        }
+        Err(e) => {
+            log.error("signup.welcome.error", to: fam.email, err: e)
+            return Ok(false)
+        }
+    }
+}
+
+fn welcome_html(saludo: Str, intro: Str, p1: Str, p2: Str, p3: Str, cta: Str, cierre: Str, url: Str) -> Str {
+    let s = "<div style=\"font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:20px\">"
+    s = s + "<h2 style=\"color:#0E7A63;margin:0 0 .3rem\">MatHelp</h2>"
+    s = s + "<p style=\"margin:.2rem 0 1rem;color:#0f172a;font-weight:700\">" + saludo + "</p>"
+    s = s + "<p style=\"margin:0 0 .8rem;color:#475569\">" + intro + "</p>"
+    s = s + "<ol style=\"margin:0 0 1rem;padding-left:1.2rem;color:#0f172a;line-height:1.5\">"
+    s = s + "<li style=\"margin:.35rem 0\">" + p1 + "</li>"
+    s = s + "<li style=\"margin:.35rem 0\">" + p2 + "</li>"
+    s = s + "<li style=\"margin:.35rem 0\">" + p3 + "</li>"
+    s = s + "</ol>"
+    s = s + "<p style=\"margin:1.2rem 0 .3rem\"><a href=\"" + url + "\" style=\"background:#0E7A63;color:#fff;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:700\">" + cta + "</a></p>"
+    s = s + "<p style=\"margin:1.4rem 0 0;color:#94a3b8;font-size:.85rem\">" + cierre + "</p>"
+    s = s + "</div>"
+    return s
+}
+
+fn welcome_text(saludo: Str, intro: Str, p1: Str, p2: Str, p3: Str, cta: Str, cierre: Str, url: Str) -> Str {
+    let s = "MatHelp\n\n" + saludo + "\n" + intro + "\n\n"
+    s = s + "1. " + p1 + "\n"
+    s = s + "2. " + p2 + "\n"
+    s = s + "3. " + p3 + "\n\n"
+    s = s + cta + ": " + url + "\n\n" + cierre + "\n"
+    return s
+}

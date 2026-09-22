@@ -75,20 +75,35 @@ Product / ship it (deploy a dominio + HTTPS, PWA offline pulida, landing page).
   existían pero el panel nunca leía. Muestra dónde el chico es certero vs dónde
   falla (el rating Elo no lo dice directo). Verificado en browser.
 
-### 🛠️ Admin / operación (pedido del autor 2026-09-22, hacer al terminar la tanda de "Aprendé")
+### 🛠️ Admin / cuenta / emails (pedido del autor 2026-09-22, post-"Aprendé")
 
-- [ ] **Email al registrarse.** Cuando una familia nueva se registra (`registro_post`
-  en `src/auth.fitz`), enviar un aviso a **palopoli.martin@gmail.com** con quién se
-  registró (email + nombre de familia + fecha). Reusa el `smtp.send` del core que ya usa
-  el reporte semanal (`reporte.fitz` + config SMTP/Resend); best-effort (no romper el
-  registro si el mail falla), probablemente con `spawn(...)` para no bloquear la
-  respuesta. Requiere `SMTP_*` configurado (infra ya existe).
-- [ ] **Área de administración.** Panel para el dueño de la app (distinta de la zona
-  familia) con métricas generales: registros totales, familias/perfiles nuevos por día,
-  actividad, juegos más jugados. Gate por rol/PIN de admin global (ya hay patrón
-  `admin_pin` en `familia.fitz` + migración 0020). Empezar por tabla de últimos registros
-  + contadores; después gráficos (reusa StatCard/BarChart de la companion UI, ya usada en
-  el panel del padre).
+Contexto: login por **email** (no hay usuario aparte). Infra de email lista: `smtp.send`
+del core + Resend (sender `no-reply@mathelp.prothos.com.ar`, ver `config.fitz` +
+`mailer.fitz`). Los emails transaccionales NO dependen de MATHELP_WEEKLY_REPORT.
+Decisiones: bienvenida **localizada por `family.locale`**; admin gateado por
+**`MATHELP_ADMIN_EMAILS`** (env, coma-separado). Orden A→B→C, un lote cada uno.
+
+**Fase A — Emails al registrarse** (helper compartido `mailer.send_email` + hook
+`spawn(...)` best-effort en `registro_post`)
+- [ ] A1. Aviso al dueño (MATHELP_ADMIN_EMAILS) con datos del registro (email, familia, locale).
+- [ ] A2. Bienvenida al usuario, localizada, con pasos (crear perfiles, PIN de adulto, jugar/Aprendé).
+
+**Fase B — Recuperación / gestión de acceso** (tabla nueva de tokens, migración 0021)
+- [ ] B1. Recuperar contraseña: form → email con link+token (expira, single-use) → nueva clave; no revelar si el email existe.
+- [ ] B2. Cambiar clave / email desde la cuenta (hoy no existe).
+- [ ] B3. (opcional) Verificación de email al registrarse (mismo mecanismo de token).
+- Nota: "usuario" = email; si lo olvidan del todo, no hay identificador alterno (ofrecer contacto de soporte).
+
+**Fase C — Administración del sitio (super-admin)**
+- [ ] C1. Gate por `MATHELP_ADMIN_EMAILS` → link "Administración" en el menú + proteger TODAS las rutas /admin (no solo ocultar).
+- [ ] C2. Dashboard: contadores (familias, perfiles, sesiones, registros/día) + tabla de últimos registros (StatCard/BarChart).
+- [ ] C3. Uso/engagement: DAU/WAU, juegos más jugados, retención, destrezas más flojas a nivel global.
+- [ ] C4. (opcional) Moderación: ver/suspender/borrar cuentas.
+
+**Fase D — Extras a evaluar** (seguridad/privacidad/crecimiento)
+- [ ] Rate limiting en login y registro. [ ] Borrar cuenta + exportar datos (privacidad de menores).
+- [ ] Página privacidad/términos + link en el registro. [ ] Formulario de contacto → email.
+- [ ] Recordatorio diario de practicar (PWA push). [ ] Invitar a otra familia (referral). [ ] Avisos de hitos/errores al dueño.
 
 ### ✅ Calidad
 
