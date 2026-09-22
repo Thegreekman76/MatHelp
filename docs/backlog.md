@@ -120,8 +120,10 @@ Decisiones: bienvenida **localizada por `family.locale`**; admin gateado por
   `/familia` (solo super-admins). Distinto de `es_admin` (PIN de familia).
 - [x] C2. Dashboard: 4 StatCards (familias, perfiles, sesiones, altas 7 días) + BarChart juegos más
   jugados (por `sessions.mode`) + tabla de últimos 10 registros (SQL crudo de agregación).
-- [ ] C3. Uso/engagement avanzado: DAU/WAU, retención, destrezas más flojas global — pendiente (MVP
-  cubre contadores + juegos + registros).
+- [x] C3. Uso/engagement: ✅ HECHO 2026-09-22. StatCards DAU (activos hoy) + WAU (activos 7 días) por
+  `count(DISTINCT profile_id)` de sessions; BarChart altas por día (7 días) + BarChart destrezas más
+  flojas global (% error por `skill_code` de attempts, `count>=10`). (Retención cohort-based queda
+  como refinamiento futuro.)
 - [ ] C4. (opcional) Moderación: ver/suspender/borrar cuentas.
 
 > **Nota:** el BarChart de juegos usa el `mode` interno crudo como label (quiz, truefalse, numpad…);

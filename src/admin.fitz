@@ -38,13 +38,19 @@ async fn render_dashboard(locale: Str) -> Result<Html> {
     let perfiles = contar(conn.query("SELECT count(*)::int AS n FROM profiles", []).await?)
     let sesiones = contar(conn.query("SELECT count(*)::int AS n FROM sessions", []).await?)
     let reg7 = contar(conn.query("SELECT count(*)::int AS n FROM families WHERE created_at >= NOW() - INTERVAL '7 days'", []).await?)
+    // Engagement (C3): perfiles activos hoy (DAU) y en la última semana (WAU),
+    // "activo" = arrancó al menos una sesión en el período.
+    let dau = contar(conn.query("SELECT count(DISTINCT profile_id)::int AS n FROM sessions WHERE started_at::date = CURRENT_DATE", []).await?)
+    let wau = contar(conn.query("SELECT count(DISTINCT profile_id)::int AS n FROM sessions WHERE started_at >= NOW() - INTERVAL '7 days'", []).await?)
 
     let c1 = stat_card_render(stat_card { label: t(locale, "admin.stat.familias"), value: familias, hint: "", accent: "blue" }).raw
     let c2 = stat_card_render(stat_card { label: t(locale, "admin.stat.perfiles"), value: perfiles, hint: "", accent: "green" }).raw
     let c3 = stat_card_render(stat_card { label: t(locale, "admin.stat.sesiones"), value: sesiones, hint: "", accent: "violet" }).raw
     let c4 = stat_card_render(stat_card { label: t(locale, "admin.stat.reg7"), value: reg7, hint: t(locale, "admin.stat.reg7_hint"), accent: "amber" }).raw
+    let c5 = stat_card_render(stat_card { label: t(locale, "admin.stat.dau"), value: dau, hint: t(locale, "admin.stat.dau_hint"), accent: "primary" }).raw
+    let c6 = stat_card_render(stat_card { label: t(locale, "admin.stat.wau"), value: wau, hint: t(locale, "admin.stat.wau_hint"), accent: "blue" }).raw
     let cards = html("""<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:.5rem">
-{c1}{c2}{c3}{c4}
+{c1}{c2}{c3}{c4}{c5}{c6}
 </div>""").raw
 
     // Juegos más jugados (por modo de sesión).
@@ -55,6 +61,28 @@ async fn render_dashboard(locale: Str) -> Result<Html> {
     }
     let grafico = match bars.len() > 0 {
         true => bar_chart_render(bar_chart { bars: bar_scale(bars) }).raw,
+        false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "admin.sin_datos"))}</p>""").raw,
+    }
+
+    // Altas por día (últimos 7) — crecimiento.
+    let ar = conn.query("SELECT to_char(created_at::date, 'DD/MM') AS label, count(*)::int AS n FROM families WHERE created_at >= NOW() - INTERVAL '7 days' GROUP BY created_at::date ORDER BY created_at::date", []).await?
+    let altas_bars: List<Bar> = []
+    for r in ar {
+        altas_bars.push(Bar { label: r.get_str("label")?, value: r.get_int("n")? })
+    }
+    let g_altas = match altas_bars.len() > 0 {
+        true => bar_chart_render(bar_chart { bars: bar_scale(altas_bars) }).raw,
+        false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "admin.sin_datos"))}</p>""").raw,
+    }
+
+    // Destrezas más flojas a nivel global (% de error, con datos suficientes).
+    let fl = conn.query("SELECT skill_code AS label, (count(*) FILTER (WHERE correct = false) * 100 / count(*))::int AS n FROM attempts GROUP BY skill_code HAVING count(*) >= 10 ORDER BY n DESC LIMIT 8", []).await?
+    let flojas_bars: List<Bar> = []
+    for r in fl {
+        flojas_bars.push(Bar { label: r.get_str("label")?, value: r.get_int("n")? })
+    }
+    let g_flojas = match flojas_bars.len() > 0 {
+        true => bar_chart_render(bar_chart { bars: bar_scale(flojas_bars) }).raw,
         false => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "admin.sin_datos"))}</p>""").raw,
     }
 
@@ -77,8 +105,16 @@ async fn render_dashboard(locale: Str) -> Result<Html> {
 {cards}
 </div>
 <div class="mh-card">
+<h2>{flv(t(locale, "admin.altas_titulo"))}</h2>
+{g_altas}
+</div>
+<div class="mh-card">
 <h2>{flv(t(locale, "admin.juegos_titulo"))}</h2>
 {grafico}
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "admin.flojas_titulo"))}</h2>
+{g_flojas}
 </div>
 <div class="mh-card">
 <h2>{flv(t(locale, "admin.registros_titulo"))}</h2>
