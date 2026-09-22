@@ -95,7 +95,7 @@ fn topbar(locale: Str) -> Html {
 <div class="mh-controls">
 <a class="mh-icon-btn mh-account-ctrl" href="/perfiles" aria-label="{cambiar_lbl}" title="{cambiar_lbl}"><span aria-hidden="true">🔄</span></a>
 <form class="mh-account-ctrl mh-logout-form" method="POST" action="/logout">
-<button type="submit" class="mh-icon-btn" aria-label="{cerrar_lbl}" title="{cerrar_lbl}"><span aria-hidden="true">🚪</span></button>
+<button type="submit" class="mh-icon-btn" aria-label="{cerrar_lbl}" title="{cerrar_lbl}"><span aria-hidden="true">⏻</span></button>
 </form>
 <button id="mh-salir-btn" type="button" class="mh-salir-btn" hidden aria-label="{salir_lbl}" title="{salir_lbl}"><span aria-hidden="true">✕</span> {salir_lbl}</button>
 <button id="mh-sound-btn" type="button" class="mh-sound-btn" aria-pressed="true" aria-label="{son_lbl}" title="{son_lbl}"><span class="mh-sound-ico" aria-hidden="true">🔊</span></button>
