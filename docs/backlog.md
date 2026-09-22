@@ -129,10 +129,15 @@ Decisiones: bienvenida **localizada por `family.locale`**; admin gateado por
 > **Nota:** el BarChart de juegos usa el `mode` interno crudo como label (quiz, truefalse, numpad…);
 > mapearlo a nombres amigables por i18n es un refinamiento futuro (es una vista de ops).
 
-**Fase D — Extras a evaluar** (seguridad/privacidad/crecimiento)
-- [ ] Rate limiting en login y registro. [ ] Borrar cuenta + exportar datos (privacidad de menores).
-- [ ] Página privacidad/términos + link en el registro. [ ] Formulario de contacto → email.
-- [ ] Recordatorio diario de practicar (PWA push). [ ] Invitar a otra familia (referral). [ ] Avisos de hitos/errores al dueño.
+**Fase D — Extras** (el autor eligió 4: borrar/export, rate limiting, contacto, avisos de hitos)
+- [x] **D1. Borrar cuenta + exportar datos** — ✅ HECHO 2026-09-22 (`cuenta.fitz`). `GET /cuenta/export`
+  devuelve un `Map<Str,Any>` (familia sin password_hash + perfiles + últimas 500 sesiones) que Fitz
+  auto-serializa a JSON. `POST /cuenta/borrar` con doble confirmación (contraseña actual + escribir el
+  email) → DELETE CASCADE + logout. Cards en /cuenta. Verificado E2E.
+- [ ] D2. Rate limiting en login y registro (anti fuerza bruta, `@middleware` por IP).
+- [ ] D3. Formulario de contacto → email al dueño (reusa `mailer.send_email`).
+- [ ] D4. Avisos de hitos al dueño (ej. familia N=100/500) por email.
+- [ ] (no elegidos por ahora) Página privacidad/términos + link en registro; PWA push; referral.
 
 ### ✅ Calidad
 

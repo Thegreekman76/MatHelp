@@ -1,17 +1,17 @@
-// cuenta.fitz — gestión de la cuenta de familia (Lote B2): cambiar contraseña
-// y cambiar email desde adentro de la zona de adulto.
+// cuenta.fitz — gestión de la cuenta de familia: cambiar contraseña y email
+// (Lote B2) + exportar datos y borrar la cuenta (Lote D1, privacidad).
 //
-// Seguridad: AMBOS cambios exigen la contraseña ACTUAL (re-autenticación), para
-// que una sesión robada no pueda cambiar las credenciales. El email nuevo se
-// valida por unicidad (no pisar el de otra familia). Al cambiar el email se
-// re-emite el JWT de sesión (el claim `email` cambió) y se redirige a /cuenta,
-// donde el campo ya muestra el email nuevo (confirmación implícita).
+// Seguridad: los cambios de credenciales y el borrado exigen la contraseña
+// ACTUAL (re-autenticación), para que una sesión robada no pueda cambiarlas. El
+// email nuevo se valida por unicidad. Al cambiar el email se re-emite el JWT.
+// El borrado además pide escribir el email como confirmación y hace DELETE
+// CASCADE (familia + perfiles + progreso) + cierra la sesión.
 //
 // Gate: sesión válida + PIN de adulto (es_admin), igual que el resto del hub
-// /familia. La pantalla se protege en cada request, no solo se oculta el link.
+// /familia. Se protege en cada request, no solo se oculta el link.
 
 from fitz_liveviews import Html, html, flv
-from config import db_url
+from config import db_url, session_cookie_name
 from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from auth import read_session, es_admin, mint_session, pid_from_token, adm_from_token, redirect_con_sesion
@@ -27,6 +27,11 @@ type CambiarPassForm {
 type CambiarEmailForm {
     actual: Str = ""
     email: Str = ""
+}
+
+type BorrarForm {
+    actual: Str = ""
+    confirmar: Str = ""
 }
 
 // --- DB -------------------------------------------------------------------
@@ -49,6 +54,71 @@ async fn cambiar_email(fam_id: Int, nuevo: Str) -> Result<Bool> {
     return Ok(true)
 }
 
+// Toda la data de la familia como Map (para exportar a JSON). Sin password_hash.
+async fn build_export(fam: Family) -> Result<Map<Str, Any>> {
+    let conn = db.connect(db_url()).await?
+    let fam_map = {
+        "email": fam.email,
+        "display_name": fam.display_name,
+        "locale": fam.locale,
+    }
+    let pr = conn.query("SELECT id, name, avatar, grade, locale, daily_goal, to_char(created_at, 'YYYY-MM-DD') AS creado FROM profiles WHERE family_id = $1 ORDER BY id", [fam.id]).await?
+    let profs = []
+    for r in pr {
+        profs.push({
+            "id": r.get_int("id")?,
+            "name": r.get_str("name")?,
+            "avatar": r.get_str("avatar")?,
+            "grade": r.get_int("grade")?,
+            "locale": r.get_str("locale")?,
+            "daily_goal": r.get_int("daily_goal")?,
+            "creado": r.get_str("creado")?,
+        })
+    }
+    let sr = conn.query("SELECT s.mode AS modo, s.total, s.correct, to_char(s.started_at, 'YYYY-MM-DD HH24:MI') AS inicio FROM sessions s JOIN profiles p ON p.id = s.profile_id WHERE p.family_id = $1 ORDER BY s.started_at DESC LIMIT 500", [fam.id]).await?
+    let sess = []
+    for r in sr {
+        sess.push({
+            "modo": r.get_str("modo")?,
+            "total": r.get_int("total")?,
+            "correct": r.get_int("correct")?,
+            "inicio": r.get_str("inicio")?,
+        })
+    }
+    return Ok({
+        "family": fam_map,
+        "profiles": profs,
+        "sessions": sess,
+    })
+}
+
+// Borra la familia y TODO su contenido (perfiles, sesiones, progreso) vía CASCADE.
+async fn borrar_cuenta(fam_id: Int) -> Result<Bool> {
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("DELETE FROM families WHERE id = $1", [fam_id]).await?
+    return Ok(true)
+}
+
+// Response 303 que cierra la sesión (cookie con max_age 0) y va a destino.
+fn logout_a(destino: Str) -> Response {
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        cookies: [
+            Cookie {
+                name: session_cookie_name(),
+                value: "",
+                path: "/",
+                http_only: true,
+                same_site: "Lax",
+                max_age: 0,
+            },
+        ],
+        headers: { "Location": destino },
+        body: "",
+    }
+}
+
 // --- Render ---------------------------------------------------------------
 
 // msg_ok / msg_err: clave i18n del banner (o "" si no hay).
@@ -64,9 +134,9 @@ fn render_cuenta(locale: Str, email: Str, msg_ok: Str, msg_err: Str) -> Html {
     let email_esc = flv(email)
     let pass_hint = flv(t(locale, "registro.password_hint"))
     return html("""{banner_ok}
+{banner_err}
 <div class="mh-card">
 <h2>{flv(t(locale, "cuenta.pass_titulo"))}</h2>
-{banner_err}
 <form method="POST" action="/cuenta/password">
 <div class="mh-field">
 <label class="mh-label" for="pactual">{flv(t(locale, "cuenta.pass_actual"))}</label>
@@ -92,6 +162,26 @@ fn render_cuenta(locale: Str, email: Str, msg_ok: Str, msg_err: Str) -> Html {
 <input class="mh-input" id="eactual" name="actual" type="password" autocomplete="current-password" required />
 </div>
 <button class="mh-btn sec" type="submit">{flv(t(locale, "cuenta.email_submit"))}</button>
+</form>
+</div>
+<div class="mh-card">
+<h2>{flv(t(locale, "cuenta.export_titulo"))}</h2>
+<p style="color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "cuenta.export_texto"))}</p>
+<a class="mh-btn sec" href="/cuenta/export"><span aria-hidden="true">⬇️</span> {flv(t(locale, "cuenta.export_btn"))}</a>
+</div>
+<div class="mh-card" style="border:2px solid #fca5a5">
+<h2 style="color:#b91c1c">{flv(t(locale, "cuenta.borrar_titulo"))}</h2>
+<p style="color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "cuenta.borrar_texto"))}</p>
+<form method="POST" action="/cuenta/borrar">
+<div class="mh-field">
+<label class="mh-label" for="bconfirmar">{flv(t(locale, "cuenta.borrar_confirmar"))}</label>
+<input class="mh-input" id="bconfirmar" name="confirmar" type="email" autocomplete="off" placeholder="{email_esc}" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="bactual">{flv(t(locale, "cuenta.pass_actual"))}</label>
+<input class="mh-input" id="bactual" name="actual" type="password" autocomplete="current-password" required />
+</div>
+<button class="mh-btn peligro" type="submit">{flv(t(locale, "cuenta.borrar_btn"))}</button>
 </form>
 </div>
 <a class="mh-btn sec" href="/familia"><span aria-hidden="true">↩️</span> {flv(t(locale, "admin.volver"))}</a>""")
@@ -170,6 +260,48 @@ async fn cuenta_email_post(session: Str?, lang: Str?, input: CambiarEmailForm) -
             let token = mint_session(input.email, pid_from_token(session), adm_from_token(session))
             return redirect_con_sesion("/cuenta", token)
         }
+        Err(_) => return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "", "cuenta.error"), html(""))),
+    }
+}
+
+// Export de toda la data de la familia como JSON. El handler devuelve un Map y
+// Fitz lo auto-serializa a application/json. Gate por sesión + PIN de adulto;
+// un acceso no autorizado recibe un JSON de error (endpoint de datos, no página).
+@cookie(name="mathelp_session", into="session")
+@get("/cuenta/export")
+async fn cuenta_export_get(session: Str?) -> Map<Str, Any> {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return {"error": "no autenticado"},
+    }
+    if (not es_admin(session)) {
+        return {"error": "sin permiso"}
+    }
+    match build_export(fam).await {
+        Ok(m) => return m,
+        Err(_) => return {"error": "no se pudo exportar"},
+    }
+}
+
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/cuenta/borrar")
+async fn cuenta_borrar_post(session: Str?, lang: Str?, input: BorrarForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let titulo = t(locale, "cuenta.titulo") + " — MatHelp"
+    // Doble confirmación: contraseña actual correcta Y el email escrito coincide.
+    if (not hash.verify(input.actual, fam.password_hash) or input.confirmar != fam.email) {
+        return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "", "cuenta.borrar_error"), html("")))
+    }
+    match borrar_cuenta(fam.id).await {
+        Ok(_) => return logout_a("/"),
         Err(_) => return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "", "cuenta.error"), html(""))),
     }
 }
