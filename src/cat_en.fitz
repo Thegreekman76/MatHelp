@@ -860,7 +860,6 @@ fn cat_en(key: Str) -> Str {
         "home.practica_libre" => "Free practice",
         "home.seguir" => "Continue with \{0\}",
         "home.sin_perfiles" => "No profiles yet. Create the first one.",
-        "home.sorpresa" => "🎲 Surprise",
         "home.tienda" => "Shop",
         "home.trucos" => "Tricks",
         "hora.era" => "Almost. It was \{0\}.",

@@ -47,7 +47,7 @@ fn tarjeta_vacia(locale: Str) -> Html {
 <span class="mh-err-emoji" aria-hidden="true">🎉</span>
 <h2>{flv(t(locale, "errores.vacio_titulo"))}</h2>
 <p class="mh-err-sub">{flv(t(locale, "errores.vacio_sub"))}</p>
-<a class="mh-btn" href="/jugar"><span aria-hidden="true">▶️</span>{flv(t(locale, "home.jugar_ya"))}</a>
+<a class="mh-btn" href="/sorpresa"><span aria-hidden="true">▶️</span>{flv(t(locale, "home.jugar_ya"))}</a>
 </div>
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
 }

@@ -285,7 +285,7 @@ async fn render_progreso(profile_id: Int, locale: Str) -> Result<Html> {
         let vacio = html("""{racha_html}
 <div class="mh-card" style="text-align:center">
 <p style="color:var(--mh-suave);margin:.4rem 0 1.2rem">{flv(t(locale, "progreso.sin_datos"))}</p>
-<a class="mh-btn" href="/jugar">{flv(t(locale, "home.jugar_ya"))}</a>
+<a class="mh-btn" href="/sorpresa">{flv(t(locale, "home.jugar_ya"))}</a>
 </div>
 <a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
         return Ok(vacio)

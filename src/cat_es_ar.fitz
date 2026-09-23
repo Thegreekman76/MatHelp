@@ -860,7 +860,6 @@ fn cat_es_ar(key: Str) -> Str {
         "home.practica_libre" => "Práctica libre",
         "home.seguir" => "Seguir con \{0\}",
         "home.sin_perfiles" => "Todavía no hay perfiles. Creá el primero.",
-        "home.sorpresa" => "🎲 Sorpresa",
         "home.tienda" => "Tienda",
         "home.trucos" => "Trucos",
         "hora.era" => "Casi. Era \{0\}.",

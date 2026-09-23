@@ -124,8 +124,16 @@ fn skill_icon(sc: Str) -> Str {
 // Acento del progress_bar por destreza (paleta segura de la lib: blue/green/
 // violet/amber/primary).
 fn skill_accent(sc: Str) -> Str {
+    // El componente ProgressBar de fitz-liveviews sólo soporta blue/green/amber
+    // (blue = naranja-Rust #ce412b). Cualquier otro accent deja la barra SIN
+    // color → se ve blanca. Por eso acá devolvemos solo esos tres. Antes se
+    // usaba "violet" (mul/frac/geo/ec/trig) y "primary" (default) → barras
+    // invisibles. Los reasignamos evitando que operaciones vecinas del panel
+    // (Suma/División/Multiplicación/Resta) choquen de color.
+    // TODO(fitz-liveviews): ampliar la paleta del ProgressBar (violet, red,
+    // teal, etc.) para recuperar la variedad — ver ROADMAP del framework.
     if (sc.starts_with("ec.") or sc == "sist.2x2") {
-        return "violet"
+        return "blue"
     }
     if (sc.starts_with("fin.")) {
         return "green"
@@ -137,7 +145,7 @@ fn skill_accent(sc: Str) -> Str {
         return "amber"
     }
     if (sc.starts_with("trig.")) {
-        return "violet"
+        return "amber"
     }
     if (sc.starts_with("pct")) {
         return "green"
@@ -145,13 +153,13 @@ fn skill_accent(sc: Str) -> Str {
     return match sc {
         "add" => "blue",
         "sub" => "green",
-        "mul.tabla" => "violet",
+        "mul.tabla" => "blue",
         "div.exacta" => "amber",
         "dec.dinero" => "amber",
-        "frac.parte" => "violet",
+        "frac.parte" => "amber",
         "patron" => "blue",
         "reloj" => "green",
-        "geo" => "violet",
+        "geo" => "green",
         "memoria" => "amber",
         "ordenar" => "blue",
         "estimar" => "green",
@@ -159,7 +167,7 @@ fn skill_accent(sc: Str) -> Str {
         "historia" => "blue",
         "enteros" => "green",
         "estadistica" => "blue",
-        _ => "primary",
+        _ => "blue",
     }
 }
 
