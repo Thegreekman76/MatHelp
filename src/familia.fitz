@@ -63,6 +63,13 @@ async fn set_admin_pin(email: Str, pin: Str) -> Result<Int> {
     return conn.exec("UPDATE families SET admin_pin = $2 WHERE email = $1", [email, pin]).await
 }
 
+// Renombra la cuenta (display_name). Lo usa el upgrade individual→familia: la
+// cuenta individual arranca con el nombre de la persona y acá pasa a "Los García".
+async fn set_display_name(email: Str, nombre: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("UPDATE families SET display_name = $2 WHERE email = $1", [email, nombre]).await
+}
+
 // --- DB: acceso propio por perfil (Opción B) ----------------------------------
 // Las columnas viven en profiles (login_enabled/login_hash/activation_code) y las
 // crea asegurar_login_cols (auth.fitz). Acá se gestionan desde la Zona Familia.
@@ -310,9 +317,46 @@ fn form_pin_cambiar(locale: Str, tiene_pin: Bool, error: Bool) -> Html {
 </div>""")
 }
 
+// Pantalla del UPGRADE individual→familia: nombre de la familia + PIN de adulto.
+// Setear el PIN es lo que "convierte" la cuenta en familiar (el discriminador es
+// admin_pin != ""), por eso acá es obligatorio (a diferencia del primer arranque
+// de /familia/pin, que lo permite vacío).
+fn form_upgrade(locale: Str, nombre: Str, error_key: Str) -> Html {
+    let err = match error_key == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, error_key))}</div>""").raw,
+    }
+    let nombre_esc = flv(nombre)
+    let ph = flv(t(locale, "registro.familia_ph"))
+    return html("""<div class="mh-card">
+<h2>👨‍👩‍👧 {flv(t(locale, "upgrade.titulo"))}</h2>
+<p style="color:var(--mh-suave);margin:0 0 1rem">{flv(t(locale, "upgrade.texto"))}</p>
+{err}
+<form method="POST" action="/upgrade">
+<div class="mh-field">
+<label class="mh-label" for="nombre">{flv(t(locale, "upgrade.nombre_label"))}</label>
+<input class="mh-input" id="nombre" name="nombre" type="text" value="{nombre_esc}" placeholder="{ph}" autocomplete="off" required />
+<span class="mh-hint">{flv(t(locale, "upgrade.nombre_hint"))}</span>
+</div>
+<div class="mh-field">
+<label class="mh-label" for="pin">{flv(t(locale, "upgrade.pin_label"))}</label>
+<input class="mh-input" id="pin" name="pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required />
+<span class="mh-hint">{flv(t(locale, "upgrade.pin_hint"))}</span>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "upgrade.submit"))}</button>
+</form>
+<a class="mh-link" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>""")
+}
+
 // --- Tipos de form ------------------------------------------------------------
 
 type PinGateForm {
+    pin: Str = ""
+}
+
+type UpgradeForm {
+    nombre: Str = ""
     pin: Str = ""
 }
 
@@ -511,4 +555,53 @@ async fn acceso_desactivar(session: Str?, id: Int) -> Response {
     }
     let _ = desactivar_acceso(fam.id, id).await
     return redirect_a("/familia/perfil/{id}/acceso")
+}
+
+// --- Upgrade individual → familia ---------------------------------------------
+
+// /upgrade (GET) → convierte la cuenta individual en familiar. Si ya es familia
+// (admin_pin configurado), no aplica: va a la Zona Familia.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/upgrade")
+async fn upgrade_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (admin_pin_de(fam.email).await != "") {
+        return redirect_a("/familia")
+    }
+    let titulo = t(locale, "upgrade.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, form_upgrade(locale, fam.display_name, ""), html("")))
+}
+
+// /upgrade (POST) → renombra la familia + setea el PIN de adulto (obligatorio, es
+// lo que la convierte en familiar) y entra a la Zona Familia como jefe (adm="1")
+// para crear el primer perfil de un integrante. El perfil de aprendiz del ex-
+// individual queda intacto (aprendiz + admin).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/upgrade")
+async fn upgrade_post(session: Str?, lang: Str?, form: UpgradeForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (admin_pin_de(fam.email).await != "") {
+        return redirect_a("/familia")
+    }
+    let titulo = t(locale, "upgrade.titulo") + " — MatHelp"
+    if (form.nombre == "") {
+        return responder_html(page(locale, titulo, form_upgrade(locale, fam.display_name, "upgrade.error_nombre"), html("")))
+    }
+    if (form.pin.len() != 4) {
+        return responder_html(page(locale, titulo, form_upgrade(locale, form.nombre, "upgrade.error_pin"), html("")))
+    }
+    let _ = set_display_name(fam.email, form.nombre).await
+    let _ = set_admin_pin(fam.email, form.pin).await
+    let token = mint_session(fam.email, pid_from_token(session), "1")
+    return redirect_con_sesion("/perfiles/nuevo", token)
 }

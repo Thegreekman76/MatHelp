@@ -1428,5 +1428,15 @@
   "familia.acceso_activo_texto": "They already created their password and sign in on their own.",
   "familia.acceso_resetear": "Reset login",
   "familia.acceso_resetear_hint": "If they forgot their password: generates a new code to create it again.",
-  "familia.acceso_desactivar": "Disable login"
+  "familia.acceso_desactivar": "Disable login",
+  "home.sumar_familia": "Add my family",
+  "upgrade.titulo": "Add your family",
+  "upgrade.texto": "You'll be able to create a profile for each member and follow everyone's progress from the Family Zone. Pick an adult PIN to protect it.",
+  "upgrade.nombre_label": "Your family's name",
+  "upgrade.nombre_hint": "For example: The Garcias.",
+  "upgrade.pin_label": "Adult PIN (4 digits)",
+  "upgrade.pin_hint": "Protects profile management. The kids don't know it.",
+  "upgrade.submit": "Create my family",
+  "upgrade.error_pin": "The PIN must be 4 digits.",
+  "upgrade.error_nombre": "Enter your family's name."
 }

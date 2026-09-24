@@ -198,6 +198,12 @@ fn home_jugar(locale: Str, saludo: Html, resumen: Html, meta: Html, ultimo: Html
         true => html("""<a class="mh-btn sec" href="/mi-perfil"><span aria-hidden="true">🎓</span>{flv(t(locale, "home.mis_datos"))}</a>""").raw,
         false => html("""<a class="mh-btn sec" href="/perfiles"><span aria-hidden="true">🔄</span>{flv(t(locale, "home.cambiar_jugador"))}</a>""").raw,
     }
+    // Individual → "Sumar a mi familia" (upgrade a cuenta familiar). Familia →
+    // "Zona familia" (gestión). El individual no ve "Zona familia" (no tiene una).
+    let slot_familia = match es_individual {
+        true => html("""<a class="mh-btn sec" href="/upgrade"><span aria-hidden="true">➕</span> {flv(t(locale, "home.sumar_familia"))}</a>""").raw,
+        false => html("""<a class="mh-btn sec" href="/familia"><span aria-hidden="true">👨‍👩‍👧</span> {flv(t(locale, "familia.zona"))}</a>""").raw,
+    }
 
     let body = html("""<div class="mh-hero">
 {marca}
@@ -229,7 +235,7 @@ fn home_jugar(locale: Str, saludo: Html, resumen: Html, meta: Html, ultimo: Html
 {slot_perfil}
 </div>
 
-<a class="mh-btn sec" href="/familia"><span aria-hidden="true">👨‍👩‍👧</span> {flv(t(locale, "familia.zona"))}</a>""")
+{slot_familia}""")
 
     return responder_html(page(locale, "MatHelp — " + t(locale, "app.tagline"), body, html("")))
 }

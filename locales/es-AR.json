@@ -1428,5 +1428,15 @@
   "familia.acceso_activo_texto": "Ya creó su contraseña y entra por su cuenta.",
   "familia.acceso_resetear": "Resetear acceso",
   "familia.acceso_resetear_hint": "Si olvidó su contraseña: genera un código nuevo para que la vuelva a crear.",
-  "familia.acceso_desactivar": "Desactivar acceso"
+  "familia.acceso_desactivar": "Desactivar acceso",
+  "home.sumar_familia": "Sumar a mi familia",
+  "upgrade.titulo": "Sumá a tu familia",
+  "upgrade.texto": "Vas a poder crear un perfil para cada integrante y seguir el progreso de todos desde la Zona Familia. Elegí un PIN de adulto para protegerla.",
+  "upgrade.nombre_label": "Nombre de tu familia",
+  "upgrade.nombre_hint": "Por ejemplo: Los García.",
+  "upgrade.pin_label": "PIN de adulto (4 dígitos)",
+  "upgrade.pin_hint": "Protege la gestión de perfiles. Los chicos no lo saben.",
+  "upgrade.submit": "Crear mi familia",
+  "upgrade.error_pin": "El PIN tiene que ser de 4 dígitos.",
+  "upgrade.error_nombre": "Poné el nombre de tu familia."
 }
