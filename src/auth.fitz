@@ -225,14 +225,15 @@ fn form_registro(locale: Str, email: Str, familia: Str, error_key: Str) -> Html 
     }
     let email_esc = flv(email)
     let familia_esc = flv(familia)
-    let fam_ph = flv(t(locale, "registro.familia_ph"))
+    let nombre_ph = flv(t(locale, "registro.tu_nombre_ph"))
     return html("""<div class="mh-card">
 <h2>{flv(t(locale, "registro.titulo"))}</h2>
 {err}
 <form method="POST" action="/registro">
 <div class="mh-field">
-<label class="mh-label" for="familia">{flv(t(locale, "registro.familia"))}</label>
-<input class="mh-input" id="familia" name="familia" type="text" value="{familia_esc}" placeholder="{fam_ph}" autocomplete="name" required />
+<label class="mh-label" for="familia">{flv(t(locale, "registro.tu_nombre"))}</label>
+<input class="mh-input" id="familia" name="familia" type="text" value="{familia_esc}" placeholder="{nombre_ph}" autocomplete="name" required />
+<span class="mh-hint">{flv(t(locale, "registro.tu_nombre_hint"))}</span>
 </div>
 <div class="mh-field">
 <label class="mh-label" for="email">{flv(t(locale, "login.email"))}</label>
@@ -243,7 +244,9 @@ fn form_registro(locale: Str, email: Str, familia: Str, error_key: Str) -> Html 
 <input class="mh-input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" required />
 <span class="mh-hint">{flv(t(locale, "registro.password_hint"))}</span>
 </div>
-<button class="mh-btn" type="submit">{flv(t(locale, "registro.submit"))}</button>
+<button class="mh-btn" type="submit" name="accion" value="jugar">{flv(t(locale, "registro.accion_jugar"))}</button>
+<button class="mh-btn sec" type="submit" name="accion" value="familia">{flv(t(locale, "registro.accion_familia"))}</button>
+<span class="mh-hint" style="margin-top:.6rem;display:block">{flv(t(locale, "registro.accion_hint"))}</span>
 </form>
 <p class="mh-hint" style="margin-top:.6rem">{flv(t(locale, "registro.acepto"))} <a href="/terminos">{flv(t(locale, "legal.terms.titulo"))}</a> {flv(t(locale, "registro.y"))} <a href="/privacidad">{flv(t(locale, "legal.priv.titulo"))}</a>.</p>
 <a class="mh-link" href="/login">{flv(t(locale, "registro.ya_tengo"))}</a>
@@ -279,9 +282,19 @@ type LoginForm {
 }
 
 type RegistroForm {
+    // `familia` captura el nombre que se tipeó en el registro. Para una cuenta
+    // individual es el nombre de la persona (se usa como su perfil); para una
+    // cuenta familiar es el nombre inicial de la familia (renombrable luego en
+    // la Zona Familia). El name del input sigue siendo "familia" por
+    // compatibilidad — el label visible cambia a "Tu nombre".
     familia: Str = ""
     email: Str = ""
     password: Str = ""
+    // Qué botón del registro se apretó: "jugar" (individual → a jugar directo)
+    // o "familia" (→ configurar la Zona Familia y crear perfiles). Los dos
+    // <button> comparten name="accion" con distinto value; el browser manda el
+    // del que se clickeó. Vacío/desconocido = "jugar" (el camino sin fricción).
+    accion: Str = ""
 }
 
 @cookie(name="mathelp_lang", into="lang")
@@ -373,8 +386,18 @@ async fn registro_post(lang: Str?, refc: Str?, input: RegistroForm) -> Response 
             // latencia de Resend. Los errores de runtime de la task se loguean
             // (FITZ-27 cerrado en fitz v0.61.0 — el spawn ya no los traga).
             spawn(signup_emails(fam))
+            // Dos caminos según el botón que se apretó:
+            //   "familia" → a la Zona Familia (configurar PIN de adulto + crear
+            //               un perfil por hijo). El flujo familiar de siempre.
+            //   default   → "empezar a jugar": a /comenzar, que crea el perfil
+            //               individual (elegí tu grado) y a jugar. Sin PIN, sin
+            //               selector: la cuenta individual no da vueltas.
+            let destino = match input.accion == "familia" {
+                true => "/familia/pin",
+                false => "/comenzar",
+            }
             let token = mint_session(fam.email, "", "0")
-            return redirect_con_sesion("/perfiles", token)
+            return redirect_con_sesion(destino, token)
         }
         Err(_) => {
             let cuerpo = form_registro(locale, input.email, input.familia, "registro.error_email")

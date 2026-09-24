@@ -11,9 +11,9 @@
 
 from fitz_liveviews import Html, html, flv, h_join
 from config import db_url
-from i18n import t, locale_from_cookie
+from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
-from auth import read_session, mint_session, redirect_con_sesion_prefs, es_admin
+from auth import read_session, mint_session, redirect_con_sesion_prefs, es_admin, pid_from_token
 from engine import modalidad_valida
 from avatares import avatar_emoji
 from models import Profile
@@ -30,6 +30,31 @@ async fn perfiles_de(family_id: Int) -> Result<List<Profile>> {
 async fn perfil_de_familia(family_id: Int, pid: Int) -> Result<Profile> {
     let conn = db.connect(db_url()).await?
     return Profile.where(fn(p) => p.id == pid and p.family_id == family_id).first(conn).await
+}
+
+// ¿La cuenta tiene PIN de adulto configurado? = ¿es una cuenta "familiar"?
+// Lectura best-effort SIN el ALTER de asegurar_admin_pin (que vive en
+// familia.fitz): importarlo de ahí sería un ciclo (familia→perfiles→familia).
+// Si la columna todavía no existe, la query falla → false = individual: correcto,
+// porque nunca se tocó la Zona Familia (que es la que crea la columna). Lo usa el
+// auto-salto del selector: una cuenta individual con 1 perfil sin PIN no ve el
+// selector; una familiar (aunque tenga 1 solo perfil) sí lo ve.
+async fn tiene_admin_pin(email: Str) -> Bool {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return false },
+    }
+    let rows = match conn.query("SELECT admin_pin FROM families WHERE email = $1", [email]).await {
+        Ok(r) => r,
+        Err(_) => { return false },
+    }
+    if (rows.len() == 0) {
+        return false
+    }
+    return match rows[0].get_str("admin_pin") {
+        Ok(v) => v != "",
+        Err(_) => false,
+    }
 }
 
 async fn crear_perfil(family_id: Int, nombre: Str, grado: Int, modalidad: Str, pin: Str, locale: Str) -> Result<Profile> {
@@ -116,6 +141,29 @@ fn render_perfiles(locale: Str, perfiles: List<Profile>) -> Html {
 </div>
 
 <a class="mh-btn sec" href="/familia"><span aria-hidden="true">👨‍👩‍👧</span> {flv(t(locale, "familia.zona"))}</a>""")
+}
+
+// Pantalla de arranque de la cuenta INDIVIDUAL (/comenzar): saluda con el nombre
+// que se tipeó en el registro y pide lo único que falta para jugar: el grado.
+// Crea el perfil sin PIN y va directo a jugar. La cuenta familiar no pasa por
+// acá — va a la Zona Familia a crear un perfil por hijo.
+fn form_comenzar(locale: Str, nombre: Str) -> Html {
+    let saludo = flv(t1(locale, "comenzar.saludo", nombre))
+    let opciones = opciones_grado(locale)
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "comenzar.titulo"))}</h2>
+<p style="font-size:1.15rem;font-weight:800;margin:.2rem 0 .4rem;text-align:center">{saludo}</p>
+<p style="color:var(--mh-suave);margin:0 0 1rem;text-align:center">{flv(t(locale, "comenzar.texto"))}</p>
+<form method="POST" action="/comenzar">
+<div class="mh-field">
+<label class="mh-label" for="grado">{flv(t(locale, "perfiles.grado"))}</label>
+<select class="mh-select" id="grado" name="grado">
+{opciones}
+</select>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "comenzar.jugar"))}</button>
+</form>
+</div>""")
 }
 
 fn form_nuevo(locale: Str, nombre: Str, error_key: Str) -> Html {
@@ -260,6 +308,48 @@ fn form_editar(locale: Str, p: Profile, error_key: Str) -> Html {
 </div>""")
 }
 
+// "Mis datos": auto-gestión del perfil ACTIVO por su propio dueño (cuenta
+// individual), sin pasar por el PIN de adulto. Edita nombre / grado / modalidad
+// —lo que el chico necesita cuando pasa de año—. NO incluye PIN (el individual
+// no usa PIN). En una cuenta familiar esta pantalla no aplica: el adulto sigue
+// gestionando los perfiles desde la Zona Familia (el handler redirige al gate).
+fn form_mi_perfil(locale: Str, p: Profile, error_key: Str) -> Html {
+    let err = match error_key == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, error_key))}</div>""").raw,
+    }
+    let nombre_esc = flv(p.name)
+    let nombre_ph = flv(t(locale, "perfiles.nombre_ph"))
+    let opciones = opciones_grado_sel(locale, p.grade)
+    let mod_ops = opciones_modalidad_sel(locale, p.modalidad)
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "miperfil.titulo"))}</h2>
+<p style="color:var(--mh-suave);margin:0 0 1rem">{flv(t(locale, "miperfil.texto"))}</p>
+{err}
+<form method="POST" action="/mi-perfil">
+<div class="mh-field">
+<label class="mh-label" for="nombre">{flv(t(locale, "perfiles.nombre"))}</label>
+<input class="mh-input" id="nombre" name="nombre" type="text" value="{nombre_esc}" placeholder="{nombre_ph}" autocomplete="off" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="grado">{flv(t(locale, "perfiles.grado"))}</label>
+<select class="mh-select" id="grado" name="grado">
+{opciones}
+</select>
+</div>
+<div class="mh-field">
+<label class="mh-label" for="modalidad">{flv(t(locale, "perfiles.modalidad"))}</label>
+<select class="mh-select" id="modalidad" name="modalidad">
+{mod_ops}
+</select>
+<span class="mh-hint">{flv(t(locale, "perfiles.modalidad_hint"))}</span>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "perfiles.guardar"))}</button>
+</form>
+<a class="mh-link" href="/">{flv(t(locale, "perfiles.volver"))}</a>
+</div>""")
+}
+
 fn form_pin(locale: Str, p: Profile, hay_error: Bool) -> Html {
     let err = match hay_error {
         true => html("""<div class="mh-error">{flv(t(locale, "pin.error"))}</div>""").raw,
@@ -309,6 +399,16 @@ type PinForm {
     pin: Str = ""
 }
 
+type ComenzarForm {
+    grado: Str = ""
+}
+
+type MiPerfilForm {
+    nombre: Str = ""
+    grado: Str = ""
+    modalidad: Str = "comun"
+}
+
 // --- Handlers ------------------------------------------------------------
 
 @cookie(name="mathelp_session", into="session")
@@ -323,6 +423,21 @@ async fn perfiles_get(session: Str?, lang: Str?) -> Response {
     let perfiles: List<Profile> = match perfiles_de(fam.id).await {
         Ok(ps) => ps,
         Err(_) => [],
+    }
+    // Auto-salto del selector para la cuenta INDIVIDUAL: 1 solo perfil, sin PIN
+    // por-perfil, y sin PIN de adulto (no es familia) → entra directo a jugar.
+    // Así el chico que se registró para sí mismo nunca ve el selector "¿quién
+    // juega?" ni el concepto de familia. Una cuenta familiar (con admin_pin) sí
+    // ve el selector aunque tenga un solo perfil.
+    if (perfiles.len() == 1) {
+        let solo = perfiles[0]
+        if (solo.pin == "") {
+            let es_familia = tiene_admin_pin(fam.email).await
+            if (not es_familia) {
+                let token = mint_session(fam.email, "{solo.id}", "0")
+                return redirect_con_sesion_prefs("/", token, solo.theme, solo.contrast, solo.font_size)
+            }
+        }
     }
     let cuerpo = render_perfiles(locale, perfiles)
     return responder_html(page(locale, t(locale, "perfiles.titulo") + " — MatHelp", cuerpo, html("")))
@@ -498,4 +613,125 @@ async fn pin_post(session: Str?, lang: Str?, form: PinForm) -> Response {
         }
         Err(_) => return redirect_a("/perfiles"),
     }
+}
+
+// /comenzar (GET) → arranque de la cuenta individual: elegí tu grado. Solo tiene
+// sentido en una cuenta recién creada SIN perfiles; si ya hay uno, a jugar.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/comenzar")
+async fn comenzar_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let perfiles: List<Profile> = match perfiles_de(fam.id).await {
+        Ok(ps) => ps,
+        Err(_) => [],
+    }
+    if (perfiles.len() > 0) {
+        return redirect_a("/")
+    }
+    return responder_html(page(locale, t(locale, "comenzar.titulo") + " — MatHelp", form_comenzar(locale, fam.display_name), html("")))
+}
+
+// /comenzar (POST) → crea el perfil individual (nombre = el del registro, sin
+// PIN) con el grado elegido y entra a jugar. Defensa anti-duplicado ante doble
+// submit / refresh: si ya hay un perfil, no crea otro.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/comenzar")
+async fn comenzar_post(session: Str?, lang: Str?, form: ComenzarForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    let existentes: List<Profile> = match perfiles_de(fam.id).await {
+        Ok(ps) => ps,
+        Err(_) => [],
+    }
+    if (existentes.len() > 0) {
+        return redirect_a("/")
+    }
+    let titulo = t(locale, "comenzar.titulo") + " — MatHelp"
+    let grado: Int = match form.grado.to_int() {
+        Ok(n) => n,
+        Err(_) => 0,
+    }
+    if (grado < 1 or grado > 13) {
+        return responder_html(page(locale, titulo, form_comenzar(locale, fam.display_name), html("")))
+    }
+    match crear_perfil(fam.id, fam.display_name, grado, "comun", "", fam.locale).await {
+        Ok(p) => {
+            let token = mint_session(fam.email, "{p.id}", "0")
+            return redirect_con_sesion_prefs("/", token, p.theme, p.contrast, p.font_size)
+        }
+        Err(_) => return responder_html(page(locale, titulo, form_comenzar(locale, fam.display_name), html(""))),
+    }
+}
+
+// /mi-perfil (GET) → auto-gestión del perfil ACTIVO por su dueño (cuenta
+// individual). En una cuenta familiar el adulto gestiona los perfiles: se
+// redirige al gate de la Zona Familia.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/mi-perfil")
+async fn mi_perfil_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (tiene_admin_pin(fam.email).await) {
+        return redirect_a("/familia/pin")
+    }
+    let pid: Int = match pid_from_token(session).to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/perfiles"),
+    }
+    let p = match perfil_de_familia(fam.id, pid).await {
+        Ok(pr) => pr,
+        Err(_) => return redirect_a("/perfiles"),
+    }
+    return responder_html(page(locale, t(locale, "miperfil.titulo") + " — MatHelp", form_mi_perfil(locale, p, ""), html("")))
+}
+
+// /mi-perfil (POST) → guarda nombre / grado / modalidad del perfil activo. El pid
+// sale de la SESIÓN (no del form): el individual solo puede editar su propio
+// perfil. El progreso es por profile_id, así que cambiar el grado no pierde nada.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/mi-perfil")
+async fn mi_perfil_post(session: Str?, lang: Str?, form: MiPerfilForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (tiene_admin_pin(fam.email).await) {
+        return redirect_a("/familia/pin")
+    }
+    let pid: Int = match pid_from_token(session).to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/perfiles"),
+    }
+    let p = match perfil_de_familia(fam.id, pid).await {
+        Ok(pr) => pr,
+        Err(_) => return redirect_a("/perfiles"),
+    }
+    let titulo = t(locale, "miperfil.titulo") + " — MatHelp"
+    if (form.nombre == "") {
+        return responder_html(page(locale, titulo, form_mi_perfil(locale, p, "perfiles.error_nombre"), html("")))
+    }
+    let grado: Int = match form.grado.to_int() {
+        Ok(n) => n,
+        Err(_) => 0,
+    }
+    if (grado < 1 or grado > 13) {
+        return responder_html(page(locale, titulo, form_mi_perfil(locale, p, "perfiles.error_nombre"), html("")))
+    }
+    let _ = actualizar_perfil(fam.id, pid, form.nombre, grado, form.modalidad).await
+    return redirect_a("/")
 }

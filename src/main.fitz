@@ -16,6 +16,7 @@ from fmt import fmt_int
 from streaks import racha_actual
 from juegos import juegos, Juego
 import perfiles
+from perfiles import tiene_admin_pin
 import assets
 import live_game
 import live_vf
@@ -105,17 +106,20 @@ from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
 async fn home(session: Str?, lang: Str?) -> Response {
     let locale = locale_from_cookie(lang)
     match read_session(session).await {
-        Ok(_) => {
+        Ok(fam) => {
             if (pid_from_token(session) == "") {
                 return redirect_a("/perfiles")
             }
             let pid = a_int(pid_from_token(session))
+            // Individual = cuenta sin PIN de adulto. Le mostramos "Mis datos"
+            // (auto-gestión de su grado) en vez de "Cambiar de jugador".
+            let es_ind = not tiene_admin_pin(fam.email).await
             let saludo = saludo_html(locale, pid).await
             let resumen = resumen_hoy_html(locale, pid).await
             let meta = meta_semanal_html(locale, pid).await
             let intro = home_intro_html(locale, pid).await
             let repaso = repaso_html(locale, pid).await
-            return home_jugar(locale, saludo, resumen, meta, intro, repaso)
+            return home_jugar(locale, saludo, resumen, meta, intro, repaso, es_ind)
         }
         Err(_) => return home_publica(locale).await,
     }
@@ -151,6 +155,16 @@ async fn home_publica(locale: Str) -> Response {
 </section>
 
 <section class="mh-land-sec">
+<h2 class="mh-land-h2">{flv(t(locale, "landing.modos_title"))}</h2>
+<p class="mh-land-sub">{flv(t(locale, "landing.modos_sub"))}</p>
+<div class="mh-features-grid">
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🙋</div><h3>{flv(t(locale, "landing.modo_solo_title"))}</h3><p>{flv(t(locale, "landing.modo_solo_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">👨‍👩‍👧</div><h3>{flv(t(locale, "landing.modo_familia_title"))}</h3><p>{flv(t(locale, "landing.modo_familia_text"))}</p></div>
+</div>
+<p class="mh-land-nota">{flv(t(locale, "landing.modo_upgrade"))}</p>
+</section>
+
+<section class="mh-land-sec">
 <h2 class="mh-land-h2">{flv(t(locale, "landing.how_title"))}</h2>
 <div class="mh-steps">
 <div class="mh-step"><div class="mh-step-n" aria-hidden="true">1</div><h3>{flv(t(locale, "landing.step1_title"))}</h3><p>{flv(t(locale, "landing.step1_text"))}</p></div>
@@ -174,9 +188,16 @@ async fn home_publica(locale: Str) -> Response {
 // adaptativo, F3), Elegir juego (grilla por grado) y Práctica libre (tema →
 // dificultad). El grado sale del perfil y el nivel es adaptativo: acá no se
 // elige ninguno de los dos (salvo en Práctica libre).
-fn home_jugar(locale: Str, saludo: Html, resumen: Html, meta: Html, ultimo: Html, repaso: Html) -> Response {
+fn home_jugar(locale: Str, saludo: Html, resumen: Html, meta: Html, ultimo: Html, repaso: Html, es_individual: Bool) -> Response {
     let marca = logo_lockup(56, locale).raw
     let tagline = flv(t(locale, "app.tagline"))
+    // Cuenta individual → "Mis datos" (auto-gestión del grado). Cuenta familiar →
+    // "Cambiar de jugador" (con 1 solo perfil el selector auto-salta, por eso el
+    // individual no lo necesita).
+    let slot_perfil = match es_individual {
+        true => html("""<a class="mh-btn sec" href="/mi-perfil"><span aria-hidden="true">🎓</span>{flv(t(locale, "home.mis_datos"))}</a>""").raw,
+        false => html("""<a class="mh-btn sec" href="/perfiles"><span aria-hidden="true">🔄</span>{flv(t(locale, "home.cambiar_jugador"))}</a>""").raw,
+    }
 
     let body = html("""<div class="mh-hero">
 {marca}
@@ -205,7 +226,7 @@ fn home_jugar(locale: Str, saludo: Html, resumen: Html, meta: Html, ultimo: Html
 <a class="mh-btn sec" href="/tienda"><span aria-hidden="true">🪙</span>{flv(t(locale, "home.tienda"))}</a>
 <a class="mh-btn sec" href="/avatar"><span aria-hidden="true">🙂</span>{flv(t(locale, "avatar.titulo"))}</a>
 <a class="mh-btn sec" href="/tema"><span aria-hidden="true">🎨</span>{flv(t(locale, "tema_color.titulo"))}</a>
-<a class="mh-btn sec" href="/perfiles"><span aria-hidden="true">🔄</span>{flv(t(locale, "home.cambiar_jugador"))}</a>
+{slot_perfil}
 </div>
 
 <a class="mh-btn sec" href="/familia"><span aria-hidden="true">👨‍👩‍👧</span> {flv(t(locale, "familia.zona"))}</a>""")
