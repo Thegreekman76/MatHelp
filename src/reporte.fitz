@@ -84,6 +84,46 @@ fn linea_hijo_text(locale: Str, r: ResumenHijo) -> Str {
     return "- " + base + refuerzo
 }
 
+// Arma y envía el reporte semanal a UN destinatario, dada su LISTA de perfiles.
+// Devuelve true si se envió (hubo actividad de al menos un perfil), false si se
+// salteó (sin actividad → no spamear, o el send falló → best-effort, loguea).
+// El núcleo del reporte, independiente de quién es el dueño: lo usa la familia
+// (sus hijos) y —a futuro (Fase maestro)— el maestro (los alumnos de un grado).
+async fn enviar_reporte_a(conn: DbConn, perfiles: List<Profile>, saludo_nombre: Str, email: Str, locale: Str) -> Result<Bool> {
+    let lineas_html: List<Str> = []
+    let lineas_text: List<Str> = []
+    let algo = false
+    for p in perfiles {
+        let r = resumen_de_hijo(conn, p.name, p.id).await?
+        if (r.activo) {
+            algo = true
+        }
+        lineas_html.push(linea_hijo_html(locale, r))
+        lineas_text.push(linea_hijo_text(locale, r))
+    }
+    // No spamear: solo si hubo actividad de al menos un perfil.
+    if (not algo) {
+        return Ok(false)
+    }
+    let saludo = t1(locale, "reporte.saludo", saludo_nombre)
+    let intro = t(locale, "reporte.intro")
+    let cta = t(locale, "reporte.cta")
+    let cierre = t(locale, "reporte.cierre")
+    let cuerpo_html = h_email_html(saludo, intro, lineas_html, cta, cierre)
+    let cuerpo_text = h_email_text(saludo, intro, lineas_text, cta, cierre)
+    let subj = t(locale, "reporte.subject")
+    match send_email(email, subj, cuerpo_html, cuerpo_text).await {
+        Ok(_) => {
+            log.info("reporte.enviado", email: email)
+            return Ok(true)
+        }
+        Err(e) => {
+            log.error("reporte.error", email: email, err: e)
+            return Ok(false)
+        }
+    }
+}
+
 // Envía el reporte a TODAS las familias con actividad esta semana. Devuelve
 // cuántos emails salieron. Best-effort: un fallo de una familia no corta las demás.
 async fn enviar_reportes() -> Result<Int> {
@@ -92,34 +132,9 @@ async fn enviar_reportes() -> Result<Int> {
     let enviados = 0
     for fam in familias {
         let hijos = Profile.where(fn(p) => p.family_id == fam.id).all(conn).await?
-        let lineas_html: List<Str> = []
-        let lineas_text: List<Str> = []
-        let algo = false
-        for h in hijos {
-            let r = resumen_de_hijo(conn, h.name, h.id).await?
-            if (r.activo) {
-                algo = true
-            }
-            lineas_html.push(linea_hijo_html(fam.locale, r))
-            lineas_text.push(linea_hijo_text(fam.locale, r))
-        }
-        // No spamear: solo si hubo actividad de al menos un hijo.
-        if (algo) {
-            let saludo = t1(fam.locale, "reporte.saludo", fam.display_name)
-            let intro = t(fam.locale, "reporte.intro")
-            let cta = t(fam.locale, "reporte.cta")
-            let cierre = t(fam.locale, "reporte.cierre")
-            let cuerpo_html = h_email_html(saludo, intro, lineas_html, cta, cierre)
-            let cuerpo_text = h_email_text(saludo, intro, lineas_text, cta, cierre)
-            let subj = t(fam.locale, "reporte.subject")
-            let r = send_email(fam.email, subj, cuerpo_html, cuerpo_text).await
-            match r {
-                Ok(_) => {
-                    log.info("reporte.enviado", email: fam.email)
-                    enviados = enviados + 1
-                }
-                Err(e) => log.error("reporte.error", email: fam.email, err: e),
-            }
+        let ok = enviar_reporte_a(conn, hijos, fam.display_name, fam.email, fam.locale).await?
+        if (ok) {
+            enviados = enviados + 1
         }
     }
     return Ok(enviados)
