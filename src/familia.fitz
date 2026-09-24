@@ -23,8 +23,8 @@ from fitz_liveviews import Html, html, flv, h_join
 from config import db_url, es_admin_email
 from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
-from auth import read_session, mint_session, pid_from_token, es_admin, redirect_con_sesion
-from perfiles import perfiles_de
+from auth import read_session, mint_session, pid_from_token, es_admin, redirect_con_sesion, asegurar_login_cols
+from perfiles import perfiles_de, perfil_de_familia
 from avatares import avatar_emoji
 from models import Profile
 
@@ -63,6 +63,67 @@ async fn set_admin_pin(email: Str, pin: Str) -> Result<Int> {
     return conn.exec("UPDATE families SET admin_pin = $2 WHERE email = $1", [email, pin]).await
 }
 
+// --- DB: acceso propio por perfil (Opción B) ----------------------------------
+// Las columnas viven en profiles (login_enabled/login_hash/activation_code) y las
+// crea asegurar_login_cols (auth.fitz). Acá se gestionan desde la Zona Familia.
+
+// Estado del acceso propio de un perfil, para la pantalla de gestión.
+type AccesoEstado {
+    enabled: Bool = false      // el adulto habilitó el acceso propio
+    tiene_pw: Bool = false     // el chico ya creó su contraseña
+    codigo: Str = ""           // código de activación pendiente ("" si ya activó)
+}
+
+async fn estado_acceso(family_id: Int, pid: Int) -> AccesoEstado {
+    let _ = asegurar_login_cols().await
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return AccesoEstado { enabled: false, tiene_pw: false, codigo: "" } },
+    }
+    let rows = match conn.query("SELECT login_enabled, (login_hash <> '') AS tiene_pw, activation_code FROM profiles WHERE id = $1 AND family_id = $2", [pid, family_id]).await {
+        Ok(r) => r,
+        Err(_) => { return AccesoEstado { enabled: false, tiene_pw: false, codigo: "" } },
+    }
+    if (rows.len() == 0) {
+        return AccesoEstado { enabled: false, tiene_pw: false, codigo: "" }
+    }
+    let en = match rows[0].get_bool("login_enabled") {
+        Ok(v) => v,
+        Err(_) => false,
+    }
+    let tp = match rows[0].get_bool("tiene_pw") {
+        Ok(v) => v,
+        Err(_) => false,
+    }
+    let co = match rows[0].get_str("activation_code") {
+        Ok(v) => v,
+        Err(_) => "",
+    }
+    return AccesoEstado { enabled: en, tiene_pw: tp, codigo: co }
+}
+
+// Código de activación de 6 dígitos.
+fn gen_codigo() -> Str {
+    return "{rand.int(100000, 999999)}"
+}
+
+// Habilita el acceso y (re)genera el código, borrando la contraseña anterior. La
+// usa tanto "habilitar" (primera vez) como "resetear" (olvidó la contraseña): el
+// efecto es el mismo — un código nuevo para que el chico cree su contraseña.
+async fn set_codigo_acceso(family_id: Int, pid: Int) -> Result<Int> {
+    let _ = asegurar_login_cols().await
+    let conn = db.connect(db_url()).await?
+    let code = gen_codigo()
+    return conn.exec("UPDATE profiles SET login_enabled = true, activation_code = $2, login_hash = '' WHERE id = $1 AND family_id = $3", [pid, code, family_id]).await
+}
+
+// Desactiva el acceso propio: el perfil vuelve a entrarse solo desde la cuenta.
+async fn desactivar_acceso(family_id: Int, pid: Int) -> Result<Int> {
+    let _ = asegurar_login_cols().await
+    let conn = db.connect(db_url()).await?
+    return conn.exec("UPDATE profiles SET login_enabled = false, activation_code = '', login_hash = '' WHERE id = $1 AND family_id = $2", [pid, family_id]).await
+}
+
 // --- Render del hub -----------------------------------------------------------
 
 // Una fila de gestión por perfil: avatar + nombre + Editar + Ver panel.
@@ -72,14 +133,68 @@ fn fila_perfil_admin(locale: Str, p: Profile) -> Html {
     let pid = "{p.id}"
     let ed = flv(t(locale, "perfiles.editar"))
     let ver = flv(t(locale, "familia.ver_panel"))
+    let acc = flv(t(locale, "familia.acceso_link"))
     return html("""<div class="mh-fam-row">
 <span class="mh-fam-av">{em}</span>
 <span class="mh-fam-nom">{nombre}</span>
 <span class="mh-fam-acc">
 <a class="mh-link" href="/perfiles/editar/{pid}">✏️ {ed}</a>
 <a class="mh-link" href="/panel/{pid}">📊 {ver}</a>
+<a class="mh-link" href="/familia/perfil/{pid}/acceso">🔑 {acc}</a>
 </span>
 </div>""")
+}
+
+// --- Pantalla de gestión del acceso propio de un perfil -----------------------
+
+fn bloque_acceso_off(locale: Str, pid: Str) -> Str {
+    return html("""<h3>{flv(t(locale, "familia.acceso_off_titulo"))}</h3>
+<p style="color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "familia.acceso_off_texto"))}</p>
+<form method="POST" action="/familia/perfil/{pid}/acceso/habilitar">
+<button class="mh-btn" type="submit">{flv(t(locale, "familia.acceso_habilitar"))}</button>
+</form>""").raw
+}
+
+fn bloque_acceso_pendiente(locale: Str, pid: Str, codigo: Str) -> Str {
+    let cod = flv(codigo)
+    return html("""<h3>{flv(t(locale, "familia.acceso_pendiente_titulo"))}</h3>
+<p style="color:var(--mh-suave);margin:.2rem 0 .4rem">{flv(t(locale, "familia.acceso_pendiente_texto"))}</p>
+<p style="font-size:2rem;font-weight:800;letter-spacing:.3rem;text-align:center;margin:.4rem 0 .2rem">{cod}</p>
+<p style="color:var(--mh-suave);margin:0 0 1rem;font-size:.9rem">{flv(t(locale, "familia.acceso_pendiente_como"))}</p>
+<form method="POST" action="/familia/perfil/{pid}/acceso/resetear">
+<button class="mh-btn sec" type="submit">{flv(t(locale, "familia.acceso_resetear"))}</button>
+</form>
+<form method="POST" action="/familia/perfil/{pid}/acceso/desactivar">
+<button class="mh-btn sec" type="submit">{flv(t(locale, "familia.acceso_desactivar"))}</button>
+</form>""").raw
+}
+
+fn bloque_acceso_activo(locale: Str, pid: Str) -> Str {
+    return html("""<h3>{flv(t(locale, "familia.acceso_activo_titulo"))}</h3>
+<p style="color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "familia.acceso_activo_texto"))}</p>
+<p style="color:var(--mh-suave);margin:0 0 .4rem;font-size:.9rem">{flv(t(locale, "familia.acceso_resetear_hint"))}</p>
+<form method="POST" action="/familia/perfil/{pid}/acceso/resetear">
+<button class="mh-btn sec" type="submit">{flv(t(locale, "familia.acceso_resetear"))}</button>
+</form>
+<form method="POST" action="/familia/perfil/{pid}/acceso/desactivar">
+<button class="mh-btn sec" type="submit">{flv(t(locale, "familia.acceso_desactivar"))}</button>
+</form>""").raw
+}
+
+fn render_acceso(locale: Str, nombre: Str, pid: Str, estado: AccesoEstado) -> Html {
+    let titulo = flv(t1(locale, "familia.acceso_titulo", nombre))
+    let bloque = match estado.enabled {
+        false => bloque_acceso_off(locale, pid),
+        true => match estado.tiene_pw {
+            true => bloque_acceso_activo(locale, pid),
+            false => bloque_acceso_pendiente(locale, pid, estado.codigo),
+        },
+    }
+    return html("""<div class="mh-card">
+<h2>🔑 {titulo}</h2>
+{bloque}
+</div>
+<a class="mh-btn sec" href="/familia">← {flv(t(locale, "perfiles.volver"))}</a>""")
 }
 
 // El hub: aviso de PIN (si no está configurado) + gestión de perfiles + accesos
@@ -325,4 +440,75 @@ async fn familia_volver(session: Str?) -> Response {
     }
     let token = mint_session(fam.email, pid_from_token(session), "0")
     return redirect_con_sesion("/", token)
+}
+
+// --- Acceso propio por perfil (gestión del adulto) ----------------------------
+
+// /familia/perfil/{id}/acceso (GET) → estado del acceso propio de un perfil +
+// acciones (habilitar / ver código pendiente / resetear / desactivar).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/familia/perfil/{id}/acceso")
+async fn acceso_get(session: Str?, lang: Str?, id: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let p = match perfil_de_familia(fam.id, id).await {
+        Ok(pr) => pr,
+        Err(_) => return redirect_a("/familia"),
+    }
+    let estado = estado_acceso(fam.id, id).await
+    let titulo = t1(locale, "familia.acceso_titulo", p.name) + " — MatHelp"
+    return responder_html(page(locale, titulo, render_acceso(locale, p.name, "{id}", estado), html("")))
+}
+
+// /familia/perfil/{id}/acceso/habilitar (POST) → habilita + genera código.
+@cookie(name="mathelp_session", into="session")
+@post("/familia/perfil/{id}/acceso/habilitar")
+async fn acceso_habilitar(session: Str?, id: Int) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let _ = set_codigo_acceso(fam.id, id).await
+    return redirect_a("/familia/perfil/{id}/acceso")
+}
+
+// /familia/perfil/{id}/acceso/resetear (POST) → nuevo código, borra la contraseña.
+@cookie(name="mathelp_session", into="session")
+@post("/familia/perfil/{id}/acceso/resetear")
+async fn acceso_resetear(session: Str?, id: Int) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let _ = set_codigo_acceso(fam.id, id).await
+    return redirect_a("/familia/perfil/{id}/acceso")
+}
+
+// /familia/perfil/{id}/acceso/desactivar (POST) → el perfil vuelve a entrarse
+// solo desde la cuenta del adulto.
+@cookie(name="mathelp_session", into="session")
+@post("/familia/perfil/{id}/acceso/desactivar")
+async fn acceso_desactivar(session: Str?, id: Int) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_admin(session)) {
+        return redirect_a("/familia/pin")
+    }
+    let _ = desactivar_acceso(fam.id, id).await
+    return redirect_a("/familia/perfil/{id}/acceso")
 }

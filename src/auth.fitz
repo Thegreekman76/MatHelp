@@ -19,7 +19,7 @@ from fitz_liveviews import Html, html, flv
 from config import db_url, jwt_secret, session_cookie_name, default_locale
 from i18n import t, locale_from_cookie
 from layout import page_landing, responder_html
-from models import Family
+from models import Family, Profile
 from emails import notify_admin_signup, send_welcome, send_milestone, es_hito
 from ratelimit import ip_de, registrar_y_chequear
 from referral_db import record_referral
@@ -190,6 +190,109 @@ async fn autenticar(email: Str, password: Str) -> Result<Family> {
     return Ok(fam)
 }
 
+// --- Acceso propio por perfil (Opción B) ---------------------------------
+//
+// Un perfil puede tener LOGIN INDEPENDIENTE: el chico entra a SU perfil desde su
+// dispositivo con el email de la familia + su propia contraseña, sin que el jefe
+// entre antes. El jefe lo habilita por perfil desde la Zona Familia; el chico
+// crea su contraseña la primera vez en /activar (con un código de un solo uso).
+//
+// Las 3 columnas van por SQL crudo + ALTER lazy (NO en el @table Profile), igual
+// que admin_pin: así los SELECT del ORM sobre profiles no fallan en una base que
+// todavía no tiene las columnas.
+//   login_enabled   BOOLEAN  el jefe habilitó el acceso propio
+//   login_hash      TEXT     contraseña del chico (Argon2). '' = todavía sin crear
+//   activation_code TEXT     código de un solo uso para el primer acceso. '' = ya activó
+
+// Resultado de un login/activación de perfil: lo justo para mintear + aplicar prefs.
+type PerfilAuth {
+    pid: Str = ""
+    theme: Str = "default"
+    contrast: Str = "normal"
+    font_size: Str = "normal"
+}
+
+// Crea las columnas de login por perfil si faltan (base ya existente). Idempotente.
+async fn asegurar_login_cols() -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS login_enabled BOOLEAN NOT NULL DEFAULT false", []).await
+    let _ = conn.exec("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS login_hash TEXT NOT NULL DEFAULT ''", []).await
+    return conn.exec("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS activation_code TEXT NOT NULL DEFAULT ''", []).await
+}
+
+// ¿El password matchea algún perfil con acceso propio de esta familia? El login
+// primero prueba la cuenta (jefe); si falla, cae acá. Recorre los perfiles con
+// login habilitado y contraseña creada, y verifica el Argon2 de cada uno.
+async fn autenticar_perfil(email: Str, password: Str) -> Result<PerfilAuth> {
+    let _ = asegurar_login_cols().await
+    let conn = db.connect(db_url()).await?
+    let fam: Family = match Family.where(fn(f) => f.email == email).first(conn).await {
+        Ok(f) => f,
+        Err(_) => return Err("credenciales inválidas"),
+    }
+    let rows = conn.query("SELECT id, login_hash, theme, contrast, font_size FROM profiles WHERE family_id = $1 AND login_enabled = true AND login_hash <> ''", [fam.id]).await?
+    for r in rows {
+        let h = match r.get_str("login_hash") {
+            Ok(v) => v,
+            Err(_) => "",
+        }
+        if (h != "" and hash.verify(password, h)) {
+            let pid = match r.get_int("id") {
+                Ok(n) => n,
+                Err(_) => 0,
+            }
+            let theme = match r.get_str("theme") {
+                Ok(v) => v,
+                Err(_) => "default",
+            }
+            let contrast = match r.get_str("contrast") {
+                Ok(v) => v,
+                Err(_) => "normal",
+            }
+            let fs = match r.get_str("font_size") {
+                Ok(v) => v,
+                Err(_) => "normal",
+            }
+            return Ok(PerfilAuth { pid: "{pid}", theme: theme, contrast: contrast, font_size: fs })
+        }
+    }
+    return Err("credenciales inválidas")
+}
+
+// Primer acceso del chico: valida email + código, guarda su contraseña (hash) y
+// consume el código. Devuelve el perfil para mintear la sesión y entrar directo.
+async fn activar_perfil(email: Str, codigo: Str, password: Str) -> Result<PerfilAuth> {
+    let _ = asegurar_login_cols().await
+    let conn = db.connect(db_url()).await?
+    let fam: Family = match Family.where(fn(f) => f.email == email).first(conn).await {
+        Ok(f) => f,
+        Err(_) => return Err("no coincide"),
+    }
+    let rows = conn.query("SELECT id, theme, contrast, font_size FROM profiles WHERE family_id = $1 AND login_enabled = true AND activation_code = $2 AND activation_code <> ''", [fam.id, codigo]).await?
+    if (rows.len() == 0) {
+        return Err("código inválido")
+    }
+    let pid = match rows[0].get_int("id") {
+        Ok(n) => n,
+        Err(_) => return Err("código inválido"),
+    }
+    let ph = hash.password(password)
+    let _ = conn.exec("UPDATE profiles SET login_hash = $2, activation_code = '' WHERE id = $1", [pid, ph]).await
+    let theme = match rows[0].get_str("theme") {
+        Ok(v) => v,
+        Err(_) => "default",
+    }
+    let contrast = match rows[0].get_str("contrast") {
+        Ok(v) => v,
+        Err(_) => "normal",
+    }
+    let fs = match rows[0].get_str("font_size") {
+        Ok(v) => v,
+        Err(_) => "normal",
+    }
+    return Ok(PerfilAuth { pid: "{pid}", theme: theme, contrast: contrast, font_size: fs })
+}
+
 // --- Forms HTML ----------------------------------------------------------
 
 fn form_login(locale: Str, email: Str, hay_error: Bool) -> Html {
@@ -213,6 +316,7 @@ fn form_login(locale: Str, email: Str, hay_error: Bool) -> Html {
 <button class="mh-btn" type="submit">{flv(t(locale, "login.submit"))}</button>
 </form>
 <a class="mh-link" href="/recuperar">{flv(t(locale, "recuperar.link"))}</a>
+<a class="mh-link" href="/activar">{flv(t(locale, "login.activar"))}</a>
 <a class="mh-link" href="/registro">{flv(t(locale, "login.crear_cuenta"))}</a>
 </div>""")
 }
@@ -250,6 +354,42 @@ fn form_registro(locale: Str, email: Str, familia: Str, error_key: Str) -> Html 
 </form>
 <p class="mh-hint" style="margin-top:.6rem">{flv(t(locale, "registro.acepto"))} <a href="/terminos">{flv(t(locale, "legal.terms.titulo"))}</a> {flv(t(locale, "registro.y"))} <a href="/privacidad">{flv(t(locale, "legal.priv.titulo"))}</a>.</p>
 <a class="mh-link" href="/login">{flv(t(locale, "registro.ya_tengo"))}</a>
+</div>""")
+}
+
+// Pantalla de activación del acceso propio de un perfil (primer login del chico):
+// email de la familia + el código que le dio el adulto + su contraseña nueva (×2).
+fn form_activar(locale: Str, email: Str, error_key: Str) -> Html {
+    let err = match error_key == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, error_key))}</div>""").raw,
+    }
+    let email_esc = flv(email)
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "activar.titulo"))}</h2>
+<p style="color:var(--mh-suave);margin:0 0 1rem">{flv(t(locale, "activar.texto"))}</p>
+{err}
+<form method="POST" action="/activar">
+<div class="mh-field">
+<label class="mh-label" for="email">{flv(t(locale, "login.email"))}</label>
+<input class="mh-input" id="email" name="email" type="email" value="{email_esc}" autocomplete="email" inputmode="email" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="codigo">{flv(t(locale, "activar.codigo"))}</label>
+<input class="mh-input" id="codigo" name="codigo" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="password">{flv(t(locale, "activar.password"))}</label>
+<input class="mh-input" id="password" name="password" type="password" autocomplete="new-password" minlength="6" required />
+<span class="mh-hint">{flv(t(locale, "activar.password_hint"))}</span>
+</div>
+<div class="mh-field">
+<label class="mh-label" for="password2">{flv(t(locale, "activar.password2"))}</label>
+<input class="mh-input" id="password2" name="password2" type="password" autocomplete="new-password" minlength="6" required />
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "activar.submit"))}</button>
+</form>
+<a class="mh-link" href="/login">{flv(t(locale, "activar.ya"))}</a>
 </div>""")
 }
 
@@ -297,6 +437,13 @@ type RegistroForm {
     accion: Str = ""
 }
 
+type ActivarForm {
+    email: Str = ""
+    codigo: Str = ""
+    password: Str = ""
+    password2: Str = ""
+}
+
 @cookie(name="mathelp_lang", into="lang")
 @get("/login")
 fn login_get(lang: Str?) -> Response {
@@ -311,12 +458,22 @@ async fn login_post(lang: Str?, creds: LoginForm) -> Response {
     let locale = locale_from_cookie(lang)
     match autenticar(creds.email, creds.password).await {
         Ok(fam) => {
+            // Jefe de familia: al selector (o auto-salto si es cuenta individual).
             let token = mint_session(fam.email, "", "0")
             return redirect_con_sesion("/perfiles", token)
         }
         Err(_) => {
-            let cuerpo = form_login(locale, creds.email, true)
-            return responder_html(page_landing(locale, t(locale, "login.titulo") + " — MatHelp", cuerpo, html("")))
+            // No es el jefe: ¿es un perfil con acceso propio? Entra directo a SU menú.
+            match autenticar_perfil(creds.email, creds.password).await {
+                Ok(pa) => {
+                    let token = mint_session(creds.email, pa.pid, "0")
+                    return redirect_con_sesion_prefs("/", token, pa.theme, pa.contrast, pa.font_size)
+                }
+                Err(_) => {
+                    let cuerpo = form_login(locale, creds.email, true)
+                    return responder_html(page_landing(locale, t(locale, "login.titulo") + " — MatHelp", cuerpo, html("")))
+                }
+            }
         }
     }
 }
@@ -403,6 +560,40 @@ async fn registro_post(lang: Str?, refc: Str?, input: RegistroForm) -> Response 
             let cuerpo = form_registro(locale, input.email, input.familia, "registro.error_email")
             return responder_html(page_landing(locale, titulo, cuerpo, html("")))
         }
+    }
+}
+
+// /activar (GET) → pantalla de activación del acceso propio (primer login del chico).
+@cookie(name="mathelp_lang", into="lang")
+@get("/activar")
+fn activar_get(lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    return responder_html(page_landing(locale, t(locale, "activar.titulo") + " — MatHelp", form_activar(locale, "", ""), html("")))
+}
+
+// /activar (POST) → valida email + código, guarda la contraseña del chico y entra
+// directo a su perfil. Rate-limited (fuerza bruta del código de 6 dígitos).
+@middleware(rate_limit_mw)
+@cookie(name="mathelp_lang", into="lang")
+@post("/activar")
+async fn activar_post(lang: Str?, input: ActivarForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let titulo = t(locale, "activar.titulo") + " — MatHelp"
+    if (input.email == "" or input.codigo == "" or input.password == "") {
+        return responder_html(page_landing(locale, titulo, form_activar(locale, input.email, "activar.error"), html("")))
+    }
+    if (input.password.len() < 6) {
+        return responder_html(page_landing(locale, titulo, form_activar(locale, input.email, "activar.error_password"), html("")))
+    }
+    if (input.password != input.password2) {
+        return responder_html(page_landing(locale, titulo, form_activar(locale, input.email, "activar.error_password2"), html("")))
+    }
+    match activar_perfil(input.email, input.codigo, input.password).await {
+        Ok(pa) => {
+            let token = mint_session(input.email, pa.pid, "0")
+            return redirect_con_sesion_prefs("/", token, pa.theme, pa.contrast, pa.font_size)
+        }
+        Err(_) => return responder_html(page_landing(locale, titulo, form_activar(locale, input.email, "activar.error"), html(""))),
     }
 }
 
