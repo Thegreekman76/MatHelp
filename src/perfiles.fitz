@@ -424,6 +424,17 @@ async fn perfiles_get(session: Str?, lang: Str?) -> Response {
         Ok(ps) => ps,
         Err(_) => [],
     }
+    // Migración de cuentas viejas trabadas: un individual (sin PIN de adulto) que
+    // quedó con 0 perfiles —el registro viejo mandaba a /perfiles vacío y de ahí
+    // al gate de la Zona Familia— va a /comenzar a crear su perfil sin vueltas.
+    // Una familia sin perfiles (con admin_pin) ve el selector vacío para que el
+    // adulto cree el primero.
+    if (perfiles.len() == 0) {
+        let es_familia_0 = tiene_admin_pin(fam.email).await
+        if (not es_familia_0) {
+            return redirect_a("/comenzar")
+        }
+    }
     // Auto-salto del selector para la cuenta INDIVIDUAL: 1 solo perfil, sin PIN
     // por-perfil, y sin PIN de adulto (no es familia) → entra directo a jugar.
     // Así el chico que se registró para sí mismo nunca ve el selector "¿quién
