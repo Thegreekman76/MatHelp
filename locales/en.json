@@ -1399,7 +1399,7 @@
   "landing.modo_solo_title": "Just for you",
   "landing.modo_solo_text": "Create your account and start playing instantly. No profiles, no PIN: just log in and practice. Perfect if you're the one using MatHelp.",
   "landing.modo_familia_title": "For your family",
-  "landing.modo_familia_text": "An adult creates the account and one profile per kid. Each picks theirs when logging in, and you can protect it with a PIN. From the Family Zone you follow everyone's progress.",
+  "landing.modo_familia_text": "An adult creates the account and one profile per kid. Each one can sign in from their own device with their login, or pick their profile on a shared one. From the Family Zone you follow everyone's progress.",
   "landing.modo_upgrade": "Started solo and want to add your family? You can do it anytime from the app.",
   "home.mis_datos": "My details",
   "miperfil.titulo": "My details",
@@ -1438,5 +1438,13 @@
   "upgrade.pin_hint": "Protects profile management. The kids don't know it.",
   "upgrade.submit": "Create my family",
   "upgrade.error_pin": "The PIN must be 4 digits.",
-  "upgrade.error_nombre": "Enter your family's name."
+  "upgrade.error_nombre": "Enter your family's name.",
+  "landing.perfiles_title": "How do profiles work?",
+  "landing.perfiles_sub": "One account, a profile for each person.",
+  "landing.perfiles_p1_title": "One profile per person",
+  "landing.perfiles_p1_text": "Each member has their profile: their name, grade and own progress, all under the same account (the family email).",
+  "landing.perfiles_p2_title": "Everyone gets to their own",
+  "landing.perfiles_p2_text": "On a shared device, each one taps their profile to enter. And if a kid has their own phone, you give them a login to go straight in with their password.",
+  "landing.perfiles_p3_title": "Safe and tidy",
+  "landing.perfiles_p3_text": "An optional PIN keeps a sibling out of another's profile. From the Family Zone, with your adult PIN, you manage profiles and see everyone's progress."
 }

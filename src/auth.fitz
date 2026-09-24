@@ -293,6 +293,32 @@ async fn activar_perfil(email: Str, codigo: Str, password: Str) -> Result<Perfil
     return Ok(PerfilAuth { pid: "{pid}", theme: theme, contrast: contrast, font_size: fs })
 }
 
+// --- PINs hasheados (migración lazy) -----------------------------------------
+//
+// profiles.pin (PIN por-perfil) y families.admin_pin (PIN de adulto) arrancaron
+// en TEXTO PLANO. Ahora se guardan hasheados (Argon2). La migración es LAZY: al
+// validar, si el valor guardado no empieza con "$" (texto plano de una cuenta
+// vieja), se compara directo y el caller lo re-guarda hasheado. Los PINs nuevos
+// nacen hasheados. Un hash Argon2 (PHC) siempre empieza con "$argon2...".
+
+// Prepara un PIN para guardarlo: hasheado si no está vacío; "" (sin PIN) tal cual.
+fn hash_pin(pin: Str) -> Str {
+    if (pin == "") {
+        return ""
+    }
+    return hash.password(pin)
+}
+
+// ¿El PIN ingresado matchea el guardado? Acepta guardado hasheado (empieza con
+// "$") o en texto plano (cuenta vieja sin migrar). NO migra: el caller re-guarda
+// hasheado si el guardado venía en texto plano (mirando `.starts_with("$")`).
+fn pin_verifica(guardado: Str, ingresado: Str) -> Bool {
+    if (guardado.starts_with("$")) {
+        return hash.verify(ingresado, guardado)
+    }
+    return guardado == ingresado
+}
+
 // --- Forms HTML ----------------------------------------------------------
 
 fn form_login(locale: Str, email: Str, hay_error: Bool) -> Html {

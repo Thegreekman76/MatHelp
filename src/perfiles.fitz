@@ -13,7 +13,7 @@ from fitz_liveviews import Html, html, flv, h_join
 from config import db_url
 from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
-from auth import read_session, mint_session, redirect_con_sesion_prefs, es_admin, pid_from_token
+from auth import read_session, mint_session, redirect_con_sesion_prefs, es_admin, pid_from_token, hash_pin, pin_verifica
 from engine import modalidad_valida
 from avatares import avatar_emoji
 from models import Profile
@@ -68,7 +68,7 @@ async fn crear_perfil(family_id: Int, nombre: Str, grado: Int, modalidad: Str, p
         grade: grado,
         modalidad: modalidad_valida(modalidad),
         locale: locale,
-        pin: pin,
+        pin: hash_pin(pin),
         daily_goal: 10,
         created_at: "",
     }).await
@@ -84,9 +84,10 @@ async fn actualizar_perfil(family_id: Int, pid: Int, nombre: Str, grado: Int, mo
 }
 
 // Cambia el PIN de un perfil (solo si el usuario tipeó uno nuevo). "" borra el PIN.
+// Guarda el PIN hasheado (hash_pin: "" queda "" para borrarlo).
 async fn actualizar_pin(family_id: Int, pid: Int, pin: Str) -> Result<Int> {
     let conn = db.connect(db_url()).await?
-    return conn.exec("UPDATE profiles SET pin = $2 WHERE id = $1 AND family_id = $3", [pid, pin, family_id]).await
+    return conn.exec("UPDATE profiles SET pin = $2 WHERE id = $1 AND family_id = $3", [pid, hash_pin(pin), family_id]).await
 }
 
 // --- Render --------------------------------------------------------------
@@ -616,7 +617,12 @@ async fn pin_post(session: Str?, lang: Str?, form: PinForm) -> Response {
     }
     match perfil_de_familia(fam.id, pid).await {
         Ok(p) => {
-            if (p.pin == form.pin) {
+            if (pin_verifica(p.pin, form.pin)) {
+                // Migración lazy: si el PIN estaba en texto plano, re-guardarlo
+                // hasheado (actualizar_pin hashea con hash_pin).
+                if (not p.pin.starts_with("$")) {
+                    let _ = actualizar_pin(fam.id, pid, form.pin).await
+                }
                 let token = mint_session(fam.email, form.pid, "0")
                 return redirect_con_sesion_prefs("/", token, p.theme, p.contrast, p.font_size)
             }

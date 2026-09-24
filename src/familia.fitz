@@ -23,7 +23,7 @@ from fitz_liveviews import Html, html, flv, h_join
 from config import db_url, es_admin_email
 from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
-from auth import read_session, mint_session, pid_from_token, es_admin, redirect_con_sesion, asegurar_login_cols
+from auth import read_session, mint_session, pid_from_token, es_admin, redirect_con_sesion, asegurar_login_cols, hash_pin, pin_verifica
 from perfiles import perfiles_de, perfil_de_familia
 from avatares import avatar_emoji
 from models import Profile
@@ -56,11 +56,12 @@ async fn admin_pin_de(email: Str) -> Str {
     }
 }
 
-// Setea (o borra con "") el PIN de adulto de la cuenta.
+// Setea (o borra con "") el PIN de adulto de la cuenta. Guarda hasheado (hash_pin:
+// "" queda "" para borrarlo).
 async fn set_admin_pin(email: Str, pin: Str) -> Result<Int> {
     let _ = asegurar_admin_pin().await
     let conn = db.connect(db_url()).await?
-    return conn.exec("UPDATE families SET admin_pin = $2 WHERE email = $1", [email, pin]).await
+    return conn.exec("UPDATE families SET admin_pin = $2 WHERE email = $1", [email, hash_pin(pin)]).await
 }
 
 // Renombra la cuenta (display_name). Lo usa el upgrade individual→familia: la
@@ -428,8 +429,12 @@ async fn familia_pin_post(session: Str?, lang: Str?, form: PinGateForm) -> Respo
         return redirect_con_sesion("/familia", token)
     }
 
-    // Ya hay PIN: validar.
-    if (form.pin == actual) {
+    // Ya hay PIN: validar (acepta hasheado o texto plano de cuenta vieja).
+    if (pin_verifica(actual, form.pin)) {
+        // Migración lazy: si estaba en texto plano, re-guardar hasheado.
+        if (not actual.starts_with("$")) {
+            let _ = set_admin_pin(fam.email, form.pin).await
+        }
         let token = mint_session(fam.email, pid_from_token(session), "1")
         return redirect_con_sesion("/familia", token)
     }
