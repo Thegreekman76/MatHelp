@@ -323,6 +323,17 @@ fn form_mi_perfil(locale: Str, p: Profile, error_key: Str) -> Html {
     let nombre_ph = flv(t(locale, "perfiles.nombre_ph"))
     let opciones = opciones_grado_sel(locale, p.grade)
     let mod_ops = opciones_modalidad_sel(locale, p.modalidad)
+    // Si el perfil tiene PIN (típico de una cuenta individual vieja), ofrecer
+    // quitarlo: sin PIN, el selector se auto-saltea y entra directo a jugar.
+    let pin_bloque = match p.pin != "" {
+        true => html("""<hr style="border:none;border-top:1px solid var(--mh-borde, #e5e5e5);margin:1.2rem 0" />
+<p style="margin:0 0 .2rem">{flv(t(locale, "miperfil.pin_tiene"))}</p>
+<p style="color:var(--mh-suave);margin:0 0 .6rem;font-size:.9rem">{flv(t(locale, "miperfil.pin_quitar_hint"))}</p>
+<form method="POST" action="/mi-perfil/quitar-pin">
+<button class="mh-btn sec" type="submit">{flv(t(locale, "miperfil.pin_quitar"))}</button>
+</form>""").raw,
+        false => "",
+    }
     return html("""<div class="mh-card">
 <h2>{flv(t(locale, "miperfil.titulo"))}</h2>
 <p style="color:var(--mh-suave);margin:0 0 1rem">{flv(t(locale, "miperfil.texto"))}</p>
@@ -347,6 +358,7 @@ fn form_mi_perfil(locale: Str, p: Profile, error_key: Str) -> Html {
 </div>
 <button class="mh-btn" type="submit">{flv(t(locale, "perfiles.guardar"))}</button>
 </form>
+{pin_bloque}
 <a class="mh-link" href="/">{flv(t(locale, "perfiles.volver"))}</a>
 </div>""")
 }
@@ -751,4 +763,29 @@ async fn mi_perfil_post(session: Str?, lang: Str?, form: MiPerfilForm) -> Respon
     }
     let _ = actualizar_perfil(fam.id, pid, form.nombre, grado, form.modalidad).await
     return redirect_a("/")
+}
+
+// /mi-perfil/quitar-pin (POST) → borra el PIN del perfil activo (auto-gestión del
+// individual). Sin PIN, el selector se auto-saltea y entra directo. En una cuenta
+// familiar la gestión de PINs la hace el adulto (gate a /familia/pin).
+@cookie(name="mathelp_session", into="session")
+@post("/mi-perfil/quitar-pin")
+async fn mi_perfil_quitar_pin(session: Str?) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (tiene_admin_pin(fam.email).await) {
+        return redirect_a("/familia/pin")
+    }
+    let pid: Int = match pid_from_token(session).to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/perfiles"),
+    }
+    match perfil_de_familia(fam.id, pid).await {
+        Ok(_) => 0,
+        Err(_) => return redirect_a("/perfiles"),
+    }
+    let _ = actualizar_pin(fam.id, pid, "").await
+    return redirect_a("/mi-perfil")
 }

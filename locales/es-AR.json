@@ -1446,5 +1446,8 @@
   "landing.perfiles_p2_title": "Cada uno entra a lo suyo",
   "landing.perfiles_p2_text": "En un dispositivo compartido, cada uno toca su perfil para entrar. Y si el chico tiene su propio celular, le das un acceso para entrar directo con su contraseña.",
   "landing.perfiles_p3_title": "Protegido y ordenado",
-  "landing.perfiles_p3_text": "Un PIN opcional evita que un hermano entre al perfil de otro. Desde la Zona Familia, con tu PIN de adulto, gestionás los perfiles y ves el progreso de todos."
+  "landing.perfiles_p3_text": "Un PIN opcional evita que un hermano entre al perfil de otro. Desde la Zona Familia, con tu PIN de adulto, gestionás los perfiles y ves el progreso de todos.",
+  "miperfil.pin_tiene": "Tenés un PIN para entrar a tu perfil.",
+  "miperfil.pin_quitar_hint": "Si sos el único que usa esta cuenta, podés quitarlo para entrar directo.",
+  "miperfil.pin_quitar": "Quitar el PIN"
 }

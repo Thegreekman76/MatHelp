@@ -1446,5 +1446,8 @@
   "landing.perfiles_p2_title": "Everyone gets to their own",
   "landing.perfiles_p2_text": "On a shared device, each one taps their profile to enter. And if a kid has their own phone, you give them a login to go straight in with their password.",
   "landing.perfiles_p3_title": "Safe and tidy",
-  "landing.perfiles_p3_text": "An optional PIN keeps a sibling out of another's profile. From the Family Zone, with your adult PIN, you manage profiles and see everyone's progress."
+  "landing.perfiles_p3_text": "An optional PIN keeps a sibling out of another's profile. From the Family Zone, with your adult PIN, you manage profiles and see everyone's progress.",
+  "miperfil.pin_tiene": "You have a PIN to enter your profile.",
+  "miperfil.pin_quitar_hint": "If you're the only one using this account, you can remove it to enter directly.",
+  "miperfil.pin_quitar": "Remove PIN"
 }
