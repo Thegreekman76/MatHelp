@@ -19,7 +19,7 @@ from layout import page, responder_html, redirect_a
 from auth import read_session, pid_from_token
 from engine import a_int
 from mastery import actualizar_mastery
-from progreso import skill_label_key, skill_icon
+from skills import skill_label_key, skill_icon
 
 type RespuestaError {
     aid: Str = ""

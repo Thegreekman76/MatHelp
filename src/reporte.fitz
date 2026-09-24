@@ -12,7 +12,7 @@ from config import db_url, reporte_habilitado, app_url
 from mailer import send_email
 from models import Family, Profile
 from i18n import t, t1, t2, t3
-from progreso import skill_label_key
+from skills import skill_label_key
 
 // El resumen de UN hijo esta semana.
 type ResumenHijo {

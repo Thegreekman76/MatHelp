@@ -69,8 +69,10 @@ fn footer(locale: Str) -> Html {
 
 // Mobile-first de verdad: se diseña a 360 px y la PC es "lo mismo, centrado
 // y con más aire". Área táctil mínima 56 px; los botones de respuesta 72.
-// Nada depende de :hover. Feedback en :active para que sea instantáneo y no
-// espere el round-trip del WebSocket.
+// Feedback táctil en :active (instantáneo, sin esperar el round-trip del
+// WebSocket). El :hover con cambio de color de los items se agrega SOLO para
+// dispositivos con puntero real (PC) — ver el @media (hover: hover) más abajo;
+// en touch el :hover queda "pegado" tras el tap, por eso se aísla.
 //
 // OJO: las llaves literales de CSS van escapadas \{ \} dentro de un string
 // de Fitz, porque {..} es interpolación.
@@ -290,6 +292,19 @@ main:focus \{ outline:none; \}
 .mh-profile .mh-pgrado \{ font-size:.74rem; font-weight:700; color:var(--mh-suave); \}
 .mh-profile.add \{ border-style:dashed; color:var(--mh-verde); \}
 .mh-profile.add .mh-av \{ background:transparent; border:2px dashed var(--mh-borde); \}
+
+/* Hover SOLO con puntero real (PC): cambio de color de los items de menú. En
+   touch no aplica (el :hover quedaría pegado tras el tap). Usa variables, así
+   que se adapta a cada tema y al modo oscuro automáticamente. */
+@media (hover: hover) and (pointer: fine) \{
+  .mh-btn, .mh-profile, .mh-link \{
+    transition:transform .06s ease, background-color .12s ease, border-color .12s ease, color .12s ease, filter .12s ease;
+  \}
+  .mh-btn:not(.sec):hover \{ filter:brightness(1.08); \}
+  .mh-btn.sec:hover \{ background:var(--mh-verde-suave); border-color:var(--mh-verde); color:var(--mh-verde); \}
+  .mh-profile:hover \{ background:var(--mh-verde-suave); border-color:var(--mh-verde); \}
+  .mh-link:hover \{ color:var(--mh-verde-claro); text-decoration:underline; \}
+\}
 
 /* --- Contrarreloj (F2) --- */
 .mh-quiz \{ display:flex; flex-direction:column; gap:16px; padding:8px 0 calc(16px + var(--mh-safe-b)); \}

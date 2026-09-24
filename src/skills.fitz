@@ -1,0 +1,188 @@
+// skills.fitz — helpers de DESTREZAS (skill_code → etiqueta / icono / ruta / etc).
+//
+// Centraliza los mapeos de `skill_code` que antes estaban DUPLICADOS entre
+// progreso.fitz (panel del hijo) y parent.fitz (panel del padre). Consolidados
+// acá (idénticos byte a byte) antes de sumar un tercer consumidor: el panel del
+// maestro. Todas son fns puras Str → Str; sin estado ni DB.
+
+// skill_code → clave i18n del tema ("tema.suma", "tema.ecuaciones", ...).
+fn skill_label_key(sc: Str) -> Str {
+    if (sc.starts_with("ec.") or sc == "sist.2x2") {
+        return "tema.ecuaciones"
+    }
+    if (sc.starts_with("fin.")) {
+        return "tema.finanzas"
+    }
+    if (sc.starts_with("func.")) {
+        return "tema.funciones"
+    }
+    if (sc.starts_with("pot.") or sc.starts_with("raiz.")) {
+        return "tema.potencias"
+    }
+    if (sc.starts_with("trig.")) {
+        return "tema.trigonometria"
+    }
+    if (sc.starts_with("pct")) {
+        return "tema.porcentaje"
+    }
+    return match sc {
+        "add" => "tema.suma",
+        "sub" => "tema.resta",
+        "mul.tabla" => "tema.multiplicacion",
+        "div.exacta" => "tema.division",
+        "dec.dinero" => "tema.decimales",
+        "frac.parte" => "tema.fracciones",
+        "patron" => "tema.series",
+        "reloj" => "tema.hora",
+        "geo" => "tema.geometria",
+        "memoria" => "tema.memoria",
+        "ordenar" => "tema.ordenar",
+        "estimar" => "tema.estimar",
+        "vol" => "tema.volumen",
+        "historia" => "tema.historia",
+        "enteros" => "tema.enteros",
+        "estadistica" => "tema.estadistica",
+        _ => "tema.mezcla",
+    }
+}
+
+// skill_code → emoji del tema.
+fn skill_icon(sc: Str) -> Str {
+    if (sc.starts_with("ec.") or sc == "sist.2x2") {
+        return "🟰"
+    }
+    if (sc.starts_with("fin.")) {
+        return "💰"
+    }
+    if (sc.starts_with("func.")) {
+        return "📈"
+    }
+    if (sc.starts_with("pot.") or sc.starts_with("raiz.")) {
+        return "🔷"
+    }
+    if (sc.starts_with("trig.")) {
+        return "🔺"
+    }
+    if (sc.starts_with("pct")) {
+        return "％"
+    }
+    return match sc {
+        "add" => "➕",
+        "sub" => "➖",
+        "mul.tabla" => "✖️",
+        "div.exacta" => "➗",
+        "dec.dinero" => "💵",
+        "frac.parte" => "🍕",
+        "patron" => "🧩",
+        "reloj" => "🕐",
+        "geo" => "📐",
+        "memoria" => "🃏",
+        "ordenar" => "📊",
+        "estimar" => "🎯",
+        "vol" => "📦",
+        "historia" => "📖",
+        "enteros" => "±",
+        "estadistica" => "📉",
+        _ => "🎲",
+    }
+}
+
+// Destreza → un juego que la entrena (para el CTA "Repasá lo que te cuesta").
+fn skill_a_route(sc: Str) -> Str {
+    if (sc.starts_with("ec.") or sc == "sist.2x2") {
+        return "/ecuaciones"
+    }
+    if (sc.starts_with("fin.")) {
+        return "/finanzas"
+    }
+    if (sc.starts_with("func.")) {
+        return "/funciones"
+    }
+    if (sc.starts_with("pot.") or sc.starts_with("raiz.")) {
+        return "/potencias"
+    }
+    if (sc.starts_with("trig.")) {
+        return "/trigonometria"
+    }
+    if (sc.starts_with("pct")) {
+        return "/porcentaje"
+    }
+    return match sc {
+        "add" => "/jugar",
+        "sub" => "/jugar",
+        "mul.tabla" => "/escalera",
+        "div.exacta" => "/jugar",
+        "dec.dinero" => "/problemas",
+        "frac.parte" => "/fracciones",
+        "patron" => "/series",
+        "reloj" => "/hora",
+        "geo" => "/geometria",
+        "memoria" => "/memoria",
+        "ordenar" => "/ordenar",
+        "estimar" => "/estimar",
+        "vol" => "/volumen",
+        "historia" => "/historia",
+        "enteros" => "/enteros",
+        "estadistica" => "/estadistica",
+        _ => "/jugar",
+    }
+}
+
+// Destreza aritmética → el "op" de práctica libre (add/sub/mul/div), para el
+// repaso dirigido: si tu punto flojo es una de las 4 operaciones, te llevamos a
+// una práctica enfocada SOLO en esa. "" si no es aritmética (→ va al juego).
+fn skill_a_practica_op(sc: Str) -> Str {
+    return match sc {
+        "add" => "add",
+        "sub" => "sub",
+        "mul.tabla" => "mul",
+        "div.exacta" => "div",
+        _ => "",
+    }
+}
+
+// Acento del progress_bar por destreza (paleta segura de la lib: blue/green/amber).
+// El componente ProgressBar de fitz-liveviews sólo soporta blue/green/amber (blue =
+// naranja-Rust #ce412b). Cualquier otro accent deja la barra SIN color → se ve
+// blanca. Por eso acá devolvemos solo esos tres, evitando que operaciones vecinas
+// del panel (Suma/División/Multiplicación/Resta) choquen de color.
+// TODO(fitz-liveviews): ampliar la paleta del ProgressBar (violet, red, teal, ...).
+fn skill_accent(sc: Str) -> Str {
+    if (sc.starts_with("ec.") or sc == "sist.2x2") {
+        return "blue"
+    }
+    if (sc.starts_with("fin.")) {
+        return "green"
+    }
+    if (sc.starts_with("func.")) {
+        return "blue"
+    }
+    if (sc.starts_with("pot.") or sc.starts_with("raiz.")) {
+        return "amber"
+    }
+    if (sc.starts_with("trig.")) {
+        return "amber"
+    }
+    if (sc.starts_with("pct")) {
+        return "green"
+    }
+    return match sc {
+        "add" => "blue",
+        "sub" => "green",
+        "mul.tabla" => "blue",
+        "div.exacta" => "amber",
+        "dec.dinero" => "amber",
+        "frac.parte" => "amber",
+        "patron" => "blue",
+        "reloj" => "green",
+        "geo" => "green",
+        "memoria" => "amber",
+        "ordenar" => "blue",
+        "estimar" => "green",
+        "vol" => "amber",
+        "historia" => "blue",
+        "enteros" => "green",
+        "estadistica" => "blue",
+        _ => "blue",
+    }
+}

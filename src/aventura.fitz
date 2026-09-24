@@ -14,7 +14,7 @@ from config import db_url
 from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from live_game import resolver_contexto
-from progreso import skill_label_key, skill_icon
+from skills import skill_label_key, skill_icon
 from fmt import fmt_int
 
 type Nodo {
