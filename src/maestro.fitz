@@ -10,13 +10,15 @@
 // panel/reporte por grado en Fase 5.
 
 from fitz_liveviews import Html, html, flv, h_join
-from config import db_url
+from config import db_url, app_url
 from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from auth import read_session, es_teacher, asegurar_login_cols
 from models import Grupo
 from engine import modalidad_valida
 from perfiles import opciones_grado, opciones_grado_sel, opciones_modalidad_sel, crear_perfil
+from reporte import resumen_de_hijo, ResumenHijo, enviar_reporte_a, PerfilRef, ReporteMeta
+from skills import skill_label_key
 
 // --- DB: schema lazy (grupos + profiles.grupo_id) ------------------------------
 // La migración 0025 los crea en initdb (base nueva). Para la base ya existente,
@@ -184,6 +186,70 @@ async fn importar_alumnos(owner_id: Int, grupo_id: Int, texto: Str, grade: Int, 
     return creados
 }
 
+// --- DB: progreso + reporte del grado ------------------------------------------
+// Reusa el motor de reporte.fitz (resumen_de_hijo por profile_id). El maestro ve
+// la misma métrica que la familia, pero sobre los alumnos del grado.
+
+// Resumen semanal de cada alumno del grado (ejercicios, aciertos, a reforzar).
+async fn progreso_de_grupo(gid: Int) -> List<ResumenHijo> {
+    let alumnos = alumnos_de_grupo(gid).await
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return [] },
+    }
+    let out: List<ResumenHijo> = []
+    for a in alumnos {
+        let r = match resumen_de_hijo(conn, a.nombre, a.id).await {
+            Ok(v) => v,
+            Err(_) => ResumenHijo { nombre: a.nombre },
+        }
+        out.push(r)
+    }
+    return out
+}
+
+// Envía al maestro (a SU email) el reporte semanal del grado. Reusa
+// enviar_reporte_a con copia de maestro (reporte_grado.*) y link al grado.
+// Devuelve true si salió (hubo actividad), false si se salteó.
+async fn enviar_reporte_grado(gid: Int, saludo: Str, email: Str, locale: Str, nombre_grado: Str) -> Result<Bool> {
+    let alumnos = alumnos_de_grupo(gid).await
+    let refs = alumnos.map(fn(a) => PerfilRef { nombre: a.nombre, pid: a.id })
+    let conn = db.connect(db_url()).await?
+    let meta = ReporteMeta {
+        subject: t1(locale, "reporte_grado.subject", nombre_grado),
+        intro: t(locale, "reporte_grado.intro"),
+        cta: t(locale, "reporte_grado.cta"),
+        cierre: t(locale, "reporte.cierre"),
+        panel_url: app_url() + "/maestro/grado/{gid}",
+    }
+    return enviar_reporte_a(conn, refs, saludo, email, locale, meta).await
+}
+
+// Escapa un campo para CSV: entre comillas dobles, con comillas internas dobladas
+// (RFC 4180). Así nombres con comas o comillas no rompen la planilla.
+fn csv_campo(v: Str) -> Str {
+    let esc = v.replace("\"", "\"\"")
+    return "\"" + esc + "\""
+}
+
+// El progreso del grado como CSV (una fila por alumno), para abrir en Excel.
+async fn csv_de_grupo(gid: Int, locale: Str) -> Str {
+    let rs = progreso_de_grupo(gid).await
+    let s = "alumno,ejercicios,aciertos_pct,a_reforzar,activo\n"
+    for r in rs {
+        let ref = match r.reforzar == "" {
+            true => "",
+            false => t(locale, skill_label_key(r.reforzar)),
+        }
+        let activo = match r.activo {
+            true => "si",
+            false => "no",
+        }
+        s = s + csv_campo(r.nombre) + ",{r.ejercicios},{r.accuracy}," + csv_campo(ref) + "," + activo + "\n"
+    }
+    return s
+}
+
 // --- Render --------------------------------------------------------------------
 
 // Una fila del listado de grados: nombre + colegio/turno + código + editar.
@@ -268,7 +334,8 @@ fn render_grado(locale: Str, g: Grupo, alumnos: List<AlumnoRow>) -> Html {
 <h2>{nom}</h2>
 <p style="color:var(--mh-suave);margin:.2rem 0 .6rem">{col}{sep}{tur}</p>
 <p style="margin:0 0 1rem"><b>{flv(t(locale, "grado.codigo_grado_label"))}</b> <code style="font-size:1.2rem">{cod}</code></p>
-<a class="mh-link" href="/maestro/grado/{g.id}/editar">✏️ {flv(t(locale, "perfiles.editar"))}</a>
+<a class="mh-link" href="/maestro/grado/{g.id}/progreso">📊 {flv(t(locale, "grado.progreso"))}</a>
+<a class="mh-link" href="/maestro/grado/{g.id}/editar" style="margin-left:1rem">✏️ {flv(t(locale, "perfiles.editar"))}</a>
 </div>
 
 <div class="mh-card">
@@ -298,6 +365,57 @@ fn render_grado(locale: Str, g: Grupo, alumnos: List<AlumnoRow>) -> Html {
 </div>
 
 <a class="mh-link" href="/maestro">{flv(t(locale, "maestro.volver_panel"))}</a>""")
+}
+
+// Una fila del progreso de un alumno: nombre + métricas de la semana (o "sin
+// actividad" si no jugó nada). Mismo look mobile-first que fila_alumno.
+fn fila_progreso(locale: Str, r: ResumenHijo) -> Html {
+    let nom = flv(r.nombre)
+    if (not r.activo) {
+        return html("""<div class="mh-fam-row"><span class="mh-fam-nom">{nom}</span><span style="color:var(--mh-suave);font-size:.85rem">{flv(t(locale, "grado.prog_sin_actividad"))}</span></div>""")
+    }
+    let ref = match r.reforzar == "" {
+        true => flv(t(locale, "grado.prog_ninguno")),
+        false => flv(t(locale, skill_label_key(r.reforzar))),
+    }
+    let ej = flv(t(locale, "grado.prog_col_ejercicios"))
+    let ac = flv(t(locale, "grado.prog_col_aciertos"))
+    let rf = flv(t(locale, "grado.prog_col_reforzar"))
+    return html("""<div class="mh-fam-row">
+<span class="mh-fam-nom">{nom}</span>
+<span style="color:var(--mh-suave);font-size:.85rem">{ej}: <b>{r.ejercicios}</b> · {ac}: <b>{r.accuracy}%</b> · {rf}: {ref}</span>
+</div>""")
+}
+
+// Panel de progreso del grado: métricas de la semana por alumno + descargar CSV +
+// enviarme el reporte por email. `msg_key` (con `msg_ok`) muestra un banner tras
+// enviar el reporte ("" = sin banner).
+fn render_progreso(locale: Str, g: Grupo, rs: List<ResumenHijo>, msg_key: Str, msg_ok: Bool) -> Html {
+    let cls = match msg_ok {
+        true => "background:#dcfce7;color:#166534;border:1px solid #86efac",
+        false => "background:#fef3c7;color:#92400e;border:1px solid #fcd34d",
+    }
+    let banner = match msg_key == "" {
+        true => "",
+        false => html("""<div style="{cls};padding:.7rem 1rem;border-radius:10px;margin:0 0 1rem">{flv(t(locale, msg_key))}</div>""").raw,
+    }
+    let lista = match rs.len() == 0 {
+        true => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "grado.sin_alumnos_grado"))}</p>""").raw,
+        false => h_join(rs.map(fn(r) => fila_progreso(locale, r))),
+    }
+    return html("""<div class="mh-card">
+<h2><span aria-hidden="true">📊</span> {flv(t(locale, "grado.progreso_titulo"))} — {flv(g.nombre)}</h2>
+<p style="color:var(--mh-suave);margin:.2rem 0 .8rem">{flv(t(locale, "grado.prog_esta_semana"))}</p>
+{banner}
+{lista}
+<div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
+<a class="mh-btn sec" href="/maestro/grado/{g.id}/export.csv"><span aria-hidden="true">⬇️</span> {flv(t(locale, "grado.exportar_csv"))}</a>
+<form method="POST" action="/maestro/grado/{g.id}/reporte" style="display:inline;margin:0">
+<button class="mh-btn sec" type="submit"><span aria-hidden="true">✉️</span> {flv(t(locale, "grado.enviar_reporte"))}</button>
+</form>
+</div>
+</div>
+<a class="mh-link" href="/maestro/grado/{g.id}">{flv(t(locale, "codigos.volver_grado"))}</a>""")
 }
 
 // Hoja de códigos de acceso del grado (imprimible): un renglón por alumno con su
@@ -676,4 +794,90 @@ async fn grado_codigos(session: Str?, lang: Str?, id: Int) -> Response {
     }
     let alumnos = alumnos_de_grupo(id).await
     return responder_html(page(locale, t(locale, "codigos.titulo") + " — MatHelp", render_codigos(locale, g, alumnos), html("")))
+}
+
+// /maestro/grado/{id}/progreso → panel de progreso semanal del grado.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/maestro/grado/{id}/progreso")
+async fn grado_progreso(session: Str?, lang: Str?, id: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let g = match grupo_de_maestro(fam.id, id).await {
+        Ok(gr) => gr,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    let rs = progreso_de_grupo(id).await
+    return responder_html(page(locale, t(locale, "grado.progreso_titulo") + " — MatHelp", render_progreso(locale, g, rs, "", true), html("")))
+}
+
+// /maestro/grado/{id}/export.csv → descarga del progreso como CSV (abre en Excel).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/maestro/grado/{id}/export.csv")
+async fn grado_export_csv(session: Str?, lang: Str?, id: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let g = match grupo_de_maestro(fam.id, id).await {
+        Ok(gr) => gr,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    let csv = csv_de_grupo(id, locale).await
+    return Response {
+        status: 200,
+        content_type: "text/csv; charset=utf-8",
+        headers: {"Content-Disposition": "attachment; filename=\"grado-{id}.csv\""},
+        body: csv,
+    }
+}
+
+// /maestro/grado/{id}/reporte (POST) → me envío el reporte del grado por email.
+// Renderiza de vuelta el panel con un banner del resultado (best-effort).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/maestro/grado/{id}/reporte")
+async fn grado_reporte_post(session: Str?, lang: Str?, id: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let g = match grupo_de_maestro(fam.id, id).await {
+        Ok(gr) => gr,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    let msg_key = "grado.reporte_err"
+    let msg_ok = false
+    match enviar_reporte_grado(id, fam.display_name, fam.email, fam.locale, g.nombre).await {
+        Ok(enviado) => {
+            if (enviado) {
+                msg_key = "grado.reporte_ok"
+                msg_ok = true
+            } else {
+                msg_key = "grado.reporte_vacio"
+                msg_ok = false
+            }
+        }
+        Err(_) => {
+            msg_key = "grado.reporte_err"
+            msg_ok = false
+        }
+    }
+    let rs = progreso_de_grupo(id).await
+    return responder_html(page(locale, t(locale, "grado.progreso_titulo") + " — MatHelp", render_progreso(locale, g, rs, msg_key, msg_ok), html("")))
 }

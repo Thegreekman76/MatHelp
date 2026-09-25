@@ -1516,5 +1516,22 @@
   "aula.error_pass_corta": "The password must be at least 6 characters.",
   "aula.error_pass2": "The passwords don't match.",
   "aula.error_pass": "Wrong password.",
-  "aula.volver": "Back"
+  "aula.volver": "Back",
+  "grado.progreso": "View progress",
+  "grado.progreso_titulo": "Grade progress",
+  "grado.prog_esta_semana": "This week",
+  "grado.prog_col_alumno": "Student",
+  "grado.prog_col_ejercicios": "Exercises",
+  "grado.prog_col_aciertos": "Accuracy",
+  "grado.prog_col_reforzar": "To reinforce",
+  "grado.prog_sin_actividad": "No activity",
+  "grado.prog_ninguno": "—",
+  "grado.exportar_csv": "Download CSV",
+  "grado.enviar_reporte": "Email me the report",
+  "grado.reporte_ok": "Report sent to your email.",
+  "grado.reporte_vacio": "No activity this week to report.",
+  "grado.reporte_err": "Couldn't send the report. Try again.",
+  "reporte_grado.subject": "Report for grade {0}",
+  "reporte_grado.intro": "Here's how your grade is doing this week:",
+  "reporte_grado.cta": "View the grade"
 }

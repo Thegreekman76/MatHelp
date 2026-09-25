@@ -14,6 +14,25 @@ from models import Family, Profile
 from i18n import t, t1, t2, t3
 from skills import skill_label_key
 
+// Referencia mínima a un perfil para reportar (nombre + id). La familia mapea
+// sus Profile a esto; el maestro arma la lista desde los alumnos del grado. Así
+// el motor de reportes no depende del @table Profile (grupo_id es SQL crudo).
+type PerfilRef {
+    nombre: Str = ""
+    pid: Int = 0
+}
+
+// La copia del email (subject/intro/cta/cierre + link del panel). La familia usa
+// las claves reporte.* con /panel; el maestro usa reporte_grado.* con /maestro.
+// Todo lo que difiere entre familia y maestro vive acá; el resto es compartido.
+type ReporteMeta {
+    subject: Str = ""
+    intro: Str = ""
+    cta: Str = ""
+    cierre: Str = ""
+    panel_url: Str = ""
+}
+
 // El resumen de UN hijo esta semana.
 type ResumenHijo {
     nombre: Str = ""
@@ -88,13 +107,14 @@ fn linea_hijo_text(locale: Str, r: ResumenHijo) -> Str {
 // Devuelve true si se envió (hubo actividad de al menos un perfil), false si se
 // salteó (sin actividad → no spamear, o el send falló → best-effort, loguea).
 // El núcleo del reporte, independiente de quién es el dueño: lo usa la familia
-// (sus hijos) y —a futuro (Fase maestro)— el maestro (los alumnos de un grado).
-async fn enviar_reporte_a(conn: DbConn, perfiles: List<Profile>, saludo_nombre: Str, email: Str, locale: Str) -> Result<Bool> {
+// (sus hijos) y el maestro (los alumnos de un grado). Lo que difiere entre uno y
+// otro (copia + link del panel) llega en `meta`.
+async fn enviar_reporte_a(conn: DbConn, perfiles: List<PerfilRef>, saludo_nombre: Str, email: Str, locale: Str, meta: ReporteMeta) -> Result<Bool> {
     let lineas_html: List<Str> = []
     let lineas_text: List<Str> = []
     let algo = false
     for p in perfiles {
-        let r = resumen_de_hijo(conn, p.name, p.id).await?
+        let r = resumen_de_hijo(conn, p.nombre, p.pid).await?
         if (r.activo) {
             algo = true
         }
@@ -106,12 +126,9 @@ async fn enviar_reporte_a(conn: DbConn, perfiles: List<Profile>, saludo_nombre: 
         return Ok(false)
     }
     let saludo = t1(locale, "reporte.saludo", saludo_nombre)
-    let intro = t(locale, "reporte.intro")
-    let cta = t(locale, "reporte.cta")
-    let cierre = t(locale, "reporte.cierre")
-    let cuerpo_html = h_email_html(saludo, intro, lineas_html, cta, cierre)
-    let cuerpo_text = h_email_text(saludo, intro, lineas_text, cta, cierre)
-    let subj = t(locale, "reporte.subject")
+    let cuerpo_html = h_email_html(saludo, meta.intro, lineas_html, meta.cta, meta.cierre, meta.panel_url)
+    let cuerpo_text = h_email_text(saludo, meta.intro, lineas_text, meta.cta, meta.cierre, meta.panel_url)
+    let subj = meta.subject
     match send_email(email, subj, cuerpo_html, cuerpo_text).await {
         Ok(_) => {
             log.info("reporte.enviado", email: email)
@@ -132,7 +149,15 @@ async fn enviar_reportes() -> Result<Int> {
     let enviados = 0
     for fam in familias {
         let hijos = Profile.where(fn(p) => p.family_id == fam.id).all(conn).await?
-        let ok = enviar_reporte_a(conn, hijos, fam.display_name, fam.email, fam.locale).await?
+        let refs = hijos.map(fn(p) => PerfilRef { nombre: p.name, pid: p.id })
+        let meta = ReporteMeta {
+            subject: t(fam.locale, "reporte.subject"),
+            intro: t(fam.locale, "reporte.intro"),
+            cta: t(fam.locale, "reporte.cta"),
+            cierre: t(fam.locale, "reporte.cierre"),
+            panel_url: app_url() + "/panel",
+        }
+        let ok = enviar_reporte_a(conn, refs, fam.display_name, fam.email, fam.locale, meta).await?
         if (ok) {
             enviados = enviados + 1
         }
@@ -141,8 +166,7 @@ async fn enviar_reportes() -> Result<Int> {
 }
 
 // Arma el HTML del email (inline styles, seguro para clientes de correo).
-fn h_email_html(saludo: Str, intro: Str, lineas: List<Str>, cta: Str, cierre: Str) -> Str {
-    let panel = app_url() + "/panel"
+fn h_email_html(saludo: Str, intro: Str, lineas: List<Str>, cta: Str, cierre: Str, panel: Str) -> Str {
     let s = "<div style=\"font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:20px\">"
     s = s + "<h2 style=\"color:#0E7A63;margin:0 0 .3rem\">MatHelp</h2>"
     s = s + "<p style=\"margin:.2rem 0 1rem;color:#0f172a\">" + saludo + "</p>"
@@ -157,12 +181,12 @@ fn h_email_html(saludo: Str, intro: Str, lineas: List<Str>, cta: Str, cierre: St
 }
 
 // Versión texto plano.
-fn h_email_text(saludo: Str, intro: Str, lineas: List<Str>, cta: Str, cierre: Str) -> Str {
+fn h_email_text(saludo: Str, intro: Str, lineas: List<Str>, cta: Str, cierre: Str, panel: Str) -> Str {
     let s = "MatHelp\n\n" + saludo + "\n" + intro + "\n\n"
     for l in lineas {
         s = s + l + "\n"
     }
-    s = s + "\n" + cta + ": " + app_url() + "/panel\n\n" + cierre + "\n"
+    s = s + "\n" + cta + ": " + panel + "\n\n" + cierre + "\n"
     return s
 }
 

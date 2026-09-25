@@ -1516,5 +1516,22 @@
   "aula.error_pass_corta": "La contraseña debe tener al menos 6 caracteres.",
   "aula.error_pass2": "Las contraseñas no coinciden.",
   "aula.error_pass": "Contraseña incorrecta.",
-  "aula.volver": "Volver"
+  "aula.volver": "Volver",
+  "grado.progreso": "Ver progreso",
+  "grado.progreso_titulo": "Progreso del grado",
+  "grado.prog_esta_semana": "Esta semana",
+  "grado.prog_col_alumno": "Alumno",
+  "grado.prog_col_ejercicios": "Ejercicios",
+  "grado.prog_col_aciertos": "Aciertos",
+  "grado.prog_col_reforzar": "A reforzar",
+  "grado.prog_sin_actividad": "Sin actividad",
+  "grado.prog_ninguno": "—",
+  "grado.exportar_csv": "Descargar CSV",
+  "grado.enviar_reporte": "Enviarme el reporte por email",
+  "grado.reporte_ok": "Reporte enviado a tu email.",
+  "grado.reporte_vacio": "No hay actividad esta semana para reportar.",
+  "grado.reporte_err": "No se pudo enviar el reporte. Probá de nuevo.",
+  "reporte_grado.subject": "Reporte del grado {0}",
+  "reporte_grado.intro": "Así viene tu grado esta semana:",
+  "reporte_grado.cta": "Ver el grado"
 }
