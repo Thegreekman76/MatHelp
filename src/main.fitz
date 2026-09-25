@@ -54,6 +54,7 @@ import progreso
 import parent
 import familia
 import maestro
+import aula
 import reporte
 import recuperar
 import admin
@@ -108,14 +109,16 @@ async fn home(session: Str?, lang: Str?) -> Response {
     let locale = locale_from_cookie(lang)
     match read_session(session).await {
         Ok(fam) => {
-            // Maestro → su panel de grados (no juega, no elige perfil).
-            if (es_teacher(fam.email).await) {
+            let pid_str = pid_from_token(session)
+            // Maestro SIN perfil elegido → su panel de grados. Un ALUMNO de un
+            // maestro tiene pid != "" (su perfil) y va al juego, no al panel.
+            if (pid_str == "" and es_teacher(fam.email).await) {
                 return redirect_a("/maestro")
             }
-            if (pid_from_token(session) == "") {
+            if (pid_str == "") {
                 return redirect_a("/perfiles")
             }
-            let pid = a_int(pid_from_token(session))
+            let pid = a_int(pid_str)
             // Individual = cuenta sin PIN de adulto. Le mostramos "Mis datos"
             // (auto-gestión de su grado) en vez de "Cambiar de jugador".
             let es_ind = not tiene_admin_pin(fam.email).await

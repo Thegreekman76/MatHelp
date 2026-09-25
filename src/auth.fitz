@@ -381,6 +381,7 @@ fn form_login(locale: Str, email: Str, hay_error: Bool) -> Html {
 <button class="mh-btn" type="submit">{flv(t(locale, "login.submit"))}</button>
 </form>
 <a class="mh-link" href="/recuperar">{flv(t(locale, "recuperar.link"))}</a>
+<a class="mh-link" href="/aula"><span aria-hidden="true">🏫</span> {flv(t(locale, "aula.entrar_link"))}</a>
 <a class="mh-link" href="/activar">{flv(t(locale, "login.activar"))}</a>
 <a class="mh-link" href="/registro">{flv(t(locale, "login.crear_cuenta"))}</a>
 </div>""")

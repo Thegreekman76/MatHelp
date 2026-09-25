@@ -1,0 +1,257 @@
+// aula.fitz — login del ALUMNO (modo maestro), estilo Google Classroom.
+//
+// El alumno NO usa el email del maestro. Entra con:
+//   1) el CÓDIGO DEL GRADO (grupos.codigo, del pizarrón),
+//   2) elige SU NOMBRE de la lista del grado,
+//   3) su contraseña (1ª vez: la crea, validando su código de invitación
+//      individual de la hoja; después: solo la pone).
+//
+// La sesión del alumno lleva email = cuenta del maestro (dueña del perfil) +
+// pid = su perfil. Por eso el home rutea a /maestro SOLO si pid == "" (el
+// maestro); un alumno (pid != "") va al juego. Reusa el login por perfil de la
+// Opción B (login_hash Argon2, activation_code) — ver auth.fitz.
+
+from fitz_liveviews import Html, html, flv, h_join
+from config import db_url
+from i18n import t, t1, locale_from_cookie
+from layout import page_landing, responder_html, redirect_a
+from auth import mint_session, redirect_con_sesion_prefs, asegurar_login_cols
+from maestro import alumnos_de_grupo, asegurar_grupos, AlumnoRow
+from models import Grupo
+
+// --- DB ------------------------------------------------------------------------
+
+// Busca un grado por su código (el que tipea el alumno).
+async fn grupo_por_codigo(codigo: Str) -> Result<Grupo> {
+    let _ = asegurar_grupos().await
+    let conn = db.connect(db_url()).await?
+    return Grupo.where(fn(g) => g.codigo == codigo).first(conn).await
+}
+
+// Datos de auth de un alumno: su estado (activo o no) + prefs + el email de la
+// CUENTA del maestro (para mintear la sesión). SQL crudo (login_* no en @table).
+type AlumnoAuth {
+    nombre: Str = ""
+    login_hash: Str = ""
+    activation_code: Str = ""
+    theme: Str = "default"
+    contrast: Str = "normal"
+    font_size: Str = "normal"
+    email: Str = ""            // email de la cuenta del maestro (dueña del perfil)
+}
+
+async fn alumno_en_grado(gid: Int, pid: Int) -> Result<AlumnoAuth> {
+    let _ = asegurar_login_cols().await
+    let conn = db.connect(db_url()).await?
+    let rows = conn.query("SELECT p.name AS nombre, p.login_hash AS lh, p.activation_code AS ac, p.theme AS th, p.contrast AS co, p.font_size AS fs, f.email AS em FROM profiles p JOIN families f ON p.family_id = f.id WHERE p.id = $1 AND p.grupo_id = $2", [pid, gid]).await?
+    if (rows.len() == 0) {
+        return Err("alumno no encontrado")
+    }
+    let r = rows[0]
+    return Ok(AlumnoAuth {
+        nombre: match r.get_str("nombre") { Ok(v) => v, Err(_) => "" },
+        login_hash: match r.get_str("lh") { Ok(v) => v, Err(_) => "" },
+        activation_code: match r.get_str("ac") { Ok(v) => v, Err(_) => "" },
+        theme: match r.get_str("th") { Ok(v) => v, Err(_) => "default" },
+        contrast: match r.get_str("co") { Ok(v) => v, Err(_) => "normal" },
+        font_size: match r.get_str("fs") { Ok(v) => v, Err(_) => "normal" },
+        email: match r.get_str("em") { Ok(v) => v, Err(_) => "" },
+    })
+}
+
+// Crea la contraseña del alumno (1ª vez) y consume el código de invitación.
+async fn activar_alumno(pid: Int, password: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let ph = hash.password(password)
+    return conn.exec("UPDATE profiles SET login_hash = $2, activation_code = '' WHERE id = $1", [pid, ph]).await
+}
+
+// --- Render --------------------------------------------------------------------
+
+fn form_codigo(locale: Str, error_key: Str) -> Html {
+    let err = match error_key == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, error_key))}</div>""").raw,
+    }
+    return html("""<div class="mh-card">
+<h2><span aria-hidden="true">🏫</span> {flv(t(locale, "aula.titulo"))}</h2>
+{err}
+<form method="POST" action="/aula">
+<div class="mh-field">
+<label class="mh-label" for="codigo">{flv(t(locale, "aula.codigo_label"))}</label>
+<input class="mh-input" id="codigo" name="codigo" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autofocus required />
+<span class="mh-hint">{flv(t(locale, "aula.codigo_hint"))}</span>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "aula.continuar"))}</button>
+</form>
+<a class="mh-link" href="/login">{flv(t(locale, "aula.volver"))}</a>
+</div>""")
+}
+
+fn boton_alumno(locale: Str, gid: Int, nombre: Str, pid: Int) -> Html {
+    let nom = flv(nombre)
+    return html("""<a class="mh-profile" href="/aula/{gid}/{pid}">
+<span class="mh-av"><span aria-hidden="true">🙂</span></span>
+<span>{nom}</span>
+</a>""")
+}
+
+fn render_lista(locale: Str, gid: Int, alumnos: List<AlumnoRow>) -> Html {
+    let cont = match alumnos.len() == 0 {
+        true => html("""<p style="color:var(--mh-suave);text-align:center">{flv(t(locale, "aula.sin_alumnos"))}</p>""").raw,
+        false => h_join(alumnos.map(fn(a) => boton_alumno(locale, gid, a.nombre, a.id))),
+    }
+    return html("""<div class="mh-card">
+<h2>{flv(t(locale, "aula.quien_sos"))}</h2>
+<p style="color:var(--mh-suave);text-align:center;margin:0 0 12px">{flv(t(locale, "aula.quien_sos_hint"))}</p>
+<div class="mh-profiles">
+{cont}
+</div>
+</div>
+<a class="mh-link" href="/aula">{flv(t(locale, "aula.volver"))}</a>""")
+}
+
+fn form_pass(locale: Str, gid: Int, pid: Int, nombre: Str, ya_activo: Bool, error_key: Str) -> Html {
+    let err = match error_key == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, error_key))}</div>""").raw,
+    }
+    let saludo = match ya_activo {
+        true => flv(t1(locale, "aula.hola_entrar", nombre)),
+        false => flv(t1(locale, "aula.hola_crear", nombre)),
+    }
+    let campos = match ya_activo {
+        true => html("""<div class="mh-field">
+<label class="mh-label" for="password">{flv(t(locale, "aula.tu_pass"))}</label>
+<input class="mh-input" id="password" name="password" type="password" autocomplete="off" autofocus required />
+</div>""").raw,
+        false => html("""<div class="mh-field">
+<label class="mh-label" for="codigo">{flv(t(locale, "aula.tu_codigo"))}</label>
+<input class="mh-input" id="codigo" name="codigo" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autofocus required />
+<span class="mh-hint">{flv(t(locale, "aula.tu_codigo_hint"))}</span>
+</div>
+<div class="mh-field">
+<label class="mh-label" for="password">{flv(t(locale, "aula.crear_pass"))}</label>
+<input class="mh-input" id="password" name="password" type="password" autocomplete="new-password" minlength="6" required />
+<span class="mh-hint">{flv(t(locale, "aula.crear_pass_hint"))}</span>
+</div>
+<div class="mh-field">
+<label class="mh-label" for="password2">{flv(t(locale, "aula.crear_pass2"))}</label>
+<input class="mh-input" id="password2" name="password2" type="password" autocomplete="new-password" minlength="6" required />
+</div>""").raw,
+    }
+    let btn = match ya_activo {
+        true => flv(t(locale, "aula.entrar_btn")),
+        false => flv(t(locale, "aula.activar_btn")),
+    }
+    return html("""<div class="mh-card">
+<h2>{saludo}</h2>
+{err}
+<form method="POST" action="/aula/entrar">
+<input type="hidden" name="gid" value="{gid}" />
+<input type="hidden" name="pid" value="{pid}" />
+{campos}
+<button class="mh-btn" type="submit">{btn}</button>
+</form>
+<a class="mh-link" href="/aula/{gid}">{flv(t(locale, "aula.volver"))}</a>
+</div>""")
+}
+
+// --- Tipos de form -------------------------------------------------------------
+
+type CodigoForm {
+    codigo: Str = ""
+}
+
+type EntrarForm {
+    gid: Str = ""
+    pid: Str = ""
+    codigo: Str = ""          // código de invitación individual (solo 1ª vez)
+    password: Str = ""
+    password2: Str = ""       // solo 1ª vez
+}
+
+// --- Handlers ------------------------------------------------------------------
+
+// /aula (GET) → pantalla del código del grado.
+@cookie(name="mathelp_lang", into="lang")
+@get("/aula")
+fn aula_get(lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    return responder_html(page_landing(locale, t(locale, "aula.titulo") + " — MatHelp", form_codigo(locale, ""), html("")))
+}
+
+// /aula (POST) → valida el código del grado y va a la lista de nombres.
+@cookie(name="mathelp_lang", into="lang")
+@post("/aula")
+async fn aula_codigo_post(lang: Str?, form: CodigoForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    match grupo_por_codigo(form.codigo).await {
+        Ok(g) => return redirect_a("/aula/{g.id}"),
+        Err(_) => return responder_html(page_landing(locale, t(locale, "aula.titulo") + " — MatHelp", form_codigo(locale, "aula.codigo_error"), html(""))),
+    }
+}
+
+// /aula/{gid} (GET) → lista de nombres del grado (elegí quién sos).
+@cookie(name="mathelp_lang", into="lang")
+@get("/aula/{gid}")
+async fn aula_lista_get(lang: Str?, gid: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let alumnos = alumnos_de_grupo(gid).await
+    return responder_html(page_landing(locale, t(locale, "aula.quien_sos") + " — MatHelp", render_lista(locale, gid, alumnos), html("")))
+}
+
+// /aula/{gid}/{pid} (GET) → pantalla de contraseña (crear la 1ª vez, poner después).
+@cookie(name="mathelp_lang", into="lang")
+@get("/aula/{gid}/{pid}")
+async fn aula_pass_get(lang: Str?, gid: Int, pid: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let a = match alumno_en_grado(gid, pid).await {
+        Ok(x) => x,
+        Err(_) => return redirect_a("/aula/{gid}"),
+    }
+    let ya_activo = a.login_hash != ""
+    return responder_html(page_landing(locale, a.nombre + " — MatHelp", form_pass(locale, gid, pid, a.nombre, ya_activo, ""), html("")))
+}
+
+// /aula/entrar (POST) → activa (1ª vez) o valida la contraseña y entra a jugar.
+@cookie(name="mathelp_lang", into="lang")
+@post("/aula/entrar")
+async fn aula_entrar_post(lang: Str?, form: EntrarForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let gid: Int = match form.gid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/aula"),
+    }
+    let pid: Int = match form.pid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/aula"),
+    }
+    let a = match alumno_en_grado(gid, pid).await {
+        Ok(x) => x,
+        Err(_) => return redirect_a("/aula/{gid}"),
+    }
+    let ya_activo = a.login_hash != ""
+    let titulo = a.nombre + " — MatHelp"
+    if (ya_activo) {
+        // Login: verificar la contraseña.
+        if (not hash.verify(form.password, a.login_hash)) {
+            return responder_html(page_landing(locale, titulo, form_pass(locale, gid, pid, a.nombre, true, "aula.error_pass"), html("")))
+        }
+        let token = mint_session(a.email, "{pid}", "0")
+        return redirect_con_sesion_prefs("/", token, a.theme, a.contrast, a.font_size)
+    }
+    // Activación (1ª vez): validar el código de invitación individual + crear contraseña.
+    if (a.activation_code == "" or form.codigo != a.activation_code) {
+        return responder_html(page_landing(locale, titulo, form_pass(locale, gid, pid, a.nombre, false, "aula.error_codigo_inv"), html("")))
+    }
+    if (form.password.len() < 6) {
+        return responder_html(page_landing(locale, titulo, form_pass(locale, gid, pid, a.nombre, false, "aula.error_pass_corta"), html("")))
+    }
+    if (form.password != form.password2) {
+        return responder_html(page_landing(locale, titulo, form_pass(locale, gid, pid, a.nombre, false, "aula.error_pass2"), html("")))
+    }
+    let _ = activar_alumno(pid, form.password).await
+    let token = mint_session(a.email, "{pid}", "0")
+    return redirect_con_sesion_prefs("/", token, a.theme, a.contrast, a.font_size)
+}
