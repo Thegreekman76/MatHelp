@@ -10,7 +10,7 @@
 // panel/reporte por grado en Fase 5.
 
 from fitz_liveviews import Html, html, flv, h_join
-from config import db_url, app_url
+from config import db_url, app_url, reporte_habilitado
 from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from auth import read_session, es_teacher, asegurar_login_cols
@@ -230,6 +230,103 @@ async fn enviar_reporte_grado(gid: Int, saludo: Str, email: Str, locale: Str, no
 fn csv_campo(v: Str) -> Str {
     let esc = v.replace("\"", "\"\"")
     return "\"" + esc + "\""
+}
+
+// --- Reporte semanal automático de maestros (@cron) ----------------------------
+// Paralelo al reporte de familias (reporte.fitz), pero por GRADO. Cada módulo tiene
+// su @cron (mismo horario) para no crear un ciclo de imports (maestro → reporte).
+
+// Datos mínimos de una cuenta de maestro para armar sus reportes.
+type MaestroFam {
+    id: Int = 0
+    email: Str = ""
+    nombre: Str = ""
+    locale: Str = "es-AR"
+}
+
+// Cuentas de maestro (account_type = 'teacher'). Best-effort: si la columna no
+// existe (base sin migrar), la query falla y devuelve [].
+async fn familias_maestras() -> List<MaestroFam> {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return [] },
+    }
+    let rows = match conn.query("SELECT id, email, display_name, locale FROM families WHERE account_type = 'teacher' ORDER BY id", []).await {
+        Ok(r) => r,
+        Err(_) => { return [] },
+    }
+    let out: List<MaestroFam> = []
+    for r in rows {
+        let id = match r.get_int("id") {
+            Ok(n) => n,
+            Err(_) => 0,
+        }
+        let email = match r.get_str("email") {
+            Ok(v) => v,
+            Err(_) => "",
+        }
+        let nombre = match r.get_str("display_name") {
+            Ok(v) => v,
+            Err(_) => "",
+        }
+        let locale = match r.get_str("locale") {
+            Ok(v) => v,
+            Err(_) => "es-AR",
+        }
+        if (id > 0) {
+            out.push(MaestroFam { id: id, email: email, nombre: nombre, locale: locale })
+        }
+    }
+    return out
+}
+
+// Envía a cada maestro un reporte por cada uno de sus grados (con actividad).
+// Devuelve cuántos emails salieron. Best-effort: un fallo no corta los demás.
+async fn enviar_reportes_maestros() -> Result<Int> {
+    let maestros = familias_maestras().await
+    let enviados = 0
+    for m in maestros {
+        let grupos = match grupos_de(m.id).await {
+            Ok(gs) => gs,
+            Err(_) => [],
+        }
+        for g in grupos {
+            let ok = match enviar_reporte_grado(g.id, m.nombre, m.email, m.locale, g.nombre).await {
+                Ok(v) => v,
+                Err(_) => false,
+            }
+            if (ok) {
+                enviados = enviados + 1
+            }
+        }
+    }
+    return Ok(enviados)
+}
+
+// El @cron: cada lunes 9:00 UTC (igual que el de familias). Apagado salvo
+// MATHELP_WEEKLY_REPORT=1 (reporte_habilitado).
+@cron("0 9 * * 1")
+async fn reporte_grados_cron() -> Result<Null> {
+    if (reporte_habilitado()) {
+        match enviar_reportes_maestros().await {
+            Ok(cnt) => log.info("reporte.grados", grados: cnt),
+            Err(e) => log.error("reporte.grados.error", err: e),
+        }
+    }
+    return Ok(null)
+}
+
+// Disparo MANUAL del reporte de grados (testing / ops). Gateado por
+// MATHELP_MANUAL_REPORT=1; si no, 404. Paralelo al de reporte.fitz.
+@get("/__ops/run-grade-reports")
+async fn run_grade_reports_manual() -> Response {
+    if (env_or("MATHELP_MANUAL_REPORT", "0") != "1") {
+        return Response { status: 404, content_type: "text/plain", headers: {}, body: "not found\n" }
+    }
+    match enviar_reportes_maestros().await {
+        Ok(n) => return Response { status: 200, content_type: "text/plain", headers: {}, body: "reportes de grado enviados: {n}\n" },
+        Err(e) => return Response { status: 500, content_type: "text/plain", headers: {}, body: "error: {e}\n" },
+    }
 }
 
 // El progreso del grado como CSV (una fila por alumno), para abrir en Excel.

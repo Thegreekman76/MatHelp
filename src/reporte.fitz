@@ -148,6 +148,22 @@ async fn enviar_reportes() -> Result<Int> {
     let familias = Family.all(conn).await?
     let enviados = 0
     for fam in familias {
+        // Los maestros reciben un reporte POR GRADO (cron aparte en maestro.fitz);
+        // acá solo familias. Se detecta por ser dueño de algún grado (grupos).
+        let dueno = conn.query("SELECT COUNT(*)::int AS n FROM grupos WHERE owner_id = $1", [fam.id]).await
+        let es_maestro = match dueno {
+            Ok(r) => match r.len() > 0 {
+                true => match r[0].get_int("n") {
+                    Ok(n) => n > 0,
+                    Err(_) => false,
+                },
+                false => false,
+            },
+            Err(_) => false,
+        }
+        if (es_maestro) {
+            continue
+        }
         let hijos = Profile.where(fn(p) => p.family_id == fam.id).all(conn).await?
         let refs = hijos.map(fn(p) => PerfilRef { nombre: p.name, pid: p.id })
         let meta = ReporteMeta {

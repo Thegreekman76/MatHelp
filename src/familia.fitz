@@ -425,7 +425,7 @@ async fn familia_pin_post(session: Str?, lang: Str?, form: PinGateForm) -> Respo
         if (form.pin != "") {
             let _ = set_admin_pin(fam.email, form.pin).await
         }
-        let token = mint_session(fam.email, pid_from_token(session), "1")
+        let token = mint_session(fam.email, pid_from_token(session), "1", "0")
         return redirect_con_sesion("/familia", token)
     }
 
@@ -435,7 +435,7 @@ async fn familia_pin_post(session: Str?, lang: Str?, form: PinGateForm) -> Respo
         if (not actual.starts_with("$")) {
             let _ = set_admin_pin(fam.email, form.pin).await
         }
-        let token = mint_session(fam.email, pid_from_token(session), "1")
+        let token = mint_session(fam.email, pid_from_token(session), "1", "0")
         return redirect_con_sesion("/familia", token)
     }
     return responder_html(page(locale, titulo, form_pin_gate(locale, true, true), html("")))
@@ -487,7 +487,7 @@ async fn familia_volver(session: Str?) -> Response {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
-    let token = mint_session(fam.email, pid_from_token(session), "0")
+    let token = mint_session(fam.email, pid_from_token(session), "0", "0")
     return redirect_con_sesion("/", token)
 }
 
@@ -607,6 +607,6 @@ async fn upgrade_post(session: Str?, lang: Str?, form: UpgradeForm) -> Response 
     }
     let _ = set_display_name(fam.email, form.nombre).await
     let _ = set_admin_pin(fam.email, form.pin).await
-    let token = mint_session(fam.email, pid_from_token(session), "1")
+    let token = mint_session(fam.email, pid_from_token(session), "1", "0")
     return redirect_con_sesion("/perfiles/nuevo", token)
 }

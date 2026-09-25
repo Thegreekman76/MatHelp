@@ -238,7 +238,7 @@ async fn aula_entrar_post(lang: Str?, form: EntrarForm) -> Response {
         if (not hash.verify(form.password, a.login_hash)) {
             return responder_html(page_landing(locale, titulo, form_pass(locale, gid, pid, a.nombre, true, "aula.error_pass"), html("")))
         }
-        let token = mint_session(a.email, "{pid}", "0")
+        let token = mint_session(a.email, "{pid}", "0", "0")
         return redirect_con_sesion_prefs("/", token, a.theme, a.contrast, a.font_size)
     }
     // Activación (1ª vez): validar el código de invitación individual + crear contraseña.
@@ -252,6 +252,6 @@ async fn aula_entrar_post(lang: Str?, form: EntrarForm) -> Response {
         return responder_html(page_landing(locale, titulo, form_pass(locale, gid, pid, a.nombre, false, "aula.error_pass2"), html("")))
     }
     let _ = activar_alumno(pid, form.password).await
-    let token = mint_session(a.email, "{pid}", "0")
+    let token = mint_session(a.email, "{pid}", "0", "0")
     return redirect_con_sesion_prefs("/", token, a.theme, a.contrast, a.font_size)
 }

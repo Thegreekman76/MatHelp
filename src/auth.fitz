@@ -28,8 +28,10 @@ from referral_db import record_referral
 
 // Emite el JWT de la familia. `pid` vacío = todavía no eligió perfil. `adm` = "1"
 // cuando la sesión pasó el PIN de adulto (zona familia/control), "0" cuando juega.
-fn mint_session(email: Str, pid: Str, adm: Str) -> Str {
-    let claims = { "email": email, "pid": pid, "adm": adm }
+// `tea` = "1" cuando la cuenta es de un maestro (se decide al login/registro, así
+// el home no consulta la DB en cada carga — ver es_teacher_token).
+fn mint_session(email: Str, pid: Str, adm: Str, tea: Str) -> Str {
+    let claims = { "email": email, "pid": pid, "adm": adm, "tea": tea }
     return jwt.encode(claims, jwt_secret())
 }
 
@@ -89,6 +91,30 @@ fn adm_from_token(session: Str?) -> Str {
 // y, si es false, redirige a /familia/pin.
 fn es_admin(session: Str?) -> Bool {
     return adm_from_token(session) == "1"
+}
+
+// ¿La sesión es de un maestro? Claim "tea" == "1". No toca la DB (a diferencia de
+// es_teacher, que consulta account_type). Se setea al login/registro. Tokens viejos
+// (sin el claim) devuelven "0" → un maestro con token previo re-loguea una vez.
+fn tea_from_token(session: Str?) -> Str {
+    let token = match session {
+        null => return "0",
+        s => s,
+    }
+    let claims = match jwt.decode(token, jwt_secret()) {
+        Ok(c) => c,
+        Err(_) => return "0",
+    }
+    return match claims.get("tea") {
+        Ok(v) => v,
+        Err(_) => "0",
+    }
+}
+
+// Gate de maestro para el hot path (home): lee el claim, sin DB. Los handlers del
+// panel usan es_teacher (DB, autoritativo) para no lockear tokens viejos.
+fn es_teacher_token(session: Str?) -> Bool {
+    return tea_from_token(session) == "1"
 }
 
 // Response de redirect que setea (o pisa) la cookie de sesión HttpOnly.
@@ -339,8 +365,10 @@ async fn set_account_type(email: Str, tipo: Str) -> Result<Int> {
 }
 
 // ¿La cuenta es de un maestro? Best-effort (columna lazy: si no existe → false).
+// NO corre asegurar_account_type: la columna la crean la migración 0025 (base nueva)
+// y set_account_type (registro). Si aún no existe, la query falla → false (seguro).
+// Se llama solo en login/registro y en los gates del panel, no en el home (claim).
 async fn es_teacher(email: Str) -> Bool {
-    let _ = asegurar_account_type().await
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(_) => { return false },
@@ -525,10 +553,16 @@ async fn login_post(lang: Str?, creds: LoginForm) -> Response {
     let locale = locale_from_cookie(lang)
     match autenticar(creds.email, creds.password).await {
         Ok(fam) => {
-            let token = mint_session(fam.email, "", "0")
             // Maestro → su panel (no juega, no elige perfil). Jefe/individual →
-            // al selector (o auto-salto si es cuenta individual).
-            let destino = match es_teacher(fam.email).await {
+            // al selector (o auto-salto si es cuenta individual). El resultado va
+            // también al claim "tea" para que el home no vuelva a consultar la DB.
+            let teacher = es_teacher(fam.email).await
+            let tea = match teacher {
+                true => "1",
+                false => "0",
+            }
+            let token = mint_session(fam.email, "", "0", tea)
+            let destino = match teacher {
                 true => "/maestro",
                 false => "/perfiles",
             }
@@ -538,7 +572,7 @@ async fn login_post(lang: Str?, creds: LoginForm) -> Response {
             // No es el jefe: ¿es un perfil con acceso propio? Entra directo a SU menú.
             match autenticar_perfil(creds.email, creds.password).await {
                 Ok(pa) => {
-                    let token = mint_session(creds.email, pa.pid, "0")
+                    let token = mint_session(creds.email, pa.pid, "0", "0")
                     return redirect_con_sesion_prefs("/", token, pa.theme, pa.contrast, pa.font_size)
                 }
                 Err(_) => {
@@ -632,7 +666,11 @@ async fn registro_post(lang: Str?, refc: Str?, input: RegistroForm) -> Response 
                 "maestro" => "/maestro",
                 _ => "/comenzar",
             }
-            let token = mint_session(fam.email, "", "0")
+            let tea = match input.accion {
+                "maestro" => "1",
+                _ => "0",
+            }
+            let token = mint_session(fam.email, "", "0", tea)
             return redirect_con_sesion(destino, token)
         }
         Err(_) => {
@@ -669,7 +707,7 @@ async fn activar_post(lang: Str?, input: ActivarForm) -> Response {
     }
     match activar_perfil(input.email, input.codigo, input.password).await {
         Ok(pa) => {
-            let token = mint_session(input.email, pa.pid, "0")
+            let token = mint_session(input.email, pa.pid, "0", "0")
             return redirect_con_sesion_prefs("/", token, pa.theme, pa.contrast, pa.font_size)
         }
         Err(_) => return responder_html(page_landing(locale, titulo, form_activar(locale, input.email, "activar.error"), html(""))),

@@ -13,7 +13,7 @@ from fitz_liveviews import Html, html, flv, h_join
 from config import db_url
 from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
-from auth import read_session, mint_session, redirect_con_sesion_prefs, es_admin, pid_from_token, hash_pin, pin_verifica, es_teacher
+from auth import read_session, mint_session, redirect_con_sesion_prefs, es_admin, pid_from_token, hash_pin, pin_verifica, es_teacher_token
 from engine import modalidad_valida
 from avatares import avatar_emoji
 from models import Profile
@@ -433,8 +433,8 @@ async fn perfiles_get(session: Str?, lang: Str?) -> Response {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
     }
-    // Un maestro no tiene perfiles de juego → a su panel de grados.
-    if (es_teacher(fam.email).await) {
+    // Un maestro no tiene perfiles de juego → a su panel de grados (claim, sin DB).
+    if (es_teacher_token(session)) {
         return redirect_a("/maestro")
     }
     let perfiles: List<Profile> = match perfiles_de(fam.id).await {
@@ -462,7 +462,7 @@ async fn perfiles_get(session: Str?, lang: Str?) -> Response {
         if (solo.pin == "") {
             let es_familia = tiene_admin_pin(fam.email).await
             if (not es_familia) {
-                let token = mint_session(fam.email, "{solo.id}", "0")
+                let token = mint_session(fam.email, "{solo.id}", "0", "0")
                 return redirect_con_sesion_prefs("/", token, solo.theme, solo.contrast, solo.font_size)
             }
         }
@@ -596,7 +596,7 @@ async fn elegir_post(session: Str?, form: ElegirForm) -> Response {
             if (p.pin != "") {
                 return redirect_a("/perfiles/pin/{pid}")
             }
-            let token = mint_session(fam.email, form.pid, "0")
+            let token = mint_session(fam.email, form.pid, "0", "0")
             return redirect_con_sesion_prefs("/", token, p.theme, p.contrast, p.font_size)
         }
         Err(_) => return redirect_a("/perfiles"),
@@ -639,7 +639,7 @@ async fn pin_post(session: Str?, lang: Str?, form: PinForm) -> Response {
                 if (not p.pin.starts_with("$")) {
                     let _ = actualizar_pin(fam.id, pid, form.pin).await
                 }
-                let token = mint_session(fam.email, form.pid, "0")
+                let token = mint_session(fam.email, form.pid, "0", "0")
                 return redirect_con_sesion_prefs("/", token, p.theme, p.contrast, p.font_size)
             }
             return responder_html(page(locale, t(locale, "pin.titulo") + " — MatHelp", form_pin(locale, p, true), html("")))
@@ -698,7 +698,7 @@ async fn comenzar_post(session: Str?, lang: Str?, form: ComenzarForm) -> Respons
     }
     match crear_perfil(fam.id, fam.display_name, grado, "comun", "", fam.locale).await {
         Ok(p) => {
-            let token = mint_session(fam.email, "{p.id}", "0")
+            let token = mint_session(fam.email, "{p.id}", "0", "0")
             return redirect_con_sesion_prefs("/", token, p.theme, p.contrast, p.font_size)
         }
         Err(_) => return responder_html(page(locale, titulo, form_comenzar(locale, fam.display_name), html(""))),

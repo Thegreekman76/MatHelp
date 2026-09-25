@@ -10,7 +10,7 @@ from config import db_url, app_name, lang_cookie_name, default_locale
 from i18n import t, t1, locale_from_cookie, es_locale_valido, nombre_locale
 from brand import logo_lockup
 from layout import page, page_landing, responder_html, redirect_a
-from auth import read_session, pid_from_token, es_teacher
+from auth import read_session, pid_from_token, es_teacher_token
 from engine import a_int
 from fmt import fmt_int
 from streaks import racha_actual
@@ -112,7 +112,8 @@ async fn home(session: Str?, lang: Str?) -> Response {
             let pid_str = pid_from_token(session)
             // Maestro SIN perfil elegido → su panel de grados. Un ALUMNO de un
             // maestro tiene pid != "" (su perfil) y va al juego, no al panel.
-            if (pid_str == "" and es_teacher(fam.email).await) {
+            // Lee el claim "tea" del token — sin DB (hot path).
+            if (pid_str == "" and es_teacher_token(session)) {
                 return redirect_a("/maestro")
             }
             if (pid_str == "") {

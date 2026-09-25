@@ -686,7 +686,7 @@ async fn panel_eliminar_post(session: Str?, form: AccionForm) -> Response {
             let _ = eliminar_perfil(fam.id, pid).await
             let activo = a_int(pid_from_token(session))
             if (activo == pid) {
-                let token = mint_session(fam.email, "", "1")
+                let token = mint_session(fam.email, "", "1", "0")
                 return redirect_con_sesion("/panel", token)
             }
             return redirect_a("/panel")

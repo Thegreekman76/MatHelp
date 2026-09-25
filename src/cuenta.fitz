@@ -14,7 +14,7 @@ from fitz_liveviews import Html, html, flv
 from config import db_url, session_cookie_name
 from i18n import t, locale_from_cookie
 from layout import page, responder_html, redirect_a
-from auth import read_session, es_admin, mint_session, pid_from_token, adm_from_token, redirect_con_sesion
+from auth import read_session, es_admin, mint_session, pid_from_token, adm_from_token, tea_from_token, redirect_con_sesion
 from models import Family
 
 // --- Body types (antes de los handlers — FITZ-28) --------------------------
@@ -289,7 +289,7 @@ async fn cuenta_email_post(session: Str?, lang: Str?, input: CambiarEmailForm) -
             }
             // El claim email cambió → re-emitir la sesión con el email nuevo,
             // preservando perfil elegido (pid) y estado de adulto (adm).
-            let token = mint_session(input.email, pid_from_token(session), adm_from_token(session))
+            let token = mint_session(input.email, pid_from_token(session), adm_from_token(session), tea_from_token(session))
             return redirect_con_sesion("/cuenta", token)
         }
         Err(_) => return responder_html(page(locale, titulo, render_cuenta(locale, fam.email, "", "cuenta.error"), html(""))),
