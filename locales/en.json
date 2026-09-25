@@ -1389,7 +1389,7 @@
   "registro.tu_nombre_hint": "The name of whoever will use MatHelp.",
   "registro.accion_jugar": "Start playing",
   "registro.accion_familia": "It's for my family",
-  "registro.accion_hint": "«Start playing» creates your profile and you play right away. «It's for my family» lets you set up a profile for each member. If you start solo, you can add your family anytime.",
+  "registro.accion_hint": "«Start playing» creates your profile and you play right away. «It's for my family» lets you set up a profile for each member. «I'm a teacher» builds your grades with their students.",
   "comenzar.titulo": "Almost there!",
   "comenzar.saludo": "Hi, {0}!",
   "comenzar.texto": "What grade or year are you in? That way the exercises match your level.",
@@ -1449,5 +1449,10 @@
   "landing.perfiles_p3_text": "An optional PIN keeps a sibling out of another's profile. From the Family Zone, with your adult PIN, you manage profiles and see everyone's progress.",
   "miperfil.pin_tiene": "You have a PIN to enter your profile.",
   "miperfil.pin_quitar_hint": "If you're the only one using this account, you can remove it to enter directly.",
-  "miperfil.pin_quitar": "Remove PIN"
+  "miperfil.pin_quitar": "Remove PIN",
+  "registro.accion_maestro": "I'm a teacher",
+  "maestro.titulo": "Teacher dashboard",
+  "maestro.saludo": "Hi, {0}!",
+  "maestro.sin_grados_titulo": "No grades yet",
+  "maestro.sin_grados_texto": "Soon you'll be able to create your grades and add students."
 }

@@ -13,7 +13,7 @@ from fitz_liveviews import Html, html, flv, h_join
 from config import db_url
 from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
-from auth import read_session, mint_session, redirect_con_sesion_prefs, es_admin, pid_from_token, hash_pin, pin_verifica
+from auth import read_session, mint_session, redirect_con_sesion_prefs, es_admin, pid_from_token, hash_pin, pin_verifica, es_teacher
 from engine import modalidad_valida
 from avatares import avatar_emoji
 from models import Profile
@@ -432,6 +432,10 @@ async fn perfiles_get(session: Str?, lang: Str?) -> Response {
     let fam = match read_session(session).await {
         Ok(f) => f,
         Err(_) => return redirect_a("/login"),
+    }
+    // Un maestro no tiene perfiles de juego → a su panel de grados.
+    if (es_teacher(fam.email).await) {
+        return redirect_a("/maestro")
     }
     let perfiles: List<Profile> = match perfiles_de(fam.id).await {
         Ok(ps) => ps,

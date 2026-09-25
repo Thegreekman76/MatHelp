@@ -319,6 +319,45 @@ fn pin_verifica(guardado: Str, ingresado: Str) -> Bool {
     return guardado == ingresado
 }
 
+// --- account_type (rol de la cuenta: individual / family / teacher) ------------
+//
+// Solo se consulta para "¿es maestro?"; individual vs familia se sigue derivando
+// del admin_pin (sin tocar esa lógica). Columna lazy (patrón admin_pin), NO en el
+// @table Family, para no romper el SELECT del ORM en read_session en una base que
+// todavía no tiene la columna.
+
+async fn asegurar_account_type() -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("ALTER TABLE families ADD COLUMN IF NOT EXISTS account_type TEXT NOT NULL DEFAULT 'family'", []).await
+}
+
+// Setea el rol de la cuenta ("individual" | "family" | "teacher").
+async fn set_account_type(email: Str, tipo: Str) -> Result<Int> {
+    let _ = asegurar_account_type().await
+    let conn = db.connect(db_url()).await?
+    return conn.exec("UPDATE families SET account_type = $2 WHERE email = $1", [email, tipo]).await
+}
+
+// ¿La cuenta es de un maestro? Best-effort (columna lazy: si no existe → false).
+async fn es_teacher(email: Str) -> Bool {
+    let _ = asegurar_account_type().await
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return false },
+    }
+    let rows = match conn.query("SELECT account_type FROM families WHERE email = $1", [email]).await {
+        Ok(r) => r,
+        Err(_) => { return false },
+    }
+    if (rows.len() == 0) {
+        return false
+    }
+    return match rows[0].get_str("account_type") {
+        Ok(v) => v == "teacher",
+        Err(_) => false,
+    }
+}
+
 // --- Forms HTML ----------------------------------------------------------
 
 fn form_login(locale: Str, email: Str, hay_error: Bool) -> Html {
@@ -376,6 +415,7 @@ fn form_registro(locale: Str, email: Str, familia: Str, error_key: Str) -> Html 
 </div>
 <button class="mh-btn" type="submit" name="accion" value="jugar">{flv(t(locale, "registro.accion_jugar"))}</button>
 <button class="mh-btn sec" type="submit" name="accion" value="familia">{flv(t(locale, "registro.accion_familia"))}</button>
+<button class="mh-btn sec" type="submit" name="accion" value="maestro">{flv(t(locale, "registro.accion_maestro"))}</button>
 <span class="mh-hint" style="margin-top:.6rem;display:block">{flv(t(locale, "registro.accion_hint"))}</span>
 </form>
 <p class="mh-hint" style="margin-top:.6rem">{flv(t(locale, "registro.acepto"))} <a href="/terminos">{flv(t(locale, "legal.terms.titulo"))}</a> {flv(t(locale, "registro.y"))} <a href="/privacidad">{flv(t(locale, "legal.priv.titulo"))}</a>.</p>
@@ -484,9 +524,14 @@ async fn login_post(lang: Str?, creds: LoginForm) -> Response {
     let locale = locale_from_cookie(lang)
     match autenticar(creds.email, creds.password).await {
         Ok(fam) => {
-            // Jefe de familia: al selector (o auto-salto si es cuenta individual).
             let token = mint_session(fam.email, "", "0")
-            return redirect_con_sesion("/perfiles", token)
+            // Maestro → su panel (no juega, no elige perfil). Jefe/individual →
+            // al selector (o auto-salto si es cuenta individual).
+            let destino = match es_teacher(fam.email).await {
+                true => "/maestro",
+                false => "/perfiles",
+            }
+            return redirect_con_sesion(destino, token)
         }
         Err(_) => {
             // No es el jefe: ¿es un perfil con acceso propio? Entra directo a SU menú.
@@ -569,15 +614,22 @@ async fn registro_post(lang: Str?, refc: Str?, input: RegistroForm) -> Response 
             // latencia de Resend. Los errores de runtime de la task se loguean
             // (FITZ-27 cerrado en fitz v0.61.0 — el spawn ya no los traga).
             spawn(signup_emails(fam))
-            // Dos caminos según el botón que se apretó:
-            //   "familia" → a la Zona Familia (configurar PIN de adulto + crear
-            //               un perfil por hijo). El flujo familiar de siempre.
-            //   default   → "empezar a jugar": a /comenzar, que crea el perfil
-            //               individual (elegí tu grado) y a jugar. Sin PIN, sin
-            //               selector: la cuenta individual no da vueltas.
-            let destino = match input.accion == "familia" {
-                true => "/familia/pin",
-                false => "/comenzar",
+            // Tres caminos según el botón que se apretó:
+            //   "familia" → Zona Familia (PIN de adulto + un perfil por hijo).
+            //   "maestro" → panel del maestro (grados + alumnos). Sin PIN: entra
+            //               con email+contraseña y gestiona directo.
+            //   default   → "empezar a jugar": /comenzar (perfil individual, sin
+            //               PIN ni selector — la cuenta individual no da vueltas).
+            let tipo = match input.accion {
+                "familia" => "family",
+                "maestro" => "teacher",
+                _ => "individual",
+            }
+            let _ = set_account_type(fam.email, tipo).await
+            let destino = match input.accion {
+                "familia" => "/familia/pin",
+                "maestro" => "/maestro",
+                _ => "/comenzar",
             }
             let token = mint_session(fam.email, "", "0")
             return redirect_con_sesion(destino, token)

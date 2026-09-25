@@ -10,7 +10,7 @@ from config import db_url, app_name, lang_cookie_name, default_locale
 from i18n import t, t1, locale_from_cookie, es_locale_valido, nombre_locale
 from brand import logo_lockup
 from layout import page, page_landing, responder_html, redirect_a
-from auth import read_session, pid_from_token
+from auth import read_session, pid_from_token, es_teacher
 from engine import a_int
 from fmt import fmt_int
 from streaks import racha_actual
@@ -53,6 +53,7 @@ import menu
 import progreso
 import parent
 import familia
+import maestro
 import reporte
 import recuperar
 import admin
@@ -107,6 +108,10 @@ async fn home(session: Str?, lang: Str?) -> Response {
     let locale = locale_from_cookie(lang)
     match read_session(session).await {
         Ok(fam) => {
+            // Maestro → su panel de grados (no juega, no elige perfil).
+            if (es_teacher(fam.email).await) {
+                return redirect_a("/maestro")
+            }
             if (pid_from_token(session) == "") {
                 return redirect_a("/perfiles")
             }

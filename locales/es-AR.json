@@ -1389,7 +1389,7 @@
   "registro.tu_nombre_hint": "El nombre de quien va a usar MatHelp.",
   "registro.accion_jugar": "Empezar a jugar",
   "registro.accion_familia": "Es para mi familia",
-  "registro.accion_hint": "«Empezar a jugar» crea tu perfil y jugás al toque. «Es para mi familia» te deja armar un perfil para cada integrante. Si arrancás solo, después podés sumar a tu familia cuando quieras.",
+  "registro.accion_hint": "«Empezar a jugar» crea tu perfil y jugás al toque. «Es para mi familia» te deja armar un perfil para cada integrante. «Soy maestro/a» arma tus grados con sus alumnos.",
   "comenzar.titulo": "¡Ya casi!",
   "comenzar.saludo": "¡Hola, {0}!",
   "comenzar.texto": "¿En qué grado o año estás? Así los ejercicios van a tu nivel.",
@@ -1449,5 +1449,10 @@
   "landing.perfiles_p3_text": "Un PIN opcional evita que un hermano entre al perfil de otro. Desde la Zona Familia, con tu PIN de adulto, gestionás los perfiles y ves el progreso de todos.",
   "miperfil.pin_tiene": "Tenés un PIN para entrar a tu perfil.",
   "miperfil.pin_quitar_hint": "Si sos el único que usa esta cuenta, podés quitarlo para entrar directo.",
-  "miperfil.pin_quitar": "Quitar el PIN"
+  "miperfil.pin_quitar": "Quitar el PIN",
+  "registro.accion_maestro": "Soy maestro/a",
+  "maestro.titulo": "Panel del maestro",
+  "maestro.saludo": "¡Hola, {0}!",
+  "maestro.sin_grados_titulo": "Todavía no tenés grados",
+  "maestro.sin_grados_texto": "Muy pronto vas a poder crear tus grados y sumar alumnos."
 }

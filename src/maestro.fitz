@@ -1,0 +1,63 @@
+// maestro.fitz — modo MAESTRO: panel de grados y alumnos.
+//
+// Un maestro (families.account_type = 'teacher') arma GRADOS (Grupo) con alumnos
+// (Profile con grupo_id → grupos.id). Se loguea con email+contraseña (sin PIN de
+// adulto: no hay chico en su sesión, los alumnos entran con SU login) y gestiona
+// directo. NO juega (admin puro, sin perfil de aprendiz).
+//
+// Fase 1: esqueleto del panel + schema lazy. Los grados llegan en Fase 2, los
+// alumnos + invitaciones en Fase 3, el login del alumno en Fase 4, y el panel /
+// reporte por grado en Fase 5.
+
+from fitz_liveviews import Html, html, flv
+from config import db_url
+from i18n import t, t1, locale_from_cookie
+from layout import page, responder_html, redirect_a
+from auth import read_session, es_teacher
+
+// --- DB: schema lazy (grupos + profiles.grupo_id) ------------------------------
+// La migración 0025 los crea en initdb (base nueva). Para la base ya existente,
+// se crean lazy acá (idempotente), como admin_pin / login_*.
+async fn asegurar_grupos() -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = conn.exec("CREATE TABLE IF NOT EXISTS grupos (id BIGSERIAL PRIMARY KEY, owner_id BIGINT NOT NULL REFERENCES families(id) ON DELETE CASCADE, colegio TEXT NOT NULL DEFAULT '', turno TEXT NOT NULL DEFAULT '', nombre TEXT NOT NULL DEFAULT '', grade INT NOT NULL DEFAULT 1, modalidad TEXT NOT NULL DEFAULT 'comun', codigo TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())", []).await
+    let _ = conn.exec("CREATE INDEX IF NOT EXISTS idx_grupos_owner ON grupos(owner_id)", []).await
+    let _ = conn.exec("CREATE INDEX IF NOT EXISTS idx_grupos_codigo ON grupos(codigo)", []).await
+    let _ = conn.exec("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS grupo_id BIGINT REFERENCES grupos(id) ON DELETE SET NULL", []).await
+    return conn.exec("CREATE INDEX IF NOT EXISTS idx_profiles_grupo ON profiles(grupo_id)", []).await
+}
+
+// --- Render --------------------------------------------------------------------
+
+fn render_maestro(locale: Str, nombre: Str) -> Html {
+    let saludo = flv(t1(locale, "maestro.saludo", nombre))
+    return html("""<div class="mh-card">
+<h2><span aria-hidden="true">👩‍🏫</span> {flv(t(locale, "maestro.titulo"))}</h2>
+<p style="font-size:1.1rem;font-weight:800;margin:.2rem 0 1rem">{saludo}</p>
+<h3>{flv(t(locale, "maestro.sin_grados_titulo"))}</h3>
+<p style="color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "maestro.sin_grados_texto"))}</p>
+</div>
+<form method="POST" action="/logout">
+<button class="mh-btn sec" type="submit"><span aria-hidden="true">🚪</span> {flv(t(locale, "nav.salir"))}</button>
+</form>""")
+}
+
+// --- Handlers ------------------------------------------------------------------
+
+// /maestro → panel del maestro. Requiere sesión + cuenta de maestro (si no, a /).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/maestro")
+async fn maestro_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let _ = asegurar_grupos().await
+    let titulo = t(locale, "maestro.titulo") + " — MatHelp"
+    return responder_html(page(locale, titulo, render_maestro(locale, fam.display_name), html("")))
+}

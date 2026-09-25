@@ -53,6 +53,26 @@ type Profile {
     contrast: Str = "normal"      // accesibilidad: "normal" | "alto"
     font_size: Str = "normal"     // accesibilidad: "chico" | "normal" | "grande"
     @db_default created_at: Str = ""
+    // grupo_id (modo maestro: el alumno → su grado) NO está acá: va por SQL crudo
+    // + ALTER lazy (como login_*/admin_pin), para no romper los SELECT del ORM en
+    // una base que todavía no tiene la columna. Ver maestro.fitz.
+}
+
+// Modo MAESTRO: un grado/aula de un maestro. `owner_id` → families del maestro.
+// Los alumnos son `Profile` con `grupo_id` = este id. Colegio/turno/nombre/grado
+// son campos: un maestro con varios colegios × turnos × grados = varias filas.
+// La tabla la crea la migración 0025 (initdb) y, lazy, maestro.fitz::asegurar_grupos.
+@table("grupos")
+type Grupo {
+    @primary id: Int = 0
+    owner_id: Int = 0
+    colegio: Str = ""
+    turno: Str = ""
+    nombre: Str = ""              // "5°B"
+    grade: Int = 1               // 1..7 primaria, 8..13 secundaria
+    modalidad: Str = "comun"
+    codigo: Str = ""             // código del grado (login del alumno, Fase 4)
+    @db_default created_at: Str = ""
 }
 
 // --- F2: partida y respuestas -----------------------------------------------
