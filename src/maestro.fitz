@@ -5,15 +5,18 @@
 // adulto: no hay chico en su sesión, los alumnos entran con SU login) y gestiona
 // directo. NO juega (admin puro, sin perfil de aprendiz).
 //
-// Fase 1: esqueleto del panel + schema lazy. Los grados llegan en Fase 2, los
-// alumnos + invitaciones en Fase 3, el login del alumno en Fase 4, y el panel /
-// reporte por grado en Fase 5.
+// Fase 1: rol + schema + panel esqueleto. Fase 2 (acá): CRUD de grados. Los
+// alumnos + invitaciones llegan en Fase 3, el login del alumno en Fase 4, el
+// panel/reporte por grado en Fase 5.
 
-from fitz_liveviews import Html, html, flv
+from fitz_liveviews import Html, html, flv, h_join
 from config import db_url
 from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
 from auth import read_session, es_teacher
+from models import Grupo
+from engine import modalidad_valida
+from perfiles import opciones_grado, opciones_grado_sel, opciones_modalidad_sel
 
 // --- DB: schema lazy (grupos + profiles.grupo_id) ------------------------------
 // La migración 0025 los crea en initdb (base nueva). Para la base ya existente,
@@ -27,24 +30,199 @@ async fn asegurar_grupos() -> Result<Int> {
     return conn.exec("CREATE INDEX IF NOT EXISTS idx_profiles_grupo ON profiles(grupo_id)", []).await
 }
 
+// --- DB: CRUD de grados --------------------------------------------------------
+
+// Código del grado (6 dígitos) que los alumnos usan para entrar (Fase 4).
+fn gen_codigo_grado() -> Str {
+    return "{rand.int(100000, 999999)}"
+}
+
+// Genera un código de grado que no colisione con otro existente (reintenta).
+async fn gen_codigo_unico(conn: DbConn) -> Result<Str> {
+    for _n in 0..8 {
+        let c = gen_codigo_grado()
+        let rows = conn.query("SELECT 1 AS x FROM grupos WHERE codigo = $1 LIMIT 1", [c]).await?
+        if (rows.len() == 0) {
+            return Ok(c)
+        }
+    }
+    return Ok(gen_codigo_grado())
+}
+
+async fn crear_grupo(owner_id: Int, colegio: Str, turno: Str, nombre: Str, grade: Int, modalidad: Str) -> Result<Grupo> {
+    let _ = asegurar_grupos().await
+    let conn = db.connect(db_url()).await?
+    let codigo = gen_codigo_unico(conn).await?
+    return Grupo.insert(conn, Grupo {
+        id: 0,
+        owner_id: owner_id,
+        colegio: colegio,
+        turno: turno,
+        nombre: nombre,
+        grade: grade,
+        modalidad: modalidad_valida(modalidad),
+        codigo: codigo,
+        created_at: "",
+    }).await
+}
+
+// Grados de un maestro, ordenados por colegio (agrupa visualmente el listado).
+async fn grupos_de(owner_id: Int) -> Result<List<Grupo>> {
+    let _ = asegurar_grupos().await
+    let conn = db.connect(db_url()).await?
+    return Grupo.where(fn(g) => g.owner_id == owner_id).order_by(fn(g) => g.colegio).all(conn).await
+}
+
+// Un grado validando que sea de ESTE maestro (owner_id = defensa).
+async fn grupo_de_maestro(owner_id: Int, gid: Int) -> Result<Grupo> {
+    let _ = asegurar_grupos().await
+    let conn = db.connect(db_url()).await?
+    return Grupo.where(fn(g) => g.id == gid and g.owner_id == owner_id).first(conn).await
+}
+
+async fn actualizar_grupo(owner_id: Int, gid: Int, colegio: Str, turno: Str, nombre: Str, grade: Int, modalidad: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("UPDATE grupos SET colegio=$3, turno=$4, nombre=$5, grade=$6, modalidad=$7 WHERE id=$1 AND owner_id=$2", [gid, owner_id, colegio, turno, nombre, grade, modalidad_valida(modalidad)]).await
+}
+
+// Elimina un grado. Los alumnos quedan con grupo_id NULL (ON DELETE SET NULL).
+async fn eliminar_grupo(owner_id: Int, gid: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("DELETE FROM grupos WHERE id=$1 AND owner_id=$2", [gid, owner_id]).await
+}
+
 // --- Render --------------------------------------------------------------------
 
-fn render_maestro(locale: Str, nombre: Str) -> Html {
+// Una fila del listado de grados: nombre + colegio/turno + código + editar.
+fn fila_grado(locale: Str, g: Grupo) -> Html {
+    let nom = flv(g.nombre)
+    let col = flv(g.colegio)
+    let tur = flv(g.turno)
+    let cod = flv(g.codigo)
+    let ed = flv(t(locale, "perfiles.editar"))
+    let sep = match g.turno == "" {
+        true => "",
+        false => " · ",
+    }
+    return html("""<div class="mh-fam-row">
+<span class="mh-fam-nom">{nom}</span>
+<span style="color:var(--mh-suave);font-size:.85rem">{col}{sep}{tur} · <code>{cod}</code></span>
+<span class="mh-fam-acc"><a class="mh-link" href="/maestro/grado/{g.id}/editar">✏️ {ed}</a></span>
+</div>""")
+}
+
+fn render_maestro(locale: Str, nombre: Str, grupos: List<Grupo>) -> Html {
     let saludo = flv(t1(locale, "maestro.saludo", nombre))
+    let contenido = match grupos.len() == 0 {
+        true => html("""<h3>{flv(t(locale, "maestro.sin_grados_titulo"))}</h3>
+<p style="color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "maestro.sin_grados_texto"))}</p>""").raw,
+        false => h_join(grupos.map(fn(g) => fila_grado(locale, g))),
+    }
     return html("""<div class="mh-card">
 <h2><span aria-hidden="true">👩‍🏫</span> {flv(t(locale, "maestro.titulo"))}</h2>
-<p style="font-size:1.1rem;font-weight:800;margin:.2rem 0 1rem">{saludo}</p>
-<h3>{flv(t(locale, "maestro.sin_grados_titulo"))}</h3>
-<p style="color:var(--mh-suave);margin:.2rem 0 1rem">{flv(t(locale, "maestro.sin_grados_texto"))}</p>
+<p style="font-size:1.1rem;font-weight:800;margin:.2rem 0 0">{saludo}</p>
 </div>
+
+<div class="mh-card">
+<h2>{flv(t(locale, "maestro.grados_titulo"))}</h2>
+{contenido}
+<a class="mh-btn sec" href="/maestro/grado/nuevo" style="margin-top:1rem">➕ {flv(t(locale, "maestro.crear_grado"))}</a>
+</div>
+
 <form method="POST" action="/logout">
 <button class="mh-btn sec" type="submit"><span aria-hidden="true">🚪</span> {flv(t(locale, "nav.salir"))}</button>
 </form>""")
 }
 
+// Form de crear/editar un grado. `es_editar` decide acción, pre-selección y el
+// botón de eliminar. Para "nuevo", `g` es un Grupo con defaults.
+fn form_grado(locale: Str, g: Grupo, es_editar: Bool, error_key: Str) -> Html {
+    let err = match error_key == "" {
+        true => "",
+        false => html("""<div class="mh-error">{flv(t(locale, error_key))}</div>""").raw,
+    }
+    let titulo = match es_editar {
+        true => flv(t(locale, "maestro.grado_editar")),
+        false => flv(t(locale, "maestro.grado_nuevo")),
+    }
+    let action = match es_editar {
+        true => "/maestro/grado/editar",
+        false => "/maestro/grado/nuevo",
+    }
+    let gid_hidden = match es_editar {
+        true => html("""<input type="hidden" name="gid" value="{g.id}" />""").raw,
+        false => "",
+    }
+    let opciones = match es_editar {
+        true => opciones_grado_sel(locale, g.grade),
+        false => opciones_grado(locale),
+    }
+    let mod_ops = opciones_modalidad_sel(locale, g.modalidad)
+    let col = flv(g.colegio)
+    let tur = flv(g.turno)
+    let nom = flv(g.nombre)
+    let col_ph = flv(t(locale, "grado.colegio_ph"))
+    let tur_ph = flv(t(locale, "grado.turno_ph"))
+    let nom_ph = flv(t(locale, "grado.nombre_ph"))
+    let eliminar = match es_editar {
+        true => html("""<form method="POST" action="/maestro/grado/eliminar" style="margin-top:.6rem">
+<input type="hidden" name="gid" value="{g.id}" />
+<button class="mh-btn sec" type="submit"><span aria-hidden="true">🗑️</span> {flv(t(locale, "grado.eliminar"))}</button>
+</form>""").raw,
+        false => "",
+    }
+    return html("""<div class="mh-card">
+<h2>{titulo}</h2>
+{err}
+<form method="POST" action="{action}">
+{gid_hidden}
+<div class="mh-field">
+<label class="mh-label" for="colegio">{flv(t(locale, "grado.colegio"))}</label>
+<input class="mh-input" id="colegio" name="colegio" type="text" value="{col}" placeholder="{col_ph}" autocomplete="off" />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="turno">{flv(t(locale, "grado.turno"))}</label>
+<input class="mh-input" id="turno" name="turno" type="text" value="{tur}" placeholder="{tur_ph}" autocomplete="off" />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="nombre">{flv(t(locale, "grado.nombre"))}</label>
+<input class="mh-input" id="nombre" name="nombre" type="text" value="{nom}" placeholder="{nom_ph}" autocomplete="off" required />
+</div>
+<div class="mh-field">
+<label class="mh-label" for="grado">{flv(t(locale, "perfiles.grado"))}</label>
+<select class="mh-select" id="grado" name="grado">
+{opciones}
+</select>
+</div>
+<div class="mh-field">
+<label class="mh-label" for="modalidad">{flv(t(locale, "perfiles.modalidad"))}</label>
+<select class="mh-select" id="modalidad" name="modalidad">
+{mod_ops}
+</select>
+<span class="mh-hint">{flv(t(locale, "perfiles.modalidad_hint"))}</span>
+</div>
+<button class="mh-btn" type="submit">{flv(t(locale, "grado.crear"))}</button>
+</form>
+{eliminar}
+<a class="mh-link" href="/maestro">{flv(t(locale, "maestro.volver_panel"))}</a>
+</div>""")
+}
+
+// --- Tipos de form -------------------------------------------------------------
+
+type GradoForm {
+    gid: Str = ""
+    colegio: Str = ""
+    turno: Str = ""
+    nombre: Str = ""
+    grado: Str = ""
+    modalidad: Str = "comun"
+}
+
 // --- Handlers ------------------------------------------------------------------
 
-// /maestro → panel del maestro. Requiere sesión + cuenta de maestro (si no, a /).
+// /maestro → panel del maestro: saludo + listado de grados + crear. Requiere
+// sesión + cuenta de maestro (si no, a /).
 @cookie(name="mathelp_session", into="session")
 @cookie(name="mathelp_lang", into="lang")
 @get("/maestro")
@@ -57,7 +235,123 @@ async fn maestro_get(session: Str?, lang: Str?) -> Response {
     if (not es_teacher(fam.email).await) {
         return redirect_a("/")
     }
-    let _ = asegurar_grupos().await
+    let grupos: List<Grupo> = match grupos_de(fam.id).await {
+        Ok(gs) => gs,
+        Err(_) => [],
+    }
     let titulo = t(locale, "maestro.titulo") + " — MatHelp"
-    return responder_html(page(locale, titulo, render_maestro(locale, fam.display_name), html("")))
+    return responder_html(page(locale, titulo, render_maestro(locale, fam.display_name, grupos), html("")))
+}
+
+// /maestro/grado/nuevo (GET) → form de crear grado.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/maestro/grado/nuevo")
+async fn grado_nuevo_get(session: Str?, lang: Str?) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    return responder_html(page(locale, t(locale, "maestro.grado_nuevo") + " — MatHelp", form_grado(locale, Grupo {}, false, ""), html("")))
+}
+
+// /maestro/grado/nuevo (POST) → crea el grado y vuelve al panel.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/maestro/grado/nuevo")
+async fn grado_nuevo_post(session: Str?, lang: Str?, form: GradoForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let titulo = t(locale, "maestro.grado_nuevo") + " — MatHelp"
+    if (form.nombre == "") {
+        let g = Grupo { colegio: form.colegio, turno: form.turno, nombre: form.nombre, modalidad: form.modalidad }
+        return responder_html(page(locale, titulo, form_grado(locale, g, false, "grado.error_nombre"), html("")))
+    }
+    let grado: Int = match form.grado.to_int() {
+        Ok(n) => n,
+        Err(_) => 1,
+    }
+    let _ = crear_grupo(fam.id, form.colegio, form.turno, form.nombre, grado, form.modalidad).await
+    return redirect_a("/maestro")
+}
+
+// /maestro/grado/{id}/editar (GET) → form de editar grado.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/maestro/grado/{id}/editar")
+async fn grado_editar_get(session: Str?, lang: Str?, id: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let g = match grupo_de_maestro(fam.id, id).await {
+        Ok(gr) => gr,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    return responder_html(page(locale, t(locale, "maestro.grado_editar") + " — MatHelp", form_grado(locale, g, true, ""), html("")))
+}
+
+// /maestro/grado/editar (POST) → guarda los cambios del grado.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@post("/maestro/grado/editar")
+async fn grado_editar_post(session: Str?, lang: Str?, form: GradoForm) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let gid: Int = match form.gid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    let g = match grupo_de_maestro(fam.id, gid).await {
+        Ok(gr) => gr,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    if (form.nombre == "") {
+        return responder_html(page(locale, t(locale, "maestro.grado_editar") + " — MatHelp", form_grado(locale, g, true, "grado.error_nombre"), html("")))
+    }
+    let grado: Int = match form.grado.to_int() {
+        Ok(n) => n,
+        Err(_) => 1,
+    }
+    let _ = actualizar_grupo(fam.id, gid, form.colegio, form.turno, form.nombre, grado, form.modalidad).await
+    return redirect_a("/maestro")
+}
+
+// /maestro/grado/eliminar (POST) → elimina el grado (alumnos quedan sin grado).
+@cookie(name="mathelp_session", into="session")
+@post("/maestro/grado/eliminar")
+async fn grado_eliminar_post(session: Str?, form: GradoForm) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let gid: Int = match form.gid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    let _ = eliminar_grupo(fam.id, gid).await
+    return redirect_a("/maestro")
 }
