@@ -168,8 +168,21 @@ async fn home_publica(locale: Str) -> Response {
 <div class="mh-features-grid">
 <div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🙋</div><h3>{flv(t(locale, "landing.modo_solo_title"))}</h3><p>{flv(t(locale, "landing.modo_solo_text"))}</p></div>
 <div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">👨‍👩‍👧</div><h3>{flv(t(locale, "landing.modo_familia_title"))}</h3><p>{flv(t(locale, "landing.modo_familia_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🏫</div><h3>{flv(t(locale, "landing.modo_maestro_title"))}</h3><p>{flv(t(locale, "landing.modo_maestro_text"))}</p></div>
 </div>
 <p class="mh-land-nota">{flv(t(locale, "landing.modo_upgrade"))}</p>
+</section>
+
+<section class="mh-land-sec">
+<h2 class="mh-land-h2"><span aria-hidden="true">🏫</span> {flv(t(locale, "landing.maestro_title"))}</h2>
+<p class="mh-land-sub">{flv(t(locale, "landing.maestro_sub"))}</p>
+<div class="mh-features-grid">
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🏫</div><h3>{flv(t(locale, "landing.maestro_s1_title"))}</h3><p>{flv(t(locale, "landing.maestro_s1_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🔑</div><h3>{flv(t(locale, "landing.maestro_s2_title"))}</h3><p>{flv(t(locale, "landing.maestro_s2_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">🙋‍♀️</div><h3>{flv(t(locale, "landing.maestro_s3_title"))}</h3><p>{flv(t(locale, "landing.maestro_s3_text"))}</p></div>
+<div class="mh-feat"><div class="mh-feat-ico" aria-hidden="true">📊</div><h3>{flv(t(locale, "landing.maestro_s4_title"))}</h3><p>{flv(t(locale, "landing.maestro_s4_text"))}</p></div>
+</div>
+<p class="mh-land-nota">{flv(t(locale, "landing.maestro_import"))}</p>
 </section>
 
 <section class="mh-land-sec">
