@@ -1483,5 +1483,14 @@
   "grado.alumno_quitar": "Quitar",
   "grado.alumno_activo": "Acceso activo",
   "grado.alumno_codigo": "Código: {0}",
-  "grado.codigo_grado_label": "Código del grado (para que entren):"
+  "grado.codigo_grado_label": "Código del grado (para que entren):",
+  "grado.importar_titulo": "Importar varios",
+  "grado.importar_hint": "Pegá los nombres, uno por línea (podés copiarlos de tu planilla de Excel).",
+  "grado.importar_btn": "Importar alumnos",
+  "grado.ver_codigos": "Ver hoja de códigos",
+  "codigos.titulo": "Códigos de acceso",
+  "codigos.intro": "Repartí a cada alumno su código. Lo usa una sola vez en la página de activar para crear su contraseña.",
+  "codigos.codigo_grado": "Código del grado: {0}",
+  "codigos.activo": "ya activó",
+  "codigos.volver_grado": "Volver al grado"
 }

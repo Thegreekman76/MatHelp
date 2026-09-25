@@ -168,6 +168,22 @@ async fn eliminar_alumno(pid: Int) -> Result<Int> {
     return conn.exec("DELETE FROM profiles WHERE id = $1", [pid]).await
 }
 
+// Crea N alumnos de una lista de nombres (uno por línea, pegada de una planilla).
+// Trim + ignora líneas vacías; maneja CRLF (el \r queda al final y trim lo saca).
+// Devuelve cuántos creó.
+async fn importar_alumnos(owner_id: Int, grupo_id: Int, texto: Str, grade: Int, modalidad: Str, locale: Str) -> Int {
+    let lineas = texto.split("\n")
+    let creados = 0
+    for l in lineas {
+        let nombre = l.trim()
+        if (nombre != "") {
+            let _ = crear_alumno(owner_id, grupo_id, nombre, grade, modalidad, locale).await
+            creados = creados + 1
+        }
+    }
+    return creados
+}
+
 // --- Render --------------------------------------------------------------------
 
 // Una fila del listado de grados: nombre + colegio/turno + código + editar.
@@ -258,6 +274,7 @@ fn render_grado(locale: Str, g: Grupo, alumnos: List<AlumnoRow>) -> Html {
 <div class="mh-card">
 <h2>{flv(t(locale, "grado.alumnos_titulo"))}</h2>
 {lista}
+<a class="mh-link" href="/maestro/grado/{g.id}/codigos">🗂️ {flv(t(locale, "grado.ver_codigos"))}</a>
 <form method="POST" action="/maestro/alumno/agregar" style="margin-top:1rem">
 <input type="hidden" name="gid" value="{g.id}" />
 <div class="mh-field">
@@ -268,7 +285,44 @@ fn render_grado(locale: Str, g: Grupo, alumnos: List<AlumnoRow>) -> Html {
 </form>
 </div>
 
+<div class="mh-card">
+<h2>{flv(t(locale, "grado.importar_titulo"))}</h2>
+<p style="color:var(--mh-suave);margin:.2rem 0 .6rem">{flv(t(locale, "grado.importar_hint"))}</p>
+<form method="POST" action="/maestro/alumno/importar">
+<input type="hidden" name="gid" value="{g.id}" />
+<div class="mh-field">
+<textarea class="mh-input" name="lista" rows="6" style="resize:vertical;font-family:inherit"></textarea>
+</div>
+<button class="mh-btn sec" type="submit">📋 {flv(t(locale, "grado.importar_btn"))}</button>
+</form>
+</div>
+
 <a class="mh-link" href="/maestro">{flv(t(locale, "maestro.volver_panel"))}</a>""")
+}
+
+// Hoja de códigos de acceso del grado (imprimible): un renglón por alumno con su
+// código de invitación (o "ya activó"). El maestro la imprime (Ctrl+P) y reparte.
+fn fila_codigo(locale: Str, a: AlumnoRow) -> Html {
+    let nom = flv(a.nombre)
+    let val = match a.activo {
+        true => flv(t(locale, "codigos.activo")),
+        false => flv(a.codigo),
+    }
+    return html("""<div class="mh-fam-row"><span class="mh-fam-nom">{nom}</span><span style="font-size:1.2rem;font-weight:800"><code>{val}</code></span></div>""")
+}
+
+fn render_codigos(locale: Str, g: Grupo, alumnos: List<AlumnoRow>) -> Html {
+    let filas = match alumnos.len() == 0 {
+        true => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "grado.sin_alumnos_grado"))}</p>""").raw,
+        false => h_join(alumnos.map(fn(a) => fila_codigo(locale, a))),
+    }
+    return html("""<div class="mh-card">
+<h2>🗂️ {flv(t(locale, "codigos.titulo"))} — {flv(g.nombre)}</h2>
+<p style="color:var(--mh-suave);margin:.2rem 0 .6rem">{flv(t(locale, "codigos.intro"))}</p>
+<p style="margin:0 0 1rem"><b>{flv(t1(locale, "codigos.codigo_grado", g.codigo))}</b></p>
+{filas}
+</div>
+<a class="mh-link" href="/maestro/grado/{g.id}">{flv(t(locale, "codigos.volver_grado"))}</a>""")
 }
 
 // Form de crear/editar un grado. `es_editar` decide acción, pre-selección y el
@@ -364,6 +418,11 @@ type AlumnoForm {
 type AlumnoDelForm {
     pid: Str = ""
     gid: Str = ""
+}
+
+type ImportForm {
+    gid: Str = ""
+    lista: Str = ""
 }
 
 // --- Handlers ------------------------------------------------------------------
@@ -571,4 +630,50 @@ async fn alumno_del(session: Str?, form: AlumnoDelForm) -> Response {
     }
     let _ = eliminar_alumno(pid).await
     return redirect_a("/maestro/grado/{form.gid}")
+}
+
+// /maestro/alumno/importar (POST) → crea varios alumnos de la lista pegada
+// (uno por línea). Vuelve al detalle del grado.
+@cookie(name="mathelp_session", into="session")
+@post("/maestro/alumno/importar")
+async fn alumno_importar(session: Str?, form: ImportForm) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let gid: Int = match form.gid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    let g = match grupo_de_maestro(fam.id, gid).await {
+        Ok(gr) => gr,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    let _ = importar_alumnos(fam.id, gid, form.lista, g.grade, g.modalidad, fam.locale).await
+    return redirect_a("/maestro/grado/{gid}")
+}
+
+// /maestro/grado/{id}/codigos → hoja de códigos de acceso del grado (imprimible:
+// el maestro la imprime con Ctrl+P y reparte a cada alumno).
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/maestro/grado/{id}/codigos")
+async fn grado_codigos(session: Str?, lang: Str?, id: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let g = match grupo_de_maestro(fam.id, id).await {
+        Ok(gr) => gr,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    let alumnos = alumnos_de_grupo(id).await
+    return responder_html(page(locale, t(locale, "codigos.titulo") + " — MatHelp", render_codigos(locale, g, alumnos), html("")))
 }

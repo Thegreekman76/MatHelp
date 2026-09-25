@@ -1483,5 +1483,14 @@
   "grado.alumno_quitar": "Remove",
   "grado.alumno_activo": "Login active",
   "grado.alumno_codigo": "Code: {0}",
-  "grado.codigo_grado_label": "Grade code (for them to log in):"
+  "grado.codigo_grado_label": "Grade code (for them to log in):",
+  "grado.importar_titulo": "Import several",
+  "grado.importar_hint": "Paste the names, one per line (you can copy them from your Excel spreadsheet).",
+  "grado.importar_btn": "Import students",
+  "grado.ver_codigos": "View code sheet",
+  "codigos.titulo": "Access codes",
+  "codigos.intro": "Give each student their code. They use it once on the activate page to create their password.",
+  "codigos.codigo_grado": "Grade code: {0}",
+  "codigos.activo": "already activated",
+  "codigos.volver_grado": "Back to grade"
 }
