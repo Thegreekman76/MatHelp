@@ -1472,5 +1472,16 @@
   "grado.eliminar": "Delete grade",
   "grado.error_nombre": "Enter a name for the grade.",
   "grado.sin_alumnos": "No students yet",
-  "grado.alumnos_n": "{0} students"
+  "grado.alumnos_n": "{0} students",
+  "grado.abrir": "Open",
+  "grado.alumnos_titulo": "Students",
+  "grado.sin_alumnos_grado": "No students in this grade yet.",
+  "grado.agregar_alumno": "Add student",
+  "grado.alumno_nombre": "Student name",
+  "grado.alumno_nombre_ph": "Full name",
+  "grado.alumno_error": "Enter the student's name.",
+  "grado.alumno_quitar": "Remove",
+  "grado.alumno_activo": "Login active",
+  "grado.alumno_codigo": "Code: {0}",
+  "grado.codigo_grado_label": "Grade code (for them to log in):"
 }

@@ -1472,5 +1472,16 @@
   "grado.eliminar": "Eliminar grado",
   "grado.error_nombre": "Poné un nombre para el grado.",
   "grado.sin_alumnos": "Sin alumnos todavía",
-  "grado.alumnos_n": "{0} alumnos"
+  "grado.alumnos_n": "{0} alumnos",
+  "grado.abrir": "Abrir",
+  "grado.alumnos_titulo": "Alumnos",
+  "grado.sin_alumnos_grado": "Todavía no hay alumnos en este grado.",
+  "grado.agregar_alumno": "Agregar alumno",
+  "grado.alumno_nombre": "Nombre del alumno",
+  "grado.alumno_nombre_ph": "Nombre y apellido",
+  "grado.alumno_error": "Poné el nombre del alumno.",
+  "grado.alumno_quitar": "Quitar",
+  "grado.alumno_activo": "Acceso activo",
+  "grado.alumno_codigo": "Código: {0}",
+  "grado.codigo_grado_label": "Código del grado (para que entren):"
 }

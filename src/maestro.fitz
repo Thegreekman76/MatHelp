@@ -13,10 +13,10 @@ from fitz_liveviews import Html, html, flv, h_join
 from config import db_url
 from i18n import t, t1, locale_from_cookie
 from layout import page, responder_html, redirect_a
-from auth import read_session, es_teacher
+from auth import read_session, es_teacher, asegurar_login_cols
 from models import Grupo
 from engine import modalidad_valida
-from perfiles import opciones_grado, opciones_grado_sel, opciones_modalidad_sel
+from perfiles import opciones_grado, opciones_grado_sel, opciones_modalidad_sel, crear_perfil
 
 // --- DB: schema lazy (grupos + profiles.grupo_id) ------------------------------
 // La migración 0025 los crea en initdb (base nueva). Para la base ya existente,
@@ -91,6 +91,83 @@ async fn eliminar_grupo(owner_id: Int, gid: Int) -> Result<Int> {
     return conn.exec("DELETE FROM grupos WHERE id=$1 AND owner_id=$2", [gid, owner_id]).await
 }
 
+// --- DB: alumnos de un grado ---------------------------------------------------
+// Un alumno es un Profile: family_id = la cuenta del maestro, grupo_id = su grado,
+// login_enabled = true (acceso propio, se activa con activation_code — Opción B).
+// Reusa todo el progreso/login por profile_id.
+
+type AlumnoRow {
+    id: Int = 0
+    nombre: Str = ""
+    activo: Bool = false      // ya creó su contraseña (login_hash != '')
+    codigo: Str = ""          // código de activación pendiente ("" si ya activó)
+}
+
+async fn crear_alumno(owner_id: Int, grupo_id: Int, nombre: Str, grade: Int, modalidad: Str, locale: Str) -> Result<Int> {
+    let _ = asegurar_grupos().await
+    let _ = asegurar_login_cols().await
+    // Profile base (reusa crear_perfil: sin PIN de perfil — el alumno usa login propio).
+    let p = crear_perfil(owner_id, nombre, grade, modalidad, "", locale).await?
+    // Asignarlo al grado + habilitar acceso propio con un código de activación.
+    let conn = db.connect(db_url()).await?
+    let codigo = gen_codigo_grado()
+    let _ = conn.exec("UPDATE profiles SET grupo_id=$2, login_enabled=true, activation_code=$3, login_hash='' WHERE id=$1", [p.id, grupo_id, codigo]).await
+    return Ok(p.id)
+}
+
+// Alumnos de un grado (SQL crudo: grupo_id/login_* no están en el @table Profile).
+async fn alumnos_de_grupo(grupo_id: Int) -> List<AlumnoRow> {
+    let _ = asegurar_grupos().await
+    let _ = asegurar_login_cols().await
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return [] },
+    }
+    let rows = match conn.query("SELECT id, name, (login_hash <> '') AS activo, activation_code FROM profiles WHERE grupo_id = $1 ORDER BY name", [grupo_id]).await {
+        Ok(r) => r,
+        Err(_) => { return [] },
+    }
+    let out: List<AlumnoRow> = []
+    for r in rows {
+        let id = match r.get_int("id") {
+            Ok(n) => n,
+            Err(_) => 0,
+        }
+        let nombre = match r.get_str("name") {
+            Ok(v) => v,
+            Err(_) => "",
+        }
+        let activo = match r.get_bool("activo") {
+            Ok(v) => v,
+            Err(_) => false,
+        }
+        let codigo = match r.get_str("activation_code") {
+            Ok(v) => v,
+            Err(_) => "",
+        }
+        out.push(AlumnoRow { id: id, nombre: nombre, activo: activo, codigo: codigo })
+    }
+    return out
+}
+
+// ¿El alumno (pid) pertenece a un grado de ESTE maestro? Defensa antes de borrar.
+async fn alumno_es_del_maestro(owner_id: Int, pid: Int) -> Bool {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return false },
+    }
+    let rows = match conn.query("SELECT 1 AS x FROM profiles p JOIN grupos g ON p.grupo_id = g.id WHERE p.id = $1 AND g.owner_id = $2 LIMIT 1", [pid, owner_id]).await {
+        Ok(r) => r,
+        Err(_) => { return false },
+    }
+    return rows.len() > 0
+}
+
+async fn eliminar_alumno(pid: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    return conn.exec("DELETE FROM profiles WHERE id = $1", [pid]).await
+}
+
 // --- Render --------------------------------------------------------------------
 
 // Una fila del listado de grados: nombre + colegio/turno + código + editar.
@@ -100,6 +177,7 @@ fn fila_grado(locale: Str, g: Grupo) -> Html {
     let tur = flv(g.turno)
     let cod = flv(g.codigo)
     let ed = flv(t(locale, "perfiles.editar"))
+    let abrir = flv(t(locale, "grado.abrir"))
     let sep = match g.turno == "" {
         true => "",
         false => " · ",
@@ -107,7 +185,7 @@ fn fila_grado(locale: Str, g: Grupo) -> Html {
     return html("""<div class="mh-fam-row">
 <span class="mh-fam-nom">{nom}</span>
 <span style="color:var(--mh-suave);font-size:.85rem">{col}{sep}{tur} · <code>{cod}</code></span>
-<span class="mh-fam-acc"><a class="mh-link" href="/maestro/grado/{g.id}/editar">✏️ {ed}</a></span>
+<span class="mh-fam-acc"><a class="mh-link" href="/maestro/grado/{g.id}">📂 {abrir}</a> <a class="mh-link" href="/maestro/grado/{g.id}/editar">✏️ {ed}</a></span>
 </div>""")
 }
 
@@ -132,6 +210,65 @@ fn render_maestro(locale: Str, nombre: Str, grupos: List<Grupo>) -> Html {
 <form method="POST" action="/logout">
 <button class="mh-btn sec" type="submit"><span aria-hidden="true">🚪</span> {flv(t(locale, "nav.salir"))}</button>
 </form>""")
+}
+
+// Una fila del listado de alumnos de un grado: nombre + estado (acceso activo o
+// código de invitación pendiente) + quitar.
+fn fila_alumno(locale: Str, a: AlumnoRow, gid: Int) -> Html {
+    let nom = flv(a.nombre)
+    let estado = match a.activo {
+        true => flv(t(locale, "grado.alumno_activo")),
+        false => flv(t1(locale, "grado.alumno_codigo", a.codigo)),
+    }
+    return html("""<div class="mh-fam-row">
+<span class="mh-fam-nom">{nom}</span>
+<span style="color:var(--mh-suave);font-size:.85rem">{estado}</span>
+<span class="mh-fam-acc">
+<form method="POST" action="/maestro/alumno/eliminar" style="display:inline">
+<input type="hidden" name="pid" value="{a.id}" />
+<input type="hidden" name="gid" value="{gid}" />
+<button class="mh-link" type="submit" style="background:none;border:0;cursor:pointer;color:var(--mh-verde);padding:0">🗑️ {flv(t(locale, "grado.alumno_quitar"))}</button>
+</form>
+</span>
+</div>""")
+}
+
+// Detalle de un grado: datos + código del grado + lista de alumnos + agregar.
+fn render_grado(locale: Str, g: Grupo, alumnos: List<AlumnoRow>) -> Html {
+    let nom = flv(g.nombre)
+    let col = flv(g.colegio)
+    let tur = flv(g.turno)
+    let cod = flv(g.codigo)
+    let sep = match g.turno == "" {
+        true => "",
+        false => " · ",
+    }
+    let lista = match alumnos.len() == 0 {
+        true => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "grado.sin_alumnos_grado"))}</p>""").raw,
+        false => h_join(alumnos.map(fn(a) => fila_alumno(locale, a, g.id))),
+    }
+    let nom_ph = flv(t(locale, "grado.alumno_nombre_ph"))
+    return html("""<div class="mh-card">
+<h2>{nom}</h2>
+<p style="color:var(--mh-suave);margin:.2rem 0 .6rem">{col}{sep}{tur}</p>
+<p style="margin:0 0 1rem"><b>{flv(t(locale, "grado.codigo_grado_label"))}</b> <code style="font-size:1.2rem">{cod}</code></p>
+<a class="mh-link" href="/maestro/grado/{g.id}/editar">✏️ {flv(t(locale, "perfiles.editar"))}</a>
+</div>
+
+<div class="mh-card">
+<h2>{flv(t(locale, "grado.alumnos_titulo"))}</h2>
+{lista}
+<form method="POST" action="/maestro/alumno/agregar" style="margin-top:1rem">
+<input type="hidden" name="gid" value="{g.id}" />
+<div class="mh-field">
+<label class="mh-label" for="nombre">{flv(t(locale, "grado.alumno_nombre"))}</label>
+<input class="mh-input" id="nombre" name="nombre" type="text" placeholder="{nom_ph}" autocomplete="off" required />
+</div>
+<button class="mh-btn sec" type="submit">➕ {flv(t(locale, "grado.agregar_alumno"))}</button>
+</form>
+</div>
+
+<a class="mh-link" href="/maestro">{flv(t(locale, "maestro.volver_panel"))}</a>""")
 }
 
 // Form de crear/editar un grado. `es_editar` decide acción, pre-selección y el
@@ -217,6 +354,16 @@ type GradoForm {
     nombre: Str = ""
     grado: Str = ""
     modalidad: Str = "comun"
+}
+
+type AlumnoForm {
+    gid: Str = ""
+    nombre: Str = ""
+}
+
+type AlumnoDelForm {
+    pid: Str = ""
+    gid: Str = ""
 }
 
 // --- Handlers ------------------------------------------------------------------
@@ -354,4 +501,74 @@ async fn grado_eliminar_post(session: Str?, form: GradoForm) -> Response {
     }
     let _ = eliminar_grupo(fam.id, gid).await
     return redirect_a("/maestro")
+}
+
+// /maestro/grado/{id} → detalle del grado: datos + código + alumnos + agregar.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/maestro/grado/{id}")
+async fn grado_detalle(session: Str?, lang: Str?, id: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let g = match grupo_de_maestro(fam.id, id).await {
+        Ok(gr) => gr,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    let alumnos = alumnos_de_grupo(id).await
+    return responder_html(page(locale, g.nombre + " — MatHelp", render_grado(locale, g, alumnos), html("")))
+}
+
+// /maestro/alumno/agregar (POST) → agrega un alumno a un grado (con código de
+// invitación). Vuelve al detalle del grado.
+@cookie(name="mathelp_session", into="session")
+@post("/maestro/alumno/agregar")
+async fn alumno_add(session: Str?, form: AlumnoForm) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let gid: Int = match form.gid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    let g = match grupo_de_maestro(fam.id, gid).await {
+        Ok(gr) => gr,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    if (form.nombre != "") {
+        let _ = crear_alumno(fam.id, gid, form.nombre, g.grade, g.modalidad, fam.locale).await
+    }
+    return redirect_a("/maestro/grado/{gid}")
+}
+
+// /maestro/alumno/eliminar (POST) → quita un alumno (defensa: debe pertenecer a un
+// grado de este maestro). Vuelve al detalle del grado (gid del form).
+@cookie(name="mathelp_session", into="session")
+@post("/maestro/alumno/eliminar")
+async fn alumno_del(session: Str?, form: AlumnoDelForm) -> Response {
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let pid: Int = match form.pid.to_int() {
+        Ok(n) => n,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    if (not alumno_es_del_maestro(fam.id, pid).await) {
+        return redirect_a("/maestro")
+    }
+    let _ = eliminar_alumno(pid).await
+    return redirect_a("/maestro/grado/{form.gid}")
 }
