@@ -597,9 +597,9 @@ fn registro_get(lang: Str?) -> Response {
 // `@background` autoriza el `spawn(signup_emails(fam))` fire-and-forget de
 // `registro_post` (los errores de runtime de la task se loguean — FITZ-27).
 @background
-async fn signup_emails(fam: Family) -> Null {
+async fn signup_emails(fam: Family, tipo: Str) -> Null {
     let _admin = notify_admin_signup(fam).await
-    let _welcome = send_welcome(fam).await
+    let _welcome = send_welcome(fam, tipo).await
     let _hito = chequear_hito().await
     return null
 }
@@ -645,10 +645,6 @@ async fn registro_post(lang: Str?, refc: Str?, input: RegistroForm) -> Response 
                 s => s,
             }
             let _r = record_referral(fam.id, ref_code).await
-            // Emails de bienvenida fire-and-forget: no bloquean el alta con la
-            // latencia de Resend. Los errores de runtime de la task se loguean
-            // (FITZ-27 cerrado en fitz v0.61.0 — el spawn ya no los traga).
-            spawn(signup_emails(fam))
             // Tres caminos según el botón que se apretó:
             //   "familia" → Zona Familia (PIN de adulto + un perfil por hijo).
             //   "maestro" → panel del maestro (grados + alumnos). Sin PIN: entra
@@ -660,6 +656,10 @@ async fn registro_post(lang: Str?, refc: Str?, input: RegistroForm) -> Response 
                 "maestro" => "teacher",
                 _ => "individual",
             }
+            // Emails de bienvenida fire-and-forget (con el copy según el tipo): no
+            // bloquean el alta con la latencia de Resend. Los errores de runtime de
+            // la task se loguean (FITZ-27 cerrado en fitz v0.61.0).
+            spawn(signup_emails(fam, tipo))
             let _ = set_account_type(fam.email, tipo).await
             let destino = match input.accion {
                 "familia" => "/familia/pin",

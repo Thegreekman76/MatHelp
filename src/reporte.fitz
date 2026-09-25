@@ -36,6 +36,7 @@ type ReporteMeta {
 // El resumen de UN hijo esta semana.
 type ResumenHijo {
     nombre: Str = ""
+    pid: Int = 0             // profile_id (para linkear al detalle desde el grado)
     ejercicios: Int = 0
     accuracy: Int = 0        // % de aciertos (0..100)
     reforzar: Str = ""       // skill_code a reforzar ("" si no hay dato)
@@ -70,6 +71,7 @@ async fn resumen_de_hijo(conn: DbConn, nombre: Str, pid: Int) -> Result<ResumenH
     }
     return Ok(ResumenHijo {
         nombre: nombre,
+        pid: pid,
         ejercicios: ejercicios,
         accuracy: accuracy,
         reforzar: reforzar,

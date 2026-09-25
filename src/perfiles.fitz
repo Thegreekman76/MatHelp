@@ -57,6 +57,21 @@ async fn tiene_admin_pin(email: Str) -> Bool {
     }
 }
 
+// ¿Este perfil es un ALUMNO de un maestro? (tiene grupo_id). Los alumnos no ven
+// las opciones de cuenta del menú ("Mis datos" / "Sumar a mi familia" / "Zona
+// familia") — su cuenta es la del maestro, ellos solo juegan. Best-effort.
+async fn es_alumno(pid: Int) -> Bool {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return false },
+    }
+    let rows = match conn.query("SELECT grupo_id FROM profiles WHERE id = $1 AND grupo_id IS NOT NULL", [pid]).await {
+        Ok(r) => r,
+        Err(_) => { return false },
+    }
+    return rows.len() > 0
+}
+
 async fn crear_perfil(family_id: Int, nombre: Str, grado: Int, modalidad: Str, pin: Str, locale: Str) -> Result<Profile> {
     let conn = db.connect(db_url()).await?
     return Profile.insert(conn, Profile {

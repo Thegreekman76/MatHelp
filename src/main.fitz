@@ -16,7 +16,7 @@ from fmt import fmt_int
 from streaks import racha_actual
 from juegos import juegos, Juego
 import perfiles
-from perfiles import tiene_admin_pin
+from perfiles import tiene_admin_pin, es_alumno
 import assets
 import live_game
 import live_vf
@@ -120,15 +120,22 @@ async fn home(session: Str?, lang: Str?) -> Response {
                 return redirect_a("/perfiles")
             }
             let pid = a_int(pid_str)
-            // Individual = cuenta sin PIN de adulto. Le mostramos "Mis datos"
-            // (auto-gestión de su grado) en vez de "Cambiar de jugador".
-            let es_ind = not tiene_admin_pin(fam.email).await
+            // Alumno de un maestro (perfil con grupo_id): solo juega, no ve las
+            // opciones de cuenta. Individual = cuenta sin PIN de adulto (le
+            // mostramos "Mis datos" en vez de "Cambiar de jugador"). Un alumno
+            // usa la cuenta del maestro (sin PIN) → sin este check vería el menú
+            // de individual ("Sumar a mi familia"), que no le corresponde.
+            let alumno = es_alumno(pid).await
+            let es_ind = match alumno {
+                true => false,
+                false => not tiene_admin_pin(fam.email).await,
+            }
             let saludo = saludo_html(locale, pid).await
             let resumen = resumen_hoy_html(locale, pid).await
             let meta = meta_semanal_html(locale, pid).await
             let intro = home_intro_html(locale, pid).await
             let repaso = repaso_html(locale, pid).await
-            return home_jugar(locale, saludo, resumen, meta, intro, repaso, es_ind)
+            return home_jugar(locale, saludo, resumen, meta, intro, repaso, es_ind, alumno)
         }
         Err(_) => return home_publica(locale).await,
     }
@@ -220,21 +227,30 @@ async fn home_publica(locale: Str) -> Response {
 // adaptativo, F3), Elegir juego (grilla por grado) y Práctica libre (tema →
 // dificultad). El grado sale del perfil y el nivel es adaptativo: acá no se
 // elige ninguno de los dos (salvo en Práctica libre).
-fn home_jugar(locale: Str, saludo: Html, resumen: Html, meta: Html, ultimo: Html, repaso: Html, es_individual: Bool) -> Response {
+fn home_jugar(locale: Str, saludo: Html, resumen: Html, meta: Html, ultimo: Html, repaso: Html, es_individual: Bool, es_alumno: Bool) -> Response {
     let marca = logo_lockup(56, locale).raw
     let tagline = flv(t(locale, "app.tagline"))
     // Cuenta individual → "Mis datos" (auto-gestión del grado). Cuenta familiar →
     // "Cambiar de jugador" (con 1 solo perfil el selector auto-salta, por eso el
-    // individual no lo necesita).
-    let slot_perfil = match es_individual {
+    // individual no lo necesita). Un ALUMNO no ve ninguno (la cuenta es del maestro).
+    let slot_perfil_base = match es_individual {
         true => html("""<a class="mh-btn sec" href="/mi-perfil"><span aria-hidden="true">🎓</span>{flv(t(locale, "home.mis_datos"))}</a>""").raw,
         false => html("""<a class="mh-btn sec" href="/perfiles"><span aria-hidden="true">🔄</span>{flv(t(locale, "home.cambiar_jugador"))}</a>""").raw,
     }
     // Individual → "Sumar a mi familia" (upgrade a cuenta familiar). Familia →
     // "Zona familia" (gestión). El individual no ve "Zona familia" (no tiene una).
-    let slot_familia = match es_individual {
+    let slot_familia_base = match es_individual {
         true => html("""<a class="mh-btn sec" href="/upgrade"><span aria-hidden="true">➕</span> {flv(t(locale, "home.sumar_familia"))}</a>""").raw,
         false => html("""<a class="mh-btn sec" href="/familia"><span aria-hidden="true">👨‍👩‍👧</span> {flv(t(locale, "familia.zona"))}</a>""").raw,
+    }
+    // Un alumno solo juega: nada de gestión de cuenta.
+    let slot_perfil = match es_alumno {
+        true => "",
+        false => slot_perfil_base,
+    }
+    let slot_familia = match es_alumno {
+        true => "",
+        false => slot_familia_base,
     }
 
     let body = html("""<div class="mh-hero">

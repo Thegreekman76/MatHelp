@@ -50,13 +50,20 @@ async fn notify_admin_signup(fam: Family) -> Result<Bool> {
 
 // --- Bienvenida al usuario (localizada) ---------------------------------------
 
-async fn send_welcome(fam: Family) -> Result<Bool> {
+// `tipo` decide el copy de los pasos: "individual" y "teacher" tienen su propio
+// juego de claves (welcome_ind.* / welcome_teacher.*); el resto usa el de familia.
+async fn send_welcome(fam: Family, tipo: Str) -> Result<Bool> {
     let loc = fam.locale
+    let prefix = match tipo {
+        "teacher" => "welcome_teacher",
+        "individual" => "welcome_ind",
+        _ => "welcome",
+    }
     let saludo = t1(loc, "welcome.saludo", fam.display_name)
-    let intro = t(loc, "welcome.intro")
-    let p1 = t(loc, "welcome.paso1")
-    let p2 = t(loc, "welcome.paso2")
-    let p3 = t(loc, "welcome.paso3")
+    let intro = t(loc, prefix + ".intro")
+    let p1 = t(loc, prefix + ".paso1")
+    let p2 = t(loc, prefix + ".paso2")
+    let p3 = t(loc, prefix + ".paso3")
     let cta = t(loc, "welcome.cta")
     let cierre = t(loc, "welcome.cierre")
     let subj = t(loc, "welcome.subject")

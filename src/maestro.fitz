@@ -19,6 +19,7 @@ from engine import modalidad_valida
 from perfiles import opciones_grado, opciones_grado_sel, opciones_modalidad_sel, crear_perfil
 from reporte import resumen_de_hijo, ResumenHijo, enviar_reporte_a, PerfilRef, ReporteMeta
 from skills import skill_label_key
+from progreso import render_progreso as render_progreso_perfil
 
 // --- DB: schema lazy (grupos + profiles.grupo_id) ------------------------------
 // La migración 0025 los crea en initdb (base nueva). Para la base ya existente,
@@ -464,12 +465,82 @@ fn render_grado(locale: Str, g: Grupo, alumnos: List<AlumnoRow>) -> Html {
 <a class="mh-link" href="/maestro">{flv(t(locale, "maestro.volver_panel"))}</a>""")
 }
 
-// Una fila del progreso de un alumno: nombre + métricas de la semana (o "sin
-// actividad" si no jugó nada). Mismo look mobile-first que fila_alumno.
-fn fila_progreso(locale: Str, r: ResumenHijo) -> Html {
+// Promedio detallado del grado (agregado de los resúmenes semanales).
+type ResumenGrado {
+    alumnos: Int = 0
+    activos: Int = 0
+    inactivos: Int = 0
+    prom_ejercicios: Int = 0    // promedio sobre TODOS (refleja la participación)
+    prom_aciertos: Int = 0      // promedio SOLO de los activos (aciertos reales)
+}
+
+// Calcula el resumen del grado a partir de la lista de resúmenes por alumno.
+fn agregar_grado(rs: List<ResumenHijo>) -> ResumenGrado {
+    let n = rs.len()
+    let activos = 0
+    let sum_ej = 0
+    let sum_acc = 0
+    for r in rs {
+        sum_ej = sum_ej + r.ejercicios
+        if (r.activo) {
+            activos = activos + 1
+            sum_acc = sum_acc + r.accuracy
+        }
+    }
+    let prom_ej = match n > 0 {
+        true => sum_ej / n,
+        false => 0,
+    }
+    let prom_acc = match activos > 0 {
+        true => sum_acc / activos,
+        false => 0,
+    }
+    return ResumenGrado {
+        alumnos: n,
+        activos: activos,
+        inactivos: n - activos,
+        prom_ejercicios: prom_ej,
+        prom_aciertos: prom_acc,
+    }
+}
+
+// Una "estadística" del resumen: número grande + etiqueta.
+fn stat_grado(valor: Str, etiqueta: Str) -> Html {
+    return html("""<div style="flex:1 1 8rem;min-width:8rem;text-align:center;padding:.6rem .4rem;background:var(--mh-borde,#f1f5f9);border-radius:12px">
+<div style="font-size:1.6rem;font-weight:800;line-height:1.1">{valor}</div>
+<div style="font-size:.8rem;color:var(--mh-suave);margin-top:.2rem">{etiqueta}</div>
+</div>""")
+}
+
+// Tarjeta "Resumen del grado": alumnos / activos / sin actividad + promedios.
+fn card_resumen_grado(locale: Str, rg: ResumenGrado) -> Html {
+    let stats: List<Html> = [
+        stat_grado("{rg.alumnos}", flv(t(locale, "grado.prom_alumnos"))),
+        stat_grado("{rg.activos}", flv(t(locale, "grado.prom_activos"))),
+        stat_grado("{rg.inactivos}", flv(t(locale, "grado.prom_inactivos"))),
+        stat_grado("{rg.prom_ejercicios}", flv(t(locale, "grado.prom_ejercicios"))),
+        stat_grado("{rg.prom_aciertos}%", flv(t(locale, "grado.prom_aciertos"))),
+    ]
+    return html("""<div class="mh-card">
+<h2><span aria-hidden="true">📈</span> {flv(t(locale, "grado.prom_titulo"))}</h2>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.4rem">
+{h_join(stats)}
+</div>
+</div>""")
+}
+
+// Una fila del progreso de un alumno: nombre + barra de aciertos + métricas,
+// clickeable al detalle individual (destrezas/medallas/récords/racha). Los que no
+// jugaron esta semana salen atenuados con "sin actividad".
+fn fila_progreso(locale: Str, gid: Int, r: ResumenHijo) -> Html {
     let nom = flv(r.nombre)
+    let ver = flv(t(locale, "grado.ver_detalle"))
+    let href = "/maestro/grado/{gid}/alumno/{r.pid}"
     if (not r.activo) {
-        return html("""<div class="mh-fam-row"><span class="mh-fam-nom">{nom}</span><span style="color:var(--mh-suave);font-size:.85rem">{flv(t(locale, "grado.prog_sin_actividad"))}</span></div>""")
+        return html("""<a href="{href}" style="text-decoration:none;color:inherit;display:block"><div class="mh-fam-row" style="opacity:.7">
+<span class="mh-fam-nom">{nom}</span>
+<span style="color:var(--mh-suave);font-size:.85rem">{flv(t(locale, "grado.prog_sin_actividad"))} · {ver} →</span>
+</div></a>""")
     }
     let ref = match r.reforzar == "" {
         true => flv(t(locale, "grado.prog_ninguno")),
@@ -478,15 +549,20 @@ fn fila_progreso(locale: Str, r: ResumenHijo) -> Html {
     let ej = flv(t(locale, "grado.prog_col_ejercicios"))
     let ac = flv(t(locale, "grado.prog_col_aciertos"))
     let rf = flv(t(locale, "grado.prog_col_reforzar"))
-    return html("""<div class="mh-fam-row">
-<span class="mh-fam-nom">{nom}</span>
-<span style="color:var(--mh-suave);font-size:.85rem">{ej}: <b>{r.ejercicios}</b> · {ac}: <b>{r.accuracy}%</b> · {rf}: {ref}</span>
-</div>""")
+    return html("""<a href="{href}" style="text-decoration:none;color:inherit;display:block;margin:.7rem 0">
+<div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;margin-bottom:.3rem">
+<span>{nom}</span><span style="color:var(--mh-suave);font-size:.9rem">{r.accuracy}% · {ver} →</span>
+</div>
+<div style="background:var(--mh-borde,#e2e8f0);border-radius:99px;height:14px;overflow:hidden">
+<div style="width:{r.accuracy}%;height:100%;background:var(--mh-acento,#0E7A63);border-radius:99px"></div>
+</div>
+<div style="font-size:.82rem;color:var(--mh-suave);margin-top:.25rem">{ej}: <b>{r.ejercicios}</b> · {rf}: {ref}</div>
+</a>""")
 }
 
-// Panel de progreso del grado: métricas de la semana por alumno + descargar CSV +
-// enviarme el reporte por email. `msg_key` (con `msg_ok`) muestra un banner tras
-// enviar el reporte ("" = sin banner).
+// Panel de progreso del grado: resumen agregado + una barra por alumno (clickeable
+// al detalle) + descargar CSV + enviarme el reporte por email. `msg_key` (con
+// `msg_ok`) muestra un banner tras enviar el reporte ("" = sin banner).
 fn render_progreso(locale: Str, g: Grupo, rs: List<ResumenHijo>, msg_key: Str, msg_ok: Bool) -> Html {
     let cls = match msg_ok {
         true => "background:#dcfce7;color:#166534;border:1px solid #86efac",
@@ -496,14 +572,22 @@ fn render_progreso(locale: Str, g: Grupo, rs: List<ResumenHijo>, msg_key: Str, m
         true => "",
         false => html("""<div style="{cls};padding:.7rem 1rem;border-radius:10px;margin:0 0 1rem">{flv(t(locale, msg_key))}</div>""").raw,
     }
+    let resumen = match rs.len() == 0 {
+        true => "",
+        false => card_resumen_grado(locale, agregar_grado(rs)).raw,
+    }
     let lista = match rs.len() == 0 {
         true => html("""<p style="color:var(--mh-suave)">{flv(t(locale, "grado.sin_alumnos_grado"))}</p>""").raw,
-        false => h_join(rs.map(fn(r) => fila_progreso(locale, r))),
+        false => h_join(rs.map(fn(r) => fila_progreso(locale, g.id, r))),
     }
     return html("""<div class="mh-card">
 <h2><span aria-hidden="true">📊</span> {flv(t(locale, "grado.progreso_titulo"))} — {flv(g.nombre)}</h2>
-<p style="color:var(--mh-suave);margin:.2rem 0 .8rem">{flv(t(locale, "grado.prog_esta_semana"))}</p>
+<p style="color:var(--mh-suave);margin:.2rem 0 0">{flv(t(locale, "grado.prog_esta_semana"))}</p>
+</div>
 {banner}
+{resumen}
+<div class="mh-card">
+<h2>{flv(t(locale, "grado.prom_por_alumno"))}</h2>
 {lista}
 <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
 <a class="mh-btn sec" href="/maestro/grado/{g.id}/export.csv"><span aria-hidden="true">⬇️</span> {flv(t(locale, "grado.exportar_csv"))}</a>
@@ -912,6 +996,67 @@ async fn grado_progreso(session: Str?, lang: Str?, id: Int) -> Response {
     }
     let rs = progreso_de_grupo(id).await
     return responder_html(page(locale, t(locale, "grado.progreso_titulo") + " — MatHelp", render_progreso(locale, g, rs, "", true), html("")))
+}
+
+// Nombre de un alumno por id (para el título del detalle). "" si no existe.
+async fn nombre_alumno(pid: Int) -> Str {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => { return "" },
+    }
+    let rows = match conn.query("SELECT name FROM profiles WHERE id = $1", [pid]).await {
+        Ok(r) => r,
+        Err(_) => { return "" },
+    }
+    if (rows.len() == 0) {
+        return ""
+    }
+    return match rows[0].get_str("name") {
+        Ok(v) => v,
+        Err(_) => "",
+    }
+}
+
+// /maestro/grado/{gid}/alumno/{pid} → detalle individual de un alumno: la MISMA
+// vista rica que ve una familia de su hijo (destrezas + medallas + récords +
+// racha), reutilizando render_progreso de progreso.fitz. Defensa: el alumno debe
+// pertenecer a un grado de ESTE maestro.
+@cookie(name="mathelp_session", into="session")
+@cookie(name="mathelp_lang", into="lang")
+@get("/maestro/grado/{gid}/alumno/{pid}")
+async fn grado_alumno_detalle(session: Str?, lang: Str?, gid: Int, pid: Int) -> Response {
+    let locale = locale_from_cookie(lang)
+    let fam = match read_session(session).await {
+        Ok(f) => f,
+        Err(_) => return redirect_a("/login"),
+    }
+    if (not es_teacher(fam.email).await) {
+        return redirect_a("/")
+    }
+    let _g = match grupo_de_maestro(fam.id, gid).await {
+        Ok(gr) => gr,
+        Err(_) => return redirect_a("/maestro"),
+    }
+    if (not alumno_es_del_maestro(fam.id, pid).await) {
+        return redirect_a("/maestro/grado/{gid}/progreso")
+    }
+    let nombre = nombre_alumno(pid).await
+    let titulo = t1(locale, "grado.detalle_titulo", nombre) + " — MatHelp"
+    match render_progreso_perfil(pid, locale, "/maestro/grado/{gid}/progreso", "grado.volver_progreso").await {
+        Ok(body) => {
+            let head = html("""<div class="mh-card"><h2><span aria-hidden="true">📊</span> {flv(t1(locale, "grado.detalle_titulo", nombre))}</h2></div>""")
+            let full = html("""{head.raw}
+{body.raw}""")
+            return responder_html(page(locale, titulo, full, html("")))
+        }
+        Err(_) => {
+            let err = html("""<div class="mh-card" style="text-align:center">
+<p style="color:var(--mh-suave)">{flv(t(locale, "estado.db_error"))}</p>
+<a class="mh-btn sec" href="/maestro/grado/{gid}/progreso">{flv(t(locale, "grado.volver_progreso"))}</a>
+</div>""")
+            return responder_html(page(locale, titulo, err, html("")))
+        }
+    }
 }
 
 // /maestro/grado/{id}/export.csv → descarga del progreso como CSV (abre en Excel).

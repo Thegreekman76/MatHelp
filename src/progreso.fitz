@@ -127,7 +127,10 @@ fn fila_record(locale: Str, code: Str, best: Int) -> Html {
 
 // Arma el cuerpo de la página con los datos ya leídos. Propaga errores de DB
 // con `?`; el handler los traduce a una pantalla de error amable.
-async fn render_progreso(profile_id: Int, locale: Str) -> Result<Html> {
+// `volver_href`/`volver_key` deciden el link de "volver" (la familia vuelve a "/";
+// el maestro que mira a un alumno vuelve al progreso del grado). Así la vista rica
+// (destrezas + medallas + récords + racha) se reusa tal cual en ambos casos.
+async fn render_progreso(profile_id: Int, locale: Str, volver_href: Str, volver_key: Str) -> Result<Html> {
     let conn = db.connect(db_url()).await?
     let mrows = conn.query("SELECT skill_code, rating, seen, hits FROM mastery WHERE profile_id = $1 ORDER BY skill_code", [profile_id]).await?
     let arows = conn.query("SELECT code FROM awards WHERE profile_id = $1 ORDER BY earned_at", [profile_id]).await?
@@ -154,7 +157,7 @@ async fn render_progreso(profile_id: Int, locale: Str) -> Result<Html> {
 <p style="color:var(--mh-suave);margin:.4rem 0 1.2rem">{flv(t(locale, "progreso.sin_datos"))}</p>
 <a class="mh-btn" href="/sorpresa">{flv(t(locale, "home.jugar_ya"))}</a>
 </div>
-<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+<a class="mh-btn sec" href="{volver_href}">{flv(t(locale, volver_key))}</a>""")
         return Ok(vacio)
     }
 
@@ -214,7 +217,7 @@ async fn render_progreso(profile_id: Int, locale: Str) -> Result<Html> {
 </div>
 </div>
 {records_card}
-<a class="mh-btn sec" href="/">{flv(t(locale, "perfiles.volver"))}</a>""")
+<a class="mh-btn sec" href="{volver_href}">{flv(t(locale, volver_key))}</a>""")
     return Ok(body)
 }
 
@@ -228,7 +231,7 @@ async fn progreso_get(session: Str?, lang: Str?) -> Response {
         Err(destino) => return redirect_a(destino),
     }
     let titulo = t(locale, "nav.progreso") + " — MatHelp"
-    match render_progreso(ctx.profile_id, locale).await {
+    match render_progreso(ctx.profile_id, locale, "/", "perfiles.volver").await {
         Ok(body) => return responder_html(page(locale, titulo, body, html(""))),
         Err(_) => {
             let err = html("""<div class="mh-card" style="text-align:center">

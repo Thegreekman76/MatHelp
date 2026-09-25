@@ -39,6 +39,10 @@ services:
       MATHELP_PUBLIC_URL: ${MATHELP_PUBLIC_URL:-https://mathelp.example}
       # Super-admins del sitio (coma-separado). Habilita /admin + link en /familia.
       MATHELP_ADMIN_EMAILS: ${MATHELP_ADMIN_EMAILS:-}
+      # Disparo manual de reportes (/__ops/run-weekly-report, /__ops/run-grade-reports).
+      MATHELP_MANUAL_REPORT: ${MATHELP_MANUAL_REPORT:-0}
+      # Resend HTTP API — la vía real de email (igual que prod). Vacío = no-op.
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
